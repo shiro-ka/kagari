@@ -85,3 +85,40 @@ jobs:
       - name: Remove signing files
         if: always()
         run: rm -f signing.properties "$RUNNER_TEMP/kagari.p12"
+
+  emulator:
+    name: Launch on emulator
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download APK
+        uses: actions/download-artifact@v8
+        with:
+          name: kagari-apk
+          path: apk
+
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: bash .github/kagari/emulator-check.sh apk emulator-out
+
+      - name: Upload emulator results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kagari-emulator
+          path: emulator-out
+          if-no-files-found: warn
