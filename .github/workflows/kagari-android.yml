@@ -1,0 +1,87 @@
+name: kagari Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kagari-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: 25
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Write signing config
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+        run: |
+          for name in SIGNING_KEY KEY_STORE_PASSWORD KEY_PASSWORD ALIAS; do
+            if [ -z "${!name}" ]; then
+              echo "::error::secret $name is empty"
+              exit 1
+            fi
+          done
+          printf '%s' "$SIGNING_KEY" | base64 -d > "$RUNNER_TEMP/kagari.p12"
+          {
+            echo "storeFile=$RUNNER_TEMP/kagari.p12"
+            echo "storePassword=$KEY_STORE_PASSWORD"
+            echo "keyAlias=$ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > signing.properties
+
+      - name: Set version
+        run: |
+          base=$(grep '^versionName=' fdroid.properties | cut -d= -f2)
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=${base}-kagari.${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Show signing certificate
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
+          "$apksigner" verify --print-certs "$apk"
+          mkdir -p "$RUNNER_TEMP/out"
+          cp "$apk" "$RUNNER_TEMP/out/kagari-${BUILD_VERSION}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: kagari-apk
+          path: ${{ runner.temp }}/out/*.apk
+          if-no-files-found: error
+
+      - name: Remove signing files
+        if: always()
+        run: rm -f signing.properties "$RUNNER_TEMP/kagari.p12"
