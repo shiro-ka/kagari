@@ -22,7 +22,7 @@ plugins {
 
 flare {
     namespace = "dev.dimension.flare"
-    applicationId = "dev.dimension.flare"
+    applicationId = "lab49.kagari"
 }
 
 // START Non-FOSS component
