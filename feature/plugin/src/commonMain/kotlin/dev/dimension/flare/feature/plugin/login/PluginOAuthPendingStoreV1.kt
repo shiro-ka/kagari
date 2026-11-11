@@ -127,7 +127,7 @@ public class PluginOAuthPendingCorruptException(
 
 public fun pluginOAuthRedirectUri(flowId: String): String {
     require(FLOW_ID.matches(flowId)) { "Invalid OAuth flow ID" }
-    return "flare://Callback/SignIn/Plugin/$flowId"
+    return "kagari://Callback/SignIn/Plugin/$flowId"
 }
 
 private fun PluginOAuthPendingV1.toPlatformPending(): PlatformOAuthPending =

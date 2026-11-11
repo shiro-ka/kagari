@@ -84,7 +84,7 @@ class WireV1Test {
             "content://post/1",
             "data:text/html,post",
             "javascript:alert(1)",
-            "flare://status/1",
+            "kagari://status/1",
             "https://user:password@example.social/post",
             "https://example.social/\npost",
         ).forEach { url ->

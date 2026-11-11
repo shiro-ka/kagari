@@ -14,7 +14,7 @@ import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 import kotlin.uuid.Uuid
 
-public const val APPSCHEMA: String = "flare"
+public const val APPSCHEMA: String = "kagari"
 
 @Serializable
 public sealed class DeeplinkRoute {

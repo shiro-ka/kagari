@@ -74,7 +74,7 @@ class MediaDeeplinkProxyTest {
 
     @Test
     fun changingSignedStatusPreviewsCannotReuseTheirRoutingPermission() {
-        val signed = ProtoBuf.decodeFromHexString<ExternalRoutePackage>(statusMedia.toUri().removePrefix("flare://"))
+        val signed = ProtoBuf.decodeFromHexString<ExternalRoutePackage>(statusMedia.toUri().removePrefix("kagari://"))
         for (route in listOf(
             statusMedia.copy(preview = "https://attacker.example/image.jpg"),
             statusMedia.copy(accountType = AccountType.Specific(MicroBlogKey("forged", "nostr"))),
@@ -108,7 +108,7 @@ class MediaDeeplinkProxyTest {
 
     @Test
     fun changingSignedMediaCannotReuseItsRoutingPermission() {
-        val signed = ProtoBuf.decodeFromHexString<ExternalRoutePackage>(image.toUri().removePrefix("flare://"))
+        val signed = ProtoBuf.decodeFromHexString<ExternalRoutePackage>(image.toUri().removePrefix("kagari://"))
         val changed =
             listOf(
                 image.copy(uri = "https://attacker.example/image.jpg"),
@@ -129,7 +129,7 @@ class MediaDeeplinkProxyTest {
     private fun externalUri(
         route: DeeplinkRoute,
         signature: String? = null,
-    ): String = "flare://${ProtoBuf.encodeToHexString(ExternalRoutePackage(route, signature))}"
+    ): String = "kagari://${ProtoBuf.encodeToHexString(ExternalRoutePackage(route, signature))}"
 
     // Encode the public wire format without using the app's trusted link builder.
     @Serializable

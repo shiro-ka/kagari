@@ -1161,7 +1161,7 @@ private fun pageRequest(): PageRequestV1 = PageRequestV1(PageDirectionV1.Refresh
 
 private const val PLUGIN_ID = "dev.dimension.flare.sample.pixelfed"
 private const val ORIGIN = "https://pixelfed.social"
-private const val REDIRECT_URI = "flare://Callback/SignIn/Plugin/flow"
+private const val REDIRECT_URI = "kagari://Callback/SignIn/Plugin/flow"
 private const val INSTANCE =
     """{"uri":"pixelfed.social","title":"Pixelfed Social","version":"3.5.3 (compatible; Pixelfed 0.12.7)","description":"Photos","stats":{"user_count":10},"registrations":true,"configuration":{"statuses":{"max_characters":500,"max_media_attachments":4},"media_attachments":{"image_size_limit":10485760,"video_size_limit":20971520,"description_limit":1500,"supported_mime_types":["image/jpeg","image/png","video/mp4"]}}}"""
 private const val MASTODON_INSTANCE =

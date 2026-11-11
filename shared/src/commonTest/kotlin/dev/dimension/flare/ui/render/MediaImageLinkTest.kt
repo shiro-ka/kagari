@@ -64,7 +64,7 @@ class MediaImageLinkTest {
     @Test
     fun bindingRawLinksDoesNotSignUntrustedMediaOverrides() {
         val route = DeeplinkRoute.Media.Image("https://attacker.example/image.jpg", null, proxy = ProxyRef.System)
-        val forged = "flare://${ProtoBuf.encodeToHexString(UnsignedRoutePackage(route))}"
+        val forged = "kagari://${ProtoBuf.encodeToHexString(UnsignedRoutePackage(route))}"
         val text = parseHtml("""<a href="$forged">image</a>""").toUi().withProxy(proxy)
         val run = assertIs<RenderRun.Text>(assertIs<RenderContent.Text>(text.renderRuns.single()).runs.single())
         assertNull(run.style.imageLink)

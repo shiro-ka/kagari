@@ -35,7 +35,7 @@ class HtmlRenderRunMapperTest {
 
     @Test
     fun preserves_absolute_and_internal_links() {
-        listOf("https://example.com/post", "flare://Settings", "mailto:hello@example.com", "tel:123").forEach { href ->
+        listOf("https://example.com/post", "kagari://Settings", "mailto:hello@example.com", "tel:123").forEach { href ->
             val content = assertIs<RenderContent.Text>(map("""<a href=" $href ">link</a>""").single())
             assertEquals(href, assertIs<RenderRun.Text>(content.runs.single()).style.link)
         }

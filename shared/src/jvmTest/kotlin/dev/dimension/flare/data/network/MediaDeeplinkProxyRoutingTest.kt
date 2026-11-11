@@ -93,7 +93,7 @@ class MediaDeeplinkProxyRoutingTest {
                     statusMedia.copy(accountType = AccountType.Specific(MicroBlogKey("forged", "nostr"))),
                 )) {
                     val encoded = ProtoBuf.encodeToHexString(ExternalRoutePackage(route))
-                    val decoded = DeeplinkRoute.parse("flare://$encoded")
+                    val decoded = DeeplinkRoute.parse("kagari://$encoded")
                     when (decoded) {
                         is DeeplinkRoute.Media.Image -> runCatching { fetch(decoded) }
                         is DeeplinkRoute.Media.StatusMedia -> runCatching { fetchPreview(decoded) }

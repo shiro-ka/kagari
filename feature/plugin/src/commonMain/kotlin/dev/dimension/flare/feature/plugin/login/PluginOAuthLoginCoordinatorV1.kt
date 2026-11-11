@@ -218,7 +218,7 @@ internal data class PluginOAuthResumeResultV1(
 public fun parsePluginOAuthCallback(value: String): PluginOAuthCallbackV1 {
     require(value.length <= MAX_CALLBACK_URL_LENGTH) { "OAuth callback URL is too long" }
     val url = parseUrl(value) ?: throw PluginLoginException("oauth.callback", "Invalid OAuth callback URL")
-    require(url.protocol.name.equals("flare", ignoreCase = true)) { "Invalid OAuth callback scheme" }
+    require(url.protocol.name.equals("kagari", ignoreCase = true)) { "Invalid OAuth callback scheme" }
     require(url.host.equals("Callback", ignoreCase = true)) { "Invalid OAuth callback host" }
     require(url.user == null && url.password == null && url.fragment.isEmpty()) { "Invalid OAuth callback URL" }
     require(url.segments.size == 3 && url.segments[0] == "SignIn" && url.segments[1] == "Plugin") {
