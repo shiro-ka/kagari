@@ -121,7 +121,7 @@ def tap(label, last=False, timeout=20, exact=False):
     return True
 
 
-def open_own_post_menu():
+def open_own_post_menu(more="More", markers=("Reaction settings",), banner="New Post"):
     tried = set()
     for _ in range(12):
         root = dump()
@@ -134,15 +134,15 @@ def open_own_post_menu():
             adb("shell", "input", "tap", str(x), str(y))
             time.sleep(3)
             continue
-        banner = [n for n in root.iter("node") if "New Post" in (n.get("text") or "")]
-        if banner:
-            x, y = center(banner[0])
+        banners = [n for n in root.iter("node") if banner in (n.get("text") or "")]
+        if banners:
+            x, y = center(banners[0])
             adb("shell", "input", "tap", str(x), str(y))
             time.sleep(4)
             continue
         candidates = []
         for node in root.iter("node"):
-            if node.get("content-desc") == "More":
+            if node.get("content-desc") == more:
                 x, y = center(node)
                 if 100 < y < 560 and (x, y) not in tried:
                     candidates.append((x, y))
@@ -152,7 +152,7 @@ def open_own_post_menu():
             time.sleep(2)
             shot("menu-try")
             dump("menu-try")
-            if find("Replies:", timeout=3) is not None or find("Quotes:", timeout=1) is not None:
+            if any(find(m, timeout=3) is not None for m in markers):
                 return True
             adb("shell", "input", "keyevent", "KEYCODE_BACK")
             time.sleep(1)
@@ -233,7 +233,7 @@ def main():
         if open_own_post_menu():
             shot("post-menu")
             dump("post-menu")
-            if tap("Replies:", timeout=5) or tap("Quotes:", timeout=5):
+            if tap("Reaction settings", timeout=5):
                 time.sleep(6)
                 shot("edit-dialog")
                 dump("edit-dialog")
@@ -246,6 +246,16 @@ def main():
                         if open_own_post_menu():
                             shot("post-menu-after-save")
                             dump("post-menu-after-save")
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        adb("shell", "cmd", "locale", "set-app-locales", "lab49.kagari", "--locales", "ja-JP")
+        time.sleep(6)
+        shot("ja-home")
+        if open_own_post_menu(more="その他", markers=("リアクションの設定",), banner="新しい投稿"):
+            shot("ja-post-menu")
+            dump("ja-post-menu")
+            if tap("リアクションの設定", timeout=5):
+                time.sleep(6)
+                shot("ja-edit-dialog")
         return 0
     if tap("Quote posts", timeout=5):
         time.sleep(1)
