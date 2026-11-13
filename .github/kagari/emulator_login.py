@@ -121,6 +121,22 @@ def tap(label, last=False, timeout=20, exact=False):
     return True
 
 
+def tap_post_more():
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        root = dump()
+        if root is not None:
+            for node in root.iter("node"):
+                if node.get("content-desc") == "More":
+                    x, y = center(node)
+                    if y > 100:
+                        adb("shell", "input", "tap", str(x), str(y))
+                        time.sleep(1)
+                        return True
+        time.sleep(1)
+    return False
+
+
 def type_into(label, text):
     for attempt in range(3):
         if not tap(label):
@@ -186,11 +202,11 @@ def main():
             return 1
         time.sleep(15)
         shot("after-post")
-        adb("shell", "input", "swipe", "160", "200", "160", "500", "300")
-        time.sleep(8)
+        if tap("New Post", timeout=10):
+            time.sleep(5)
         shot("timeline")
         dump("timeline")
-        if tap("More", timeout=10):
+        if tap_post_more():
             time.sleep(2)
             shot("post-menu")
             dump("post-menu")
