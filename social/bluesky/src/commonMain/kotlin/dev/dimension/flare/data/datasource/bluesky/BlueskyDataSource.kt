@@ -451,7 +451,12 @@ internal class BlueskyDataSource(
                         Language(it)
                     },
             )
-        val created = service
+        val gate = data.interactionGate
+        if (post.reply == null && gate != null && gate.needsBlueskyRecords()) {
+            createBlueskyPostWithGate(service, accountKey, post.bskyJson(), gate)
+            return
+        }
+        service
             .createRecord(
                 CreateRecordRequest(
                     repo = Did(did = accountKey.id),
@@ -459,9 +464,6 @@ internal class BlueskyDataSource(
                     record = post.bskyJson(),
                 ),
             ).requireResponse()
-        if (post.reply == null) {
-            applyBlueskyInteractionGate(service, accountKey, created.uri, data.interactionGate)
-        }
     }
 
     private suspend fun createExternalEmbed(

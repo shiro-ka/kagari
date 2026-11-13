@@ -15,7 +15,9 @@ import app.bsky.feed.ThreadgateFollowingRule
 import app.bsky.feed.ThreadgateListRule
 import app.bsky.feed.ThreadgateMentionRule
 import app.bsky.graph.GetListsQueryParams
-import com.atproto.repo.CreateRecordRequest
+import com.atproto.repo.ApplyWritesCreate
+import com.atproto.repo.ApplyWritesRequest
+import com.atproto.repo.ApplyWritesRequestWriteUnion
 import dev.dimension.flare.data.datasource.microblog.InteractionGate
 import dev.dimension.flare.data.datasource.microblog.InteractionGateConfig
 import dev.dimension.flare.data.datasource.microblog.InteractionGateList
@@ -26,6 +28,8 @@ import sh.christian.ozone.api.AtUri
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.api.Nsid
 import sh.christian.ozone.api.RKey
+import sh.christian.ozone.api.model.JsonContent
+import kotlin.random.Random
 import kotlin.time.Clock
 
 internal fun blueskyInteractionGateConfig(
@@ -76,48 +80,81 @@ internal fun blueskyInteractionGateConfig(
         },
     )
 
-internal suspend fun applyBlueskyInteractionGate(
+internal fun InteractionGate?.needsBlueskyRecords(): Boolean =
+    this != null && (reply.toThreadgateAllow() != null || !allowQuote)
+
+internal suspend fun createBlueskyPostWithGate(
     service: BlueskyService,
     accountKey: MicroBlogKey,
-    postUri: AtUri,
-    gate: InteractionGate?,
+    post: JsonContent,
+    gate: InteractionGate,
 ) {
-    if (gate == null) return
-    val rkey = RKey(postUri.atUri.substringAfterLast('/'))
-    val allow = gate.reply.toThreadgateAllow()
-    if (allow != null) {
-        service
-            .createRecord(
-                CreateRecordRequest(
-                    repo = Did(did = accountKey.id),
-                    collection = Nsid("app.bsky.feed.threadgate"),
-                    rkey = rkey,
-                    record =
-                        Threadgate(
-                            post = postUri,
-                            allow = allow,
-                            createdAt = Clock.System.now(),
-                        ).bskyJson(),
-                ),
-            ).requireResponse()
-    }
-    if (!gate.allowQuote) {
-        service
-            .createRecord(
-                CreateRecordRequest(
-                    repo = Did(did = accountKey.id),
-                    collection = Nsid("app.bsky.feed.postgate"),
-                    rkey = rkey,
-                    record =
+    val tid = newTid()
+    val rkey = RKey(tid)
+    val postUri = AtUri("at://${accountKey.id}/app.bsky.feed.post/$tid")
+    val now = Clock.System.now()
+    val writes =
+        buildList {
+            add(create("app.bsky.feed.post", rkey, post))
+            gate.reply.toThreadgateAllow()?.let { allow ->
+                add(
+                    create(
+                        "app.bsky.feed.threadgate",
+                        rkey,
+                        Threadgate(post = postUri, allow = allow, createdAt = now).bskyJson(),
+                    ),
+                )
+            }
+            if (!gate.allowQuote) {
+                add(
+                    create(
+                        "app.bsky.feed.postgate",
+                        rkey,
                         Postgate(
-                            createdAt = Clock.System.now(),
+                            createdAt = now,
                             post = postUri,
-                            embeddingRules =
-                                listOf(PostgateEmbeddingRuleUnion.DisableRule(PostgateDisableRule)),
+                            embeddingRules = listOf(PostgateEmbeddingRuleUnion.DisableRule(PostgateDisableRule)),
                         ).bskyJson(),
+                    ),
+                )
+            }
+        }
+    service
+        .applyWrites(
+            request =
+                ApplyWritesRequest(
+                    repo = Did(did = accountKey.id),
+                    writes = writes.toImmutableList(),
                 ),
-            ).requireResponse()
+        ).requireResponse()
+}
+
+private fun create(
+    collection: String,
+    rkey: RKey,
+    value: JsonContent,
+): ApplyWritesRequestWriteUnion =
+    ApplyWritesRequestWriteUnion.Create(
+        value =
+            ApplyWritesCreate(
+                collection = Nsid(collection),
+                rkey = rkey,
+                value = value,
+            ),
+    )
+
+private const val TID_CHARS = "234567abcdefghijklmnopqrstuvwxyz"
+
+private fun newTid(): String {
+    val now = Clock.System.now()
+    val micros = now.epochSeconds * 1_000_000 + now.nanosecondsOfSecond / 1_000
+    var value = (micros shl 10) or Random.nextLong(0, 1024)
+    val out = CharArray(13)
+    for (i in 12 downTo 0) {
+        out[i] = TID_CHARS[(value and 31).toInt()]
+        value = value ushr 5
     }
+    return out.concatToString()
 }
 
 private fun InteractionGate.Reply.toThreadgateAllow(): List<ThreadgateAllowUnion>? =
