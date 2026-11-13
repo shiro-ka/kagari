@@ -58,4 +58,5 @@ internal fun dev.dimension.flare.data.datasource.microblog.ComposeData.toDraftCo
                     rootId = (it.composeStatus as? ComposeStatus.VVOComment)?.rootId,
                 )
             },
+        interactionGate = interactionGate,
     )

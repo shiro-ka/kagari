@@ -15,6 +15,7 @@ public data class ComposeData(
     val poll: Poll? = null,
     val localOnly: Boolean = false,
     val referenceStatus: ReferenceStatus? = null,
+    val interactionGate: InteractionGate? = null,
 ) {
     public data class Poll(
         val options: List<String>,

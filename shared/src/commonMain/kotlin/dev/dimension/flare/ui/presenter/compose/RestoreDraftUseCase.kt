@@ -78,6 +78,7 @@ internal fun DraftContent.toComposeData(
                     composeStatus = reference.toComposeStatus(),
                 )
             },
+        interactionGate = interactionGate,
     )
 
 internal fun DraftContent.DraftReference.toComposeStatus(): ComposeStatus =
