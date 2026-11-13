@@ -27,8 +27,10 @@ app.bsky.feed.getPosts
 app.bsky.feed.getTimeline
 app.bsky.feed.like
 app.bsky.feed.post
+app.bsky.feed.postgate
 app.bsky.feed.repost
 app.bsky.feed.searchPosts
+app.bsky.feed.threadgate
 app.bsky.graph.block
 app.bsky.graph.defs
 app.bsky.graph.follow

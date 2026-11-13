@@ -451,7 +451,7 @@ internal class BlueskyDataSource(
                         Language(it)
                     },
             )
-        service
+        val created = service
             .createRecord(
                 CreateRecordRequest(
                     repo = Did(did = accountKey.id),
@@ -459,6 +459,9 @@ internal class BlueskyDataSource(
                     record = post.bskyJson(),
                 ),
             ).requireResponse()
+        if (post.reply == null) {
+            applyBlueskyInteractionGate(service, accountKey, created.uri, data.interactionGate)
+        }
     }
 
     private suspend fun createExternalEmbed(
@@ -721,6 +724,8 @@ internal class BlueskyDataSource(
                     compression = MEDIA_COMPRESSION,
                 ),
             language = ComposeConfig.Language(3),
+            interactionGate =
+                if (type == ComposeType.Reply) null else blueskyInteractionGateConfig(accountKey, this::pdsService),
         )
 
     private val myFeedsKey = "my_feeds_$accountKey"
