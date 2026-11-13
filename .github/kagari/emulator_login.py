@@ -152,7 +152,7 @@ def open_own_post_menu():
             time.sleep(2)
             shot("menu-try")
             dump("menu-try")
-            if find("Replies:", timeout=3) or find("Quotes:", timeout=1):
+            if find("Replies:", timeout=3) is not None or find("Quotes:", timeout=1) is not None:
                 return True
             adb("shell", "input", "keyevent", "KEYCODE_BACK")
             time.sleep(1)
