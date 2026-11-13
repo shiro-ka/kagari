@@ -20,6 +20,7 @@ import dev.dimension.flare.R
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.status.action.KagariInteractionGatePresenter
 import dev.dimension.flare.ui.presenter.status.action.KagariInteractionGateState
 import dev.dimension.flare.ui.screen.compose.KagariGateDialog
