@@ -153,11 +153,14 @@ internal fun KagariReplyGateRow(
         )
     }
     if (state.showDialog) {
-        KagariReplyGateDialog(
-            initial = reply,
+        KagariGateDialog(
+            initial = state.gate,
             lists = state.lists,
+            showReply = true,
+            showQuote = false,
+            showSaveDefault = true,
             onDismiss = state::dismissDialog,
-            onConfirm = state::applyReply,
+            onConfirm = { gate, saveAsDefault -> state.applyReply(gate.reply, saveAsDefault) },
         )
     }
 }
@@ -222,13 +225,18 @@ private fun replySummary(reply: InteractionGate.Reply): String =
     }
 
 @Composable
-private fun KagariReplyGateDialog(
-    initial: InteractionGate.Reply,
+internal fun KagariGateDialog(
+    initial: InteractionGate,
     lists: List<InteractionGateList>?,
+    showReply: Boolean,
+    showQuote: Boolean,
+    showSaveDefault: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (InteractionGate.Reply, Boolean) -> Unit,
+    onConfirm: (InteractionGate, Boolean) -> Unit,
+    saving: Boolean = false,
 ) {
-    var reply by remember { mutableStateOf(initial) }
+    var reply by remember { mutableStateOf(initial.reply) }
+    var allowQuote by remember { mutableStateOf(initial.allowQuote) }
     var saveAsDefault by remember { mutableStateOf(false) }
     var showLists by remember { mutableStateOf(false) }
     val some = reply as? InteractionGate.Reply.Some ?: InteractionGate.Reply.Some()
@@ -242,12 +250,24 @@ private fun KagariReplyGateDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.kagari_gate_reply_title)) },
+        title = {
+            Text(
+                stringResource(if (showQuote) R.string.kagari_gate_edit_title else R.string.kagari_gate_reply_title),
+            )
+        },
         text = {
             Column(
                 modifier = Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                if (showReply) {
+                if (showQuote) {
+                    Text(
+                        text = stringResource(R.string.kagari_gate_reply_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = reply is InteractionGate.Reply.Anyone,
@@ -309,17 +329,32 @@ private fun KagariReplyGateDialog(
                             }
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                GateCheckRow(
-                    label = stringResource(R.string.kagari_gate_save_default),
-                    checked = saveAsDefault,
-                    enabled = true,
-                    onCheckedChange = { saveAsDefault = it },
-                )
+                }
+                if (showQuote) {
+                    if (showReply) HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    GateCheckRow(
+                        label = stringResource(R.string.kagari_gate_quote_allow),
+                        checked = allowQuote,
+                        enabled = true,
+                        onCheckedChange = { allowQuote = it },
+                    )
+                }
+                if (showSaveDefault) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    GateCheckRow(
+                        label = stringResource(R.string.kagari_gate_save_default),
+                        checked = saveAsDefault,
+                        enabled = true,
+                        onCheckedChange = { saveAsDefault = it },
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(reply, saveAsDefault) }) {
+            TextButton(
+                enabled = !saving,
+                onClick = { onConfirm(InteractionGate(reply = reply, allowQuote = allowQuote), saveAsDefault) },
+            ) {
                 Text(stringResource(R.string.kagari_gate_save))
             }
         },

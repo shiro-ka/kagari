@@ -50,6 +50,7 @@ import dev.dimension.flare.ui.screen.profile.profileEntryBuilder
 import dev.dimension.flare.ui.screen.rss.rssEntryBuilder
 import dev.dimension.flare.ui.screen.serviceselect.serviceSelectEntryBuilder
 import dev.dimension.flare.ui.screen.settings.settingsSelectEntryBuilder
+import dev.dimension.flare.ui.screen.status.kagariEntryBuilder
 import dev.dimension.flare.ui.screen.status.statusEntryBuilder
 import soup.compose.material.motion.animation.materialSharedAxisZ
 
@@ -104,6 +105,7 @@ internal fun Router(
                 serviceSelectEntryBuilder(stableNavigate, stableOnBack)
                 settingsSelectEntryBuilder(stableNavigate, stableOnBack)
                 statusEntryBuilder(stableNavigate, stableOnBack)
+                kagariEntryBuilder(stableOnBack)
                 misskeyEntryBuilder(stableNavigate, stableOnBack)
             }
         }

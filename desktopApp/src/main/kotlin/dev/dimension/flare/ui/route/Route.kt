@@ -492,6 +492,10 @@ internal sealed interface Route : NavKey {
                     AltText(text = deeplinkRoute.text)
                 }
 
+                is KagariInteractionGateRoute -> {
+                    null
+                }
+
                 is DeeplinkRoute.Status.BlueskyReport -> {
                     BlueskyReport(
                         accountType = deeplinkRoute.accountType,

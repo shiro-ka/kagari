@@ -1284,8 +1284,11 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
+                    ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
+                    ActionMenu.Item.Text.Localized.Type.KagariQuoteGate,
+                    -> null
                 }
-            stringResource(resource, *parameters.toTypedArray())
+            resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)
         }
     }
 

@@ -17,5 +17,8 @@
     <string name="kagari_gate_summary_lists">リスト%1$d件</string>
     <string name="kagari_gate_summary_separator">・</string>
     <string name="kagari_gate_quote_allowed">引用を許可</string>
-    <string name="kagari_gate_quote_disabled">引用を禁止</string>
+    <string name="kagari_gate_quote_disabled">引用を許可しない</string>
+    <string name="kagari_gate_edit_title">返信と引用の設定</string>
+    <string name="kagari_gate_quote_allow">引用を許可する</string>
+    <string name="kagari_gate_edit_failed">設定を変えられませんでした</string>
 </resources>

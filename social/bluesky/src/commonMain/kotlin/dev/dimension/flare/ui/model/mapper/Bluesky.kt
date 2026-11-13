@@ -1001,6 +1001,7 @@ internal fun PostView.render(
                         ),
                     actions =
                         buildList {
+                            if (isFromMe) addAll(kagariInteractionGateMenu(accountKey, statusKey))
                             add(
                                 ActionMenu.blueskyBookmark(
                                     accountKey = accountKey,

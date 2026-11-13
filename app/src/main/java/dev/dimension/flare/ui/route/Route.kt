@@ -694,6 +694,13 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariInteractionGateRoute -> {
+                    KagariInteractionGateDialogRoute(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                    )
+                }
+
                 is DeeplinkRoute.Status.BlueskyReport -> {
                     Status.BlueskyReport(
                         statusKey = deeplinkRoute.statusKey,

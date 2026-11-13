@@ -175,6 +175,8 @@ public sealed class ActionMenu {
                     ShowOriginal,
                     Favorite,
                     UnFavorite,
+                    KagariReplyGate,
+                    KagariQuoteGate,
                 }
             }
         }

@@ -19,4 +19,7 @@
     <string name="kagari_gate_summary_separator">,\u0020</string>
     <string name="kagari_gate_quote_allowed">Quote posts allowed</string>
     <string name="kagari_gate_quote_disabled">Quote posts disabled</string>
+    <string name="kagari_gate_edit_title">Reply and quote settings</string>
+    <string name="kagari_gate_quote_allow">Allow quote posts</string>
+    <string name="kagari_gate_edit_failed">Could not change the settings</string>
 </resources>

@@ -148,6 +148,8 @@ internal class BlueskyDataSource(
 
     private val mutex = Mutex(locked = false)
 
+    internal suspend fun kagariService(): BlueskyService = pdsService()
+
     private suspend fun pdsService(): BlueskyService =
         mutex.withLock {
             cachedPdsService ?: run {
