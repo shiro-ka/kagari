@@ -19,5 +19,8 @@ if adb shell pidof "$package" > "$out/pid.txt"; then
 else
   echo "not running" > "$out/pid.txt"
 fi
+if [ -n "${BSKY_HANDLE:-}" ]; then
+  python3 .github/kagari/emulator_login.py "$out/login" || echo "login script failed" > "$out/login-failed.txt"
+fi
 adb logcat -d > "$out/logcat.txt"
 adb logcat -d -b crash > "$out/crash.txt" || true

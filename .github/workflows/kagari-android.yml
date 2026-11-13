@@ -108,6 +108,9 @@ jobs:
 
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
         with:
           api-level: 36
           target: google_apis
