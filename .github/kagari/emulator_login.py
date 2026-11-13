@@ -61,7 +61,7 @@ def disable_ime():
 
 def type_text(text, delay):
     for ch in text:
-        adb("shell", "input", "text", ch)
+        adb("shell", "input", "text", "%s" if ch == " " else ch)
         time.sleep(delay)
 
 
