@@ -121,19 +121,36 @@ def tap(label, last=False, timeout=20, exact=False):
     return True
 
 
-def tap_post_more():
-    deadline = time.time() + 15
-    while time.time() < deadline:
+def open_own_post_menu():
+    tried = set()
+    for _ in range(8):
         root = dump()
-        if root is not None:
-            for node in root.iter("node"):
-                if node.get("content-desc") == "More":
-                    x, y = center(node)
-                    if y > 100:
-                        adb("shell", "input", "tap", str(x), str(y))
-                        time.sleep(1)
-                        return True
-        time.sleep(1)
+        if root is None:
+            time.sleep(1)
+            continue
+        banner = [n for n in root.iter("node") if "New Post" in (n.get("text") or "")]
+        if banner:
+            x, y = center(banner[0])
+            adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(4)
+            continue
+        candidates = []
+        for node in root.iter("node"):
+            if node.get("content-desc") == "More":
+                x, y = center(node)
+                if 100 < y < 560 and (x, y) not in tried:
+                    candidates.append((x, y))
+        for x, y in candidates:
+            tried.add((x, y))
+            adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(2)
+            if find("Replies:", timeout=3) or find("Quotes:", timeout=1):
+                return True
+            adb("shell", "input", "keyevent", "KEYCODE_BACK")
+            time.sleep(1)
+        adb("shell", "input", "swipe", "160", "450", "160", "150", "400")
+        time.sleep(2)
+        tried.clear()
     return False
 
 
@@ -202,18 +219,24 @@ def main():
             return 1
         time.sleep(15)
         shot("after-post")
-        if tap("New Post", timeout=10):
-            time.sleep(5)
         shot("timeline")
         dump("timeline")
-        if tap_post_more():
-            time.sleep(2)
+        if open_own_post_menu():
             shot("post-menu")
             dump("post-menu")
             if tap("Replies:", timeout=5) or tap("Quotes:", timeout=5):
                 time.sleep(6)
                 shot("edit-dialog")
                 dump("edit-dialog")
+                if tap("Allow quote posts", timeout=5):
+                    time.sleep(1)
+                    shot("edit-toggled")
+                    if tap("Save", timeout=5, exact=True):
+                        time.sleep(8)
+                        shot("after-save")
+                        if open_own_post_menu():
+                            shot("post-menu-after-save")
+                            dump("post-menu-after-save")
         return 0
     if tap("Quote posts", timeout=5):
         time.sleep(1)
