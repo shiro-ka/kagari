@@ -38,23 +38,34 @@ def center(node):
     return (x1 + x2) // 2, (y1 + y2) // 2
 
 
-def find(label, last=False, timeout=20):
+def hide_ime():
+    ime = adb("shell", "dumpsys", "input_method", capture=True).decode("utf-8", "replace")
+    if "mInputShown=true" in ime:
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1)
+
+
+def matches(node, label, exact):
+    texts = [node.get("text") or "", node.get("content-desc") or ""]
+    if exact:
+        return label in texts
+    return any(label in t for t in texts)
+
+
+def find(label, last=False, timeout=20, exact=False):
     deadline = time.time() + timeout
     while time.time() < deadline:
         root = dump()
         if root is not None:
-            hits = [
-                n for n in root.iter("node")
-                if label in (n.get("text") or "") or label in (n.get("content-desc") or "")
-            ]
+            hits = [n for n in root.iter("node") if matches(n, label, exact)]
             if hits:
                 return hits[-1] if last else hits[0]
         time.sleep(1)
     return None
 
 
-def tap(label, last=False, timeout=20):
-    node = find(label, last=last, timeout=timeout)
+def tap(label, last=False, timeout=20, exact=False):
+    node = find(label, last=last, timeout=timeout, exact=exact)
     if node is None:
         dump(f"missing-{re.sub(r'[^A-Za-z0-9]+', '_', label)}")
         shot(f"missing-{re.sub(r'[^A-Za-z0-9]+', '_', label)}")
@@ -70,6 +81,7 @@ def type_into(label, text):
         return False
     adb("shell", "input", "text", text)
     time.sleep(1)
+    hide_ime()
     return True
 
 
@@ -95,16 +107,26 @@ def main():
         return 1
     if not type_into("Password", APP_PASSWORD):
         return 1
-    ime = adb("shell", "dumpsys", "input_method", capture=True).decode("utf-8", "replace")
-    if "mInputShown=true" in ime:
-        adb("shell", "input", "keyevent", "KEYCODE_BACK")
-        time.sleep(1)
     shot("filled")
-    if not tap("Log in", last=True):
+    if not tap("Log in", last=True, exact=True):
         return 1
     time.sleep(20)
     shot("after-login")
     dump("after-login")
+    if not tap("Compose"):
+        return 1
+    time.sleep(5)
+    shot("compose")
+    dump("compose")
+    if tap("Replies:"):
+        time.sleep(3)
+        shot("reply-dialog")
+        dump("reply-dialog")
+        adb("shell", "input", "keyevent", "KEYCODE_BACK")
+        time.sleep(1)
+    if tap("Quote posts allowed"):
+        time.sleep(1)
+        shot("quote-disabled")
     return 0
 
 
