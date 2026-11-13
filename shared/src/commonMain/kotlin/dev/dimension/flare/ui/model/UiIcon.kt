@@ -66,10 +66,7 @@ public enum class UiIcon {
     Pixiv,
     Fanbox,
     Eye,
-    KagariReplyAnyone,
-    KagariReplyLimited,
-    KagariReplyNobody,
-    KagariQuote,
+    KagariGateSettings,
 }
 
 /**

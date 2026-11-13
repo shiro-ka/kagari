@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kagari_menu_gate_title">リアクションの設定</string>
     <string name="kagari_menu_gate_reply">返信: %1$s</string>
-    <string name="kagari_menu_gate_quote">引用: %1$s</string>
     <string name="kagari_menu_gate_anyone">誰でも</string>
     <string name="kagari_menu_gate_nobody">誰もできない</string>
     <string name="kagari_menu_gate_followers">フォロワー</string>
@@ -9,6 +9,4 @@
     <string name="kagari_menu_gate_mentioned">メンション</string>
     <string name="kagari_menu_gate_lists">リスト%1$s件</string>
     <string name="kagari_menu_gate_separator">・</string>
-    <string name="kagari_menu_gate_quote_allowed">許可</string>
-    <string name="kagari_menu_gate_quote_disabled">許可しない</string>
 </resources>

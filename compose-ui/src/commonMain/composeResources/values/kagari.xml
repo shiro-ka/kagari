@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kagari_menu_gate_title">Reaction settings</string>
     <string name="kagari_menu_gate_reply">Replies: %1$s</string>
-    <string name="kagari_menu_gate_quote">Quotes: %1$s</string>
     <string name="kagari_menu_gate_anyone">Anyone</string>
     <string name="kagari_menu_gate_nobody">Nobody</string>
     <string name="kagari_menu_gate_followers">Followers</string>
@@ -9,6 +9,4 @@
     <string name="kagari_menu_gate_mentioned">Mentioned</string>
     <string name="kagari_menu_gate_lists">%1$s lists</string>
     <string name="kagari_menu_gate_separator">, </string>
-    <string name="kagari_menu_gate_quote_allowed">Allowed</string>
-    <string name="kagari_menu_gate_quote_disabled">Not allowed</string>
 </resources>

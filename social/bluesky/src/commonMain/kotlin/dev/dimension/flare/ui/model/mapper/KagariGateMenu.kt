@@ -26,40 +26,19 @@ internal fun PostView.kagariInteractionGateMenu(
             ),
         )
     val isReply = runCatching { record.decodeAs<JsonObject>()["reply"] != null }.getOrDefault(false)
-    val quoteDisabled = viewer?.embeddingDisabled == true
-    return buildList {
-        if (!isReply) {
-            val tokens = threadgateTokens()
-            add(
-                ActionMenu.Item(
-                    icon =
-                        when {
-                            tokens == listOf("anyone") -> UiIcon.KagariReplyAnyone
-                            tokens == listOf("nobody") -> UiIcon.KagariReplyNobody
-                            else -> UiIcon.KagariReplyLimited
-                        },
-                    text =
-                        ActionMenu.Item.Text.Localized(
-                            type = ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
-                            parameters = tokens.toImmutableList(),
-                        ),
-                    clickEvent = clickEvent,
+    val tokens = if (isReply) listOf("reply-post") else threadgateTokens()
+    return listOf(
+        ActionMenu.Item(
+            icon = UiIcon.KagariGateSettings,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type = ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
+                    parameters = tokens.toImmutableList(),
                 ),
-            )
-        }
-        add(
-            ActionMenu.Item(
-                icon = UiIcon.KagariQuote,
-                text =
-                    ActionMenu.Item.Text.Localized(
-                        type = ActionMenu.Item.Text.Localized.Type.KagariQuoteGate,
-                        parameters = listOf(if (quoteDisabled) "disabled" else "allowed").toImmutableList(),
-                    ),
-                clickEvent = clickEvent,
-            ),
-        )
-        add(ActionMenu.Divider)
-    }
+            clickEvent = clickEvent,
+        ),
+        ActionMenu.Divider,
+    )
 }
 
 private fun PostView.threadgateTokens(): List<String> {

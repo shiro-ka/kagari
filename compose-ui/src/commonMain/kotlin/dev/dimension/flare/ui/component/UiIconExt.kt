@@ -26,8 +26,7 @@ import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.Eye
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
-import compose.icons.fontawesomeicons.solid.QuoteLeft
-import compose.icons.fontawesomeicons.solid.Lock
+import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.Heart
 import compose.icons.fontawesomeicons.solid.House
 import compose.icons.fontawesomeicons.solid.Language
@@ -112,8 +111,5 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.X -> FontAwesomeIcons.Brands.XTwitter
         UiIcon.Weibo -> FontAwesomeIcons.Brands.Weibo
         UiIcon.Translate -> FontAwesomeIcons.Solid.Language
-        UiIcon.KagariReplyAnyone -> FontAwesomeIcons.Solid.Globe
-        UiIcon.KagariReplyLimited -> FontAwesomeIcons.Solid.Users
-        UiIcon.KagariReplyNobody -> FontAwesomeIcons.Solid.Lock
-        UiIcon.KagariQuote -> FontAwesomeIcons.Solid.QuoteLeft
+        UiIcon.KagariGateSettings -> FontAwesomeIcons.Solid.Sliders
     }

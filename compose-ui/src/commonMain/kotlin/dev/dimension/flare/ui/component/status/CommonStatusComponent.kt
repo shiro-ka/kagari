@@ -1224,10 +1224,14 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
         },
         text = {
             subActions.text?.let {
-                PlatformText(
-                    text = it.asString(),
-                    color = color,
-                )
+                if (it.isKagariGate()) {
+                    KagariGateMenuItemText(it, color)
+                } else {
+                    PlatformText(
+                        text = it.asString(),
+                        color = color,
+                    )
+                }
             }
         },
         onClick = {
@@ -1284,9 +1288,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.ShowOriginal -> Res.string.translation_show_original
                     ActionMenu.Item.Text.Localized.Type.Favorite -> Res.string.favourite
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
-                    ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
-                    ActionMenu.Item.Text.Localized.Type.KagariQuoteGate,
-                    -> null
+                    ActionMenu.Item.Text.Localized.Type.KagariReplyGate -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)
         }
