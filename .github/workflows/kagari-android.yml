@@ -111,6 +111,7 @@ jobs:
         env:
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
           BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          KAGARI_TEST_POST: ${{ contains(github.event.head_commit.message, '[test-post]') && '1' || '' }}
         with:
           api-level: 36
           target: google_apis

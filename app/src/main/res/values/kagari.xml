@@ -16,7 +16,7 @@
     <string name="kagari_gate_summary_following">Following</string>
     <string name="kagari_gate_summary_mentioned">Mentioned</string>
     <string name="kagari_gate_summary_lists">%1$d lists</string>
-    <string name="kagari_gate_summary_separator">, </string>
+    <string name="kagari_gate_summary_separator">,\u0020</string>
     <string name="kagari_gate_quote_allowed">Quote posts allowed</string>
     <string name="kagari_gate_quote_disabled">Quote posts disabled</string>
 </resources>

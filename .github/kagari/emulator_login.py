@@ -174,9 +174,22 @@ def main():
         dump("reply-dialog")
         adb("shell", "input", "keyevent", "KEYCODE_BACK")
         time.sleep(1)
-    if tap("Quote posts allowed"):
+    if os.environ.get("KAGARI_TEST_POST") == "1":
+        stamp = time.strftime("%Y%m%d%H%M", time.gmtime())
+        if not tap("happening"):
+            return 1
+        type_text(f"Claude Code: kagari threadgate test {stamp}", 0.15)
         time.sleep(1)
-        shot("quote-disabled")
+        hide_ime()
+        shot("post-filled")
+        if not tap("Send post"):
+            return 1
+        time.sleep(15)
+        shot("after-post")
+        return 0
+    if tap("Quote posts", timeout=5):
+        time.sleep(1)
+        shot("quote-toggled")
     return 0
 
 
