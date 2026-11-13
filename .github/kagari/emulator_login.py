@@ -186,6 +186,18 @@ def main():
             return 1
         time.sleep(15)
         shot("after-post")
+        adb("shell", "input", "swipe", "160", "200", "160", "500", "300")
+        time.sleep(8)
+        shot("timeline")
+        dump("timeline")
+        if tap("More", timeout=10):
+            time.sleep(2)
+            shot("post-menu")
+            dump("post-menu")
+            if tap("Replies:", timeout=5) or tap("Quotes:", timeout=5):
+                time.sleep(6)
+                shot("edit-dialog")
+                dump("edit-dialog")
         return 0
     if tap("Quote posts", timeout=5):
         time.sleep(1)
