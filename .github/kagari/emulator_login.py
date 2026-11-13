@@ -150,12 +150,15 @@ def open_own_post_menu():
             tried.add((x, y))
             adb("shell", "input", "tap", str(x), str(y))
             time.sleep(2)
+            shot("menu-try")
+            dump("menu-try")
             if find("Replies:", timeout=3) or find("Quotes:", timeout=1):
                 return True
             adb("shell", "input", "keyevent", "KEYCODE_BACK")
             time.sleep(1)
         adb("shell", "input", "swipe", "160", "450", "160", "150", "400")
         time.sleep(2)
+        shot("scrolled")
         tried.clear()
     return False
 
