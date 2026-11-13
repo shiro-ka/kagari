@@ -29,8 +29,34 @@ def dump(name=None):
     xml = adb("exec-out", "cat", "/sdcard/ui.xml", capture=True).decode("utf-8", "replace")
     if name:
         with open(os.path.join(OUT, f"{step_no:02d}-{name}.xml"), "w") as f:
-            f.write(xml)
+            f.write(redact(xml))
     return ET.fromstring(xml[xml.index("<"):]) if "<" in xml else None
+
+
+def redact(xml):
+    def clean(match):
+        node = match.group(0)
+        if 'password="true"' in node:
+            node = re.sub(r'text="[^"]*"', 'text=""', node)
+        if APP_PASSWORD:
+            pieces = {APP_PASSWORD[i:i + 4] for i in range(0, max(len(APP_PASSWORD) - 3, 1))}
+
+            def scrub(value):
+                text = value.group(2)
+                for piece in pieces:
+                    text = text.replace(piece, "")
+                return value.group(1) + text + '"'
+
+            node = re.sub(r'((?:text|content-desc)=")([^"]*)"', scrub, node)
+        return node
+
+    return re.sub(r"<node [^>]*>", clean, xml)
+
+
+def type_text(text):
+    for i in range(0, len(text), 3):
+        adb("shell", "input", "text", text[i:i + 3])
+        time.sleep(0.4)
 
 
 def center(node):
@@ -79,7 +105,7 @@ def tap(label, last=False, timeout=20, exact=False):
 def type_into(label, text):
     if not tap(label):
         return False
-    adb("shell", "input", "text", text)
+    type_text(text)
     time.sleep(1)
     hide_ime()
     return True
