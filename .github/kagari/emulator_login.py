@@ -53,10 +53,29 @@ def redact(xml):
     return re.sub(r"<node [^>]*>", clean, xml)
 
 
-def type_text(text):
-    for i in range(0, len(text), 3):
-        adb("shell", "input", "text", text[i:i + 3])
-        time.sleep(0.4)
+def disable_ime():
+    out = adb("shell", "ime", "list", "-s", capture=True).decode("utf-8", "replace")
+    for ime in out.split():
+        adb("shell", "ime", "disable", ime)
+
+
+def type_text(text, delay):
+    for ch in text:
+        adb("shell", "input", "text", ch)
+        time.sleep(delay)
+
+
+def field_texts():
+    root = dump()
+    if root is None:
+        return []
+    return [n.get("text") or "" for n in root.iter("node") if n.get("class") == "android.widget.EditText"]
+
+
+def clear_field():
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    for _ in range(4):
+        adb("shell", "input", "keyevent", *(["KEYCODE_DEL"] * 15))
 
 
 def center(node):
@@ -103,12 +122,16 @@ def tap(label, last=False, timeout=20, exact=False):
 
 
 def type_into(label, text):
-    if not tap(label):
-        return False
-    type_text(text)
-    time.sleep(1)
-    hide_ime()
-    return True
+    for attempt in range(3):
+        if not tap(label):
+            return False
+        clear_field()
+        type_text(text, 0.15 + attempt * 0.2)
+        time.sleep(1)
+        hide_ime()
+        if text in field_texts():
+            return True
+    return False
 
 
 def main():
@@ -116,6 +139,7 @@ def main():
     if not HANDLE or not APP_PASSWORD:
         print("BSKY_HANDLE or BSKY_APP_PASSWORD is empty", file=sys.stderr)
         return 1
+    disable_ime()
     shot("start")
     if not tap("Log in"):
         return 1
