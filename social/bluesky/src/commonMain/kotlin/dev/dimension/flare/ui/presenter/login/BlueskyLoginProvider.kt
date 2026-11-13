@@ -40,8 +40,8 @@ import sh.christian.ozone.oauth.OAuthClient
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val CLIENT_METADATA = "https://flareapp.moe/client-metadata.json"
-private const val REDIRECT_URI = "https://flareapp.moe/callback"
+private const val CLIENT_METADATA = "https://kagari.pages.dev/client-metadata.json"
+private const val REDIRECT_URI = "https://kagari.pages.dev/callback"
 private const val LOGIN_ACTION = "login"
 private const val FIX_TRANQUIL_DELEGATION_ACTION = "fix_tranquil_delegation"
 private const val USERNAME_FIELD = "username"
