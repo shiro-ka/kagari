@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kagari_gate_reply_title">返信できる人</string>
+    <string name="kagari_gate_reply_label">返信: %1$s</string>
+    <string name="kagari_gate_anyone">誰でも</string>
+    <string name="kagari_gate_nobody">誰もできない</string>
+    <string name="kagari_gate_followers">あなたのフォロワー</string>
+    <string name="kagari_gate_following">あなたがフォローしている人</string>
+    <string name="kagari_gate_mentioned">投稿でメンションした人</string>
+    <string name="kagari_gate_lists">リストから選ぶ（%1$d件）</string>
+    <string name="kagari_gate_lists_empty">キュレーションリストがありません</string>
+    <string name="kagari_gate_save_default">次回もこの設定にする</string>
+    <string name="kagari_gate_save">保存</string>
+    <string name="kagari_gate_summary_followers">フォロワー</string>
+    <string name="kagari_gate_summary_following">フォロー中</string>
+    <string name="kagari_gate_summary_mentioned">メンション</string>
+    <string name="kagari_gate_summary_lists">リスト%1$d件</string>
+    <string name="kagari_gate_summary_separator">・</string>
+    <string name="kagari_gate_quote_allowed">引用を許可</string>
+    <string name="kagari_gate_quote_disabled">引用を禁止</string>
+</resources>

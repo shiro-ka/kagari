@@ -780,6 +780,7 @@ internal fun ComposeScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        KagariReplyGateRow(state.interactionGate)
         Surface(
             modifier =
                 Modifier
@@ -808,6 +809,7 @@ internal fun ComposeScreen(
                         }
                     }
                 }
+                KagariQuoteToggleButton(state.interactionGate)
                 state.pollState.onSuccess {
                     IconButton(
                         onClick = {
@@ -1255,6 +1257,7 @@ private fun composePresenter(
             ?.toString()
     LaunchedEffect(spoilerText) { state.setSpoilerText(spoilerText) }
 
+    val interactionGate = rememberKagariInteractionGateState(state.composeConfig.takeSuccess()?.interactionGate)
     val languageState =
         state.composeConfig
             .mapNotNull {
@@ -1336,6 +1339,7 @@ private fun composePresenter(
                     )
                 },
             language = languageState.takeSuccess()?.selectedLanguage.orEmpty(),
+            interactionGate = interactionGate.composeValue(),
         )
     }
     val currentState by rememberUpdatedState(state)
@@ -1356,6 +1360,7 @@ private fun composePresenter(
         val state = state
         val showAccountSelectMenu = showAccountSelectMenu
         val languageState = languageState
+        val interactionGate = interactionGate
         val hasTextContent = textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports
 
         fun selectEmoji(emoji: UiEmoji) {

@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kagari_app_name" translatable="false">kagari</string>
+    <string name="kagari_gate_reply_title">Who can reply</string>
+    <string name="kagari_gate_reply_label">Replies: %1$s</string>
+    <string name="kagari_gate_anyone">Anyone</string>
+    <string name="kagari_gate_nobody">Nobody</string>
+    <string name="kagari_gate_followers">Your followers</string>
+    <string name="kagari_gate_following">People you follow</string>
+    <string name="kagari_gate_mentioned">People you mention</string>
+    <string name="kagari_gate_lists">Select from your lists (%1$d)</string>
+    <string name="kagari_gate_lists_empty">You have no curation lists</string>
+    <string name="kagari_gate_save_default">Save these options for next time</string>
+    <string name="kagari_gate_save">Save</string>
+    <string name="kagari_gate_summary_followers">Followers</string>
+    <string name="kagari_gate_summary_following">Following</string>
+    <string name="kagari_gate_summary_mentioned">Mentioned</string>
+    <string name="kagari_gate_summary_lists">%1$d lists</string>
+    <string name="kagari_gate_summary_separator">, </string>
+    <string name="kagari_gate_quote_allowed">Quote posts allowed</string>
+    <string name="kagari_gate_quote_disabled">Quote posts disabled</string>
 </resources>
