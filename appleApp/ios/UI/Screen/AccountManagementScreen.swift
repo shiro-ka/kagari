@@ -1,0 +1,200 @@
+import SwiftUI
+import KotlinSharedUI
+import FlareAppleCore
+import FlareAppleUI
+
+struct AccountManagementScreen: View {
+    @State private var presenter = KotlinPresenter(presenter: AccountManagementPresenter())
+    @State private var tabItems: [AccountsStateAccountItem] = []
+    @State private var pendingLogoutAccountKey: MicroBlogKey? = nil
+    @State private var pendingLogoutAccountName: String? = nil
+
+    var body: some View {
+        List {
+            if presenter.state.removalFailed {
+                Text("settings_accounts_remove_failed").foregroundStyle(.red)
+            }
+            ForEach(tabItems, id: \.account.accountKey) { account in
+                StateView(state: account.profile) { user in
+                    accountActions(for: account.account, accountName: user.handle.display) {
+                        UserCompatView(data: user) {
+                            HStack {
+                                Image(systemName: activeAccountKey == user.key ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(.blue)
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundColor(.secondary)
+                            }
+                        } onClicked: {
+                            presenter.state.setActiveAccount(accountKey: user.key)
+                        }
+                        .onTapGesture {
+                            presenter.state.setActiveAccount(accountKey: user.key)
+                        }
+                    }
+                } errorContent: { error in
+                    accountActions(for: account.account, accountName: account.account.accountKey.id) {
+                        Group {
+                            if account.account.platformAvailable {
+                                if let target = loginTarget(for: error) {
+                                    NavigationLink(value: Route.relogin(target.accountKey, target.platformId)) {
+                                        UserErrorView(error: error)
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    UserErrorView(error: error)
+                                }
+                            } else {
+                                NavigationLink(value: Route.pluginManagement) {
+                                    unavailableAccountRow(account.account)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                } loadingContent: {
+                    UserLoadingView()
+                }
+            }
+            .onMove(perform: move)
+        }
+        .overlay {
+            if tabItems.isEmpty && !presenter.state.removalFailed {
+                StateView(state: presenter.state.accounts) { accounts in
+                    if accounts.count == 0 {
+                        ListEmptyView("account_management_empty", icon: .users)
+                    }
+                }
+            }
+        }
+        .onChange(of: presenter.state.accounts, initial: true) { _, accounts in
+            if case .success(let data) = onEnum(of: accounts) {
+                tabItems = data.data.cast(AccountsStateAccountItem.self)
+            }
+        }
+        .onChange(of: tabItems, { oldValue, newValue in
+            presenter.state.setOrder(value: newValue.map { item in item.account.accountKey })
+        })
+        .alert("logout_title", isPresented: Binding(get: {
+            pendingLogoutAccountKey != nil
+        }, set: { value in
+            if !value {
+                clearPendingLogout()
+            }
+        })) {
+            Button("Cancel", role: .cancel) {
+                clearPendingLogout()
+            }
+            Button("delete", role: .destructive) {
+                confirmLogout()
+            }
+        } message: {
+            Text(
+                pendingLogoutAccountName.map { "Are you sure you want to remove \($0) from this device?" } ??
+                    "Are you sure you want to remove this account from this device?"
+            )
+        }
+        .navigationTitle("account_management_title")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: Route.serviceSelect) {
+                    Label {
+                        Text("login_title")
+                    } icon: {
+                        Image(fontAwesome: .plus)
+                    }
+                }
+            }
+        }
+    }
+
+    private func accountActions<Content: View>(
+        for account: UiAccount,
+        accountName: String?,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .contextMenu {
+                accountActionButtons(for: account, accountName: accountName)
+            }
+            .swipeActions {
+                accountActionButtons(for: account, accountName: accountName)
+            }
+    }
+
+    @ViewBuilder
+    private func accountActionButtons(for account: UiAccount, accountName: String?) -> some View {
+        if account.supportsRelayManagement {
+            NavigationLink(value: Route.nostrRelays(account.accountKey)) {
+                Label {
+                    Text("Manage relays")
+                } icon: {
+                    Image(fontAwesome: .list)
+                }
+            }
+            .tint(.accentColor)
+        }
+        Button(role: .destructive) {
+            requestLogoutConfirmation(
+                accountKey: account.accountKey,
+                accountName: accountName
+            )
+        } label: {
+            Label {
+                Text("logout_title")
+            } icon: {
+                Image(fontAwesome: .trash)
+            }
+        }
+    }
+
+    private func unavailableAccountRow(_ account: UiAccount) -> some View {
+        HStack(spacing: 12) {
+            TabIcon(icon: account.platformIcon, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(account.platformDisplayNameText.text)
+                Text(verbatim: account.accountKey.description())
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var activeAccountKey: MicroBlogKey? {
+        if case .success(let active) = onEnum(of: presenter.state.activeAccount) {
+            active.data.accountKey
+        } else {
+            nil
+        }
+    }
+
+    func move(from source: IndexSet, to destination: Int) {
+        tabItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    private func requestLogoutConfirmation(accountKey: MicroBlogKey, accountName: String?) {
+        pendingLogoutAccountKey = accountKey
+        pendingLogoutAccountName = accountName
+    }
+
+    private func confirmLogout() {
+        guard let accountKey = pendingLogoutAccountKey else { return }
+        tabItems.removeAll(where: { item in item.account.accountKey == accountKey })
+        presenter.state.logout(accountKey: accountKey)
+        clearPendingLogout()
+    }
+
+    private func clearPendingLogout() {
+        pendingLogoutAccountKey = nil
+        pendingLogoutAccountName = nil
+    }
+
+    private func loginTarget(for error: KotlinThrowable) -> ReloginTarget? {
+        if let expired = error as? LoginExpiredException {
+            return ReloginTarget(accountKey: expired.accountKey, platformId: expired.platformId)
+        }
+        if let required = error as? RequireReLoginException {
+            return ReloginTarget(accountKey: required.accountKey, platformId: required.platformId)
+        }
+        return nil
+    }
+}

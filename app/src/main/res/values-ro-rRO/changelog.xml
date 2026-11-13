@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="changelog_title">Bine ai revenit!</string>
+    <string name="changelog_message">Am făcut unele modificări de când v-ați autentificat ultima dată. Iată detaliile:</string>
+    <string name="changelog_current"><![CDATA[
+            <span>Versiunea %1$s:</span>
+            <ul>
+                <li>Am adăugat traducerea imaginilor. După configurarea unui serviciu de traducere, poți comuta între original și traducere și poți salva sau distribui rezultatul.</li>
+                <li>Poți selecta răspunsuri și răspunsuri secundare când distribui o postare ca imagine, inclusiv imagini lungi.</li>
+                <li>Am adăugat fluxuri Weibo pentru grupuri, cercul de prieteni și conturi urmărite în privat, setări de vizibilitate a postărilor și redare Live Photo. Am restabilit afișarea locației pe baza IP-ului.</li>
+                <li>Am adăugat setări proxy globale și pentru fiecare cont, cu suport pentru HTTPS și SOCKS5.</li>
+                <li>Am remediat unele erori de încărcare a imaginilor, acțiunile de marcare din galerie și deschiderea linkurilor FANBOX. Am îmbunătățit fluxurile mixte, afișarea traducerilor și memorarea contului selectat.</li>
+            </ul>
+        ]]></string>
+</resources>

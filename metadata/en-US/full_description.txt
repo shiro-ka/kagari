@@ -1,0 +1,18 @@
+Flare is a free and open source client for the social web. Browse, post, and
+interact across Mastodon, Bluesky, X, Misskey, and Nostr from a single app.
+
+Features:
+
+- Unified timeline: merge feeds from multiple accounts and platforms into one
+  stream
+- Cross-posting: compose once, publish to multiple platforms
+- Adaptive layout: multi-column grid and split-view panels on tablets
+- Built-in RSS/Atom reader with OPML import
+- Customizable tab bar with any timeline, list, or feed as a tab
+- Full compose: polls, content warnings, media alt text, visibility controls
+- Guest mode: browse Mastodon without an account
+- Local keyword filters
+- Dynamic theming, custom colors, adjustable fonts
+- No ads, no tracking, no telemetry
+
+Licensed under AGPL-3.0.

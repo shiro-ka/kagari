@@ -1,0 +1,71 @@
+package dev.dimension.flare
+
+import android.app.Application
+import android.os.Build
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.annotation.ExperimentalCoilApi
+import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
+import coil3.request.allowPartialImage
+import coil3.request.crossfade
+import coil3.svg.SvgDecoder
+import coil3.video.VideoFrameDecoder
+import dev.dimension.flare.common.AnimatedPngDecoder
+import dev.dimension.flare.common.AnimatedWebPDecoder
+import dev.dimension.flare.common.CorruptImageRetryInterceptor
+import dev.dimension.flare.di.AndroidKoinApplication
+import dev.dimension.flare.di.koinGet
+import dev.dimension.flare.feature.plugin.PluginSubsystemV1
+import dev.dimension.flare.ui.component.proxyImageFetcherFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import org.koin.android.ext.koin.androidContext
+import org.koin.plugin.module.dsl.startKoin
+
+class App :
+    Application(),
+    SingletonImageLoader.Factory {
+    override fun onCreate() {
+        super.onCreate()
+        startKoin<AndroidKoinApplication> {
+            androidContext(this@App)
+        }
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= TRIM_MEMORY_RUNNING_LOW) {
+            koinGet<CoroutineScope>().launch {
+                koinGet<PluginSubsystemV1>().onMemoryPressure()
+            }
+        }
+    }
+
+    @OptIn(ExperimentalCoilApi::class)
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
+        lateinit var imageLoader: ImageLoader
+        imageLoader =
+            ImageLoader
+                .Builder(context)
+                .components {
+                    add(CorruptImageRetryInterceptor { imageLoader.diskCache })
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        add(factory = AnimatedImageDecoder.Factory())
+                    } else {
+                        add(GifDecoder.Factory())
+                    }
+                    add(AnimatedPngDecoder.Factory())
+                    add(SvgDecoder.Factory())
+                    add(AnimatedWebPDecoder.Factory())
+                    add(VideoFrameDecoder.Factory())
+                    add(
+                        proxyImageFetcherFactory(),
+                    )
+                }.allowPartialImage(false)
+                .crossfade(true)
+                .build()
+        return imageLoader
+    }
+}

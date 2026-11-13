@@ -1,0 +1,55 @@
+import SwiftUI
+import KotlinSharedUI
+import FlareAppleCore
+import FlareAppleUI
+
+struct ImportOPMLScreen: View {
+    @Environment(\.dismiss) private var dismiss
+    let url: URL
+    @State private var presenter: KotlinPresenter<ImportOPMLPresenterState>
+    
+    init(url: URL) {
+        self.url = url
+        do {
+            url.startAccessingSecurityScopedResource()
+            let content = try String(contentsOf: url, encoding: .utf8)
+            self._presenter = .init(wrappedValue: .init(presenter: ImportOPMLPresenter(opmlContent: content)))
+            url.stopAccessingSecurityScopedResource()
+        } catch {
+            self._presenter = .init(wrappedValue: .init(presenter: ImportOPMLPresenter(opmlContent: "")))
+        }
+    }
+    
+    var body: some View {
+        VStack {
+            if let error = presenter.state.error {
+                Text(error)
+                    .foregroundColor(.red)
+            } else {
+                if presenter.state.importing {
+                    ProgressView(value: presenter.state.progress)
+                        .padding()
+                }
+                List {
+                    ForEach(presenter.state.importedSources, id: \.url) { item in
+                        UiRssView(data: item)
+                    }
+                }
+                .overlay {
+                    if !presenter.state.importing && presenter.state.importedSources.isEmpty {
+                        ListEmptyView("opml_import_empty", icon: .fileImport)
+                    }
+                }
+            }
+        }
+        .navigationTitle("opml_import")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("done") {
+                    dismiss()
+                }
+                .disabled(presenter.state.importing)
+            }
+        }
+    }
+}

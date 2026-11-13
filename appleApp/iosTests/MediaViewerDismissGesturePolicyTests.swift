@@ -1,0 +1,501 @@
+import XCTest
+import UIKit
+
+final class MediaViewerDismissGesturePolicyTests: XCTestCase {
+    @MainActor
+    func testDismissGestureIncludesEmbeddedHostingViewsButExcludesPresentedSheet() {
+        let viewer = UIViewController()
+        let pager = UIViewController()
+        let image = UIViewController()
+        viewer.addChild(pager)
+        viewer.view.addSubview(pager.view)
+        // LazyPager adds the hosting view without adding its controller as a child.
+        pager.view.addSubview(image.view)
+        let sheet = UIViewController()
+        let sheetContent = UIViewController()
+        sheet.addChild(sheetContent)
+        sheet.view.addSubview(sheetContent.view)
+
+        XCTAssertNil(image.parent)
+        XCTAssertTrue(MediaViewerDismissGesturePolicy.belongsToViewer(viewer.view, viewer: viewer.view))
+        XCTAssertTrue(MediaViewerDismissGesturePolicy.belongsToViewer(image.view, viewer: viewer.view))
+        XCTAssertFalse(MediaViewerDismissGesturePolicy.belongsToViewer(sheetContent.view, viewer: viewer.view))
+    }
+
+    func testFastVerticalSwipesDismissInBothDirections() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: 40,
+                velocityY: 1_301,
+                containerHeight: 800
+            )
+        )
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: -40,
+                velocityY: -1_301,
+                containerHeight: 800
+            )
+        )
+    }
+
+    func testLongVerticalDragsDismissInBothDirections() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: 401,
+                velocityY: 0,
+                containerHeight: 800
+            )
+        )
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: -401,
+                velocityY: 0,
+                containerHeight: 800
+            )
+        )
+    }
+
+    func testVelocityTriggeredDismissUsesReleaseDirection() {
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.dismissDirection(
+                translationY: 40,
+                velocityY: -1_301
+            ),
+            -1
+        )
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.dismissDirection(
+                translationY: -40,
+                velocityY: 1_301
+            ),
+            1
+        )
+    }
+
+    func testDistanceTriggeredDismissUsesTranslationDirection() {
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.dismissDirection(
+                translationY: 401,
+                velocityY: -500
+            ),
+            1
+        )
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.dismissDirection(
+                translationY: -401,
+                velocityY: 500
+            ),
+            -1
+        )
+    }
+
+    func testShortSlowDragDoesNotDismiss() {
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: 100,
+                velocityY: 100,
+                containerHeight: 800
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: -100,
+                velocityY: -100,
+                containerHeight: 800
+            )
+        )
+    }
+
+    func testSlowDragPastThresholdDismissesWithoutAFlick() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: 220,
+                velocityY: 0,
+                containerHeight: 800
+            )
+        )
+    }
+
+    func testPushingBackBeforeReleaseCancelsDismiss() {
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldDismiss(
+                translationY: 300,
+                velocityY: -800,
+                containerHeight: 800
+            )
+        )
+    }
+
+    func testDismissTransformFollowsFingerAndShrinksWithDistance() {
+        let transform = MediaViewerDismissGesturePolicy.transform(
+            translation: CGPoint(x: -30, y: 200),
+            startLocation: CGPoint(x: 100, y: 300),
+            containerSize: CGSize(width: 400, height: 800)
+        )
+
+        XCTAssertEqual(transform.offset, CGSize(width: -30, height: 200))
+        XCTAssertEqual(transform.scale, 0.9, accuracy: 0.0001)
+        XCTAssertEqual(transform.anchor, CGPoint(x: 0.25, y: 0.375))
+    }
+
+    func testDismissTransformScaleBottomsOutAtMinimum() {
+        let transform = MediaViewerDismissGesturePolicy.transform(
+            translation: CGPoint(x: 0, y: -1_200),
+            startLocation: CGPoint(x: 200, y: 400),
+            containerSize: CGSize(width: 400, height: 800)
+        )
+
+        XCTAssertEqual(transform.scale, MediaViewerDismissGesturePolicy.minimumScale, accuracy: 0.0001)
+    }
+
+    func testProgressIsDirectionIndependent() {
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.progress(translationY: 200, containerHeight: 800),
+            0.25
+        )
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.progress(translationY: -200, containerHeight: 800),
+            0.25
+        )
+    }
+
+    func testOnlyMediaMovesWithDismissGesture() {
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.verticalOffset(
+                for: .media,
+                translationY: 160
+            ),
+            160
+        )
+        XCTAssertEqual(
+            MediaViewerDismissGesturePolicy.verticalOffset(
+                for: .bottomOverlay,
+                translationY: 160
+            ),
+            0
+        )
+    }
+
+    func testActiveDismissHoldsTheTouchedScrollPosition() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldHoldTouchedScrollPosition(
+                didDismiss: false
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldHoldTouchedScrollPosition(
+                didDismiss: true
+            )
+        )
+    }
+
+    func testDismissUsesTranslationWhenVelocityIsNotReady() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 0,
+                velocityY: 0,
+                zoomScale: 1,
+                minimumZoomScale: 1,
+                translationX: 2,
+                translationY: 14
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 0,
+                velocityY: 0,
+                zoomScale: 1,
+                minimumZoomScale: 1,
+                translationX: 14,
+                translationY: 2
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 0,
+                velocityY: 0,
+                zoomScale: 2,
+                minimumZoomScale: 1,
+                translationX: 1,
+                translationY: 16
+            )
+        )
+    }
+
+    func testHorizontalPanYieldsBeforeAVelocitySample() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldYieldToHorizontalPan(
+                translationX: 16,
+                translationY: 4
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldYieldToHorizontalPan(
+                translationX: 6,
+                translationY: 2
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldYieldToHorizontalPan(
+                translationX: 4,
+                translationY: 16
+            )
+        )
+    }
+
+    func testDismissPanDoesNotShareTheDrag() {
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.allowsSimultaneousRecognition(
+                chromeTap: false,
+                otherIsTap: false
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.allowsSimultaneousRecognition(
+                chromeTap: false,
+                otherIsTap: true
+            )
+        )
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.allowsSimultaneousRecognition(
+                chromeTap: true,
+                otherIsTap: true
+            )
+        )
+    }
+
+    func testAnimatedZoomContentInsetIsAppliedImmediately() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDiscardAnimatedContentInset(
+                viewClassName: "ZoomableView<UiMediaImage, Image>",
+                inheritedAnimationDuration: 0.3
+            )
+        )
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldDiscardAnimatedContentInset(
+                viewClassName: "UIScrollView",
+                inheritedAnimationDuration: 0.3,
+                runtimeClassName: "_TtGC9LazyPager12ZoomableView"
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldDiscardAnimatedContentInset(
+                viewClassName: "ZoomableView<UiMediaImage, Image>",
+                inheritedAnimationDuration: 0
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldDiscardAnimatedContentInset(
+                viewClassName: "UIScrollView",
+                inheritedAnimationDuration: 0.3
+            )
+        )
+    }
+
+    @MainActor
+    func testDismissPanDelaysPansOwnedByTheSheet() {
+        let viewer = UIView()
+        let sheet = UIView()
+        let sheetPan = UIPanGestureRecognizer()
+        sheet.addGestureRecognizer(sheetPan)
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.delaysPanOutsideViewer(sheetPan, viewer: viewer)
+        )
+
+        let controls = UIView()
+        viewer.addSubview(controls)
+        let controlPan = UIPanGestureRecognizer()
+        controls.addGestureRecognizer(controlPan)
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.delaysPanOutsideViewer(controlPan, viewer: viewer)
+        )
+
+        let scrollView = UIScrollView()
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.delaysPanOutsideViewer(
+                scrollView.panGestureRecognizer,
+                viewer: viewer
+            )
+        )
+    }
+
+    @MainActor
+    func testChromeTapTargetsThePager() {
+        let scrollView = UIScrollView()
+        let image = UIView()
+        scrollView.addSubview(image)
+        XCTAssertTrue(MediaViewerDismissGesturePolicy.touchesPager(image))
+        XCTAssertTrue(MediaViewerDismissGesturePolicy.touchesPager(scrollView))
+        XCTAssertFalse(MediaViewerDismissGesturePolicy.touchesPager(UIButton()))
+    }
+
+    func testDismissGestureBeginsOnlyForUnzoomedVerticalPans() {
+        XCTAssertTrue(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 20,
+                velocityY: -200,
+                zoomScale: 1,
+                minimumZoomScale: 1
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 200,
+                velocityY: 20,
+                zoomScale: 1,
+                minimumZoomScale: 1
+            )
+        )
+        XCTAssertFalse(
+            MediaViewerDismissGesturePolicy.shouldBegin(
+                velocityX: 20,
+                velocityY: 200,
+                zoomScale: 2,
+                minimumZoomScale: 1
+            )
+        )
+    }
+
+    func testDismissGestureTakesPriorityOnlyOverScrollViewPans() async {
+        await MainActor.run {
+            let scrollView = UIScrollView()
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldTakePriority(
+                    over: scrollView.panGestureRecognizer
+                )
+            )
+
+            let ordinaryView = UIView()
+            let ordinaryPan = UIPanGestureRecognizer()
+            ordinaryView.addGestureRecognizer(ordinaryPan)
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldTakePriority(
+                    over: ordinaryPan
+                )
+            )
+        }
+    }
+
+    func testDismissGestureDoesNotTakePriorityOverScrollableVerticalContent() async {
+        await MainActor.run {
+            let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+            scrollView.contentSize = CGSize(width: 390, height: 1_200)
+            scrollView.contentOffset = CGPoint(x: 0, y: 300)
+
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldTakePriority(
+                    over: scrollView.panGestureRecognizer,
+                    velocityY: -500
+                )
+            )
+        }
+    }
+
+    func testTallImageScrollAllowsDismissOnlyPastTheMatchingEdge() async {
+        await MainActor.run {
+            let scrollView = Self.makeTallImageScrollView()
+
+            scrollView.contentOffset.y = 300
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 500
+                )
+            )
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: -500
+                )
+            )
+
+            scrollView.contentOffset.y = 0
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 500
+                )
+            )
+
+            scrollView.contentOffset.y = -20
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 500
+                )
+            )
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 0,
+                    translationY: 12
+                )
+            )
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 0,
+                    translationY: -12
+                )
+            )
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: -500
+                )
+            )
+
+            scrollView.contentOffset.y = 600
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: -500
+                )
+            )
+
+            scrollView.contentOffset.y = 630
+            XCTAssertFalse(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 500
+                )
+            )
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: -500
+                )
+            )
+        }
+    }
+
+    func testNonScrollableContentAllowsDismissInBothDirections() async {
+        await MainActor.run {
+            let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+            scrollView.contentSize = CGSize(width: 390, height: 600)
+
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: 500
+                )
+            )
+            XCTAssertTrue(
+                MediaViewerDismissGesturePolicy.shouldBeginDismissPan(
+                    in: scrollView,
+                    velocityY: -500
+                )
+            )
+        }
+    }
+
+    @MainActor
+    private static func makeTallImageScrollView() -> UIScrollView {
+        let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(top: 20, left: 0, bottom: 30, right: 0)
+        scrollView.contentSize = CGSize(width: 390, height: 1_200)
+        return scrollView
+    }
+}

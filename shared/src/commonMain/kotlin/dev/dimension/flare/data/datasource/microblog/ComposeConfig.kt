@@ -1,0 +1,485 @@
+package dev.dimension.flare.data.datasource.microblog
+
+import androidx.compose.runtime.Immutable
+import dev.dimension.flare.common.CacheData
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.UiEmoji
+import dev.dimension.flare.ui.model.UiTimelineV2
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+
+@Immutable
+public data class ComposeConfig public constructor(
+    val text: Text? = null,
+    val media: Media? = null,
+    val poll: Poll? = null,
+    val emoji: Emoji? = null,
+    val contentWarning: ContentWarning? = null,
+    val visibility: Visibility? = null,
+    val language: Language? = null,
+) {
+    @Immutable
+    public class Text private constructor(
+        public val maxLength: Flow<Int>,
+        private val remainingLengthProvider: (String, String?) -> Flow<Check>,
+    ) {
+        public constructor(maxLength: Flow<Int>) : this(
+            maxLength = maxLength,
+            remainingLengthProvider = { text, _ -> maxLength.map { Check(it - text.length) } },
+        )
+
+        public constructor(maxLength: Int) : this(flowOf(maxLength))
+
+        public data class Check(
+            val remainingLength: Int,
+            val isValid: Boolean = remainingLength >= 0,
+        ) {
+            internal fun merge(other: Check): Check = Check(minOf(remainingLength, other.remainingLength), isValid && other.isValid)
+        }
+
+        public fun remainingLength(
+            text: String,
+            spoilerText: String? = null,
+        ): Flow<Check> = remainingLengthProvider(text, spoilerText?.takeIf(String::isNotBlank))
+
+        internal fun merge(other: Text): Text =
+            Text(
+                maxLength = combine(maxLength, other.maxLength) { current, candidate -> minOf(current, candidate) }.distinctUntilChanged(),
+                remainingLengthProvider = { text, spoilerText ->
+                    combine(
+                        remainingLength(text, spoilerText),
+                        other.remainingLength(text, spoilerText),
+                    ) { current, candidate ->
+                        current.merge(candidate)
+                    }.distinctUntilChanged()
+                },
+            )
+
+        public companion object {
+            public fun withLength(
+                maxLength: Int,
+                length: (String) -> Int,
+            ): Text = withValidation(maxLength) { text, _ -> Check(maxLength - length(text)) }
+
+            public fun withValidation(
+                maxLength: Int,
+                check: (String, String?) -> Check,
+            ): Text = withValidation(flowOf(maxLength), { text, spoilerText -> flowOf(check(text, spoilerText)) })
+
+            public fun withValidation(
+                maxLength: Flow<Int>,
+                check: (String, String?) -> Flow<Check>,
+            ): Text = Text(maxLength, check)
+        }
+    }
+
+    @Immutable
+    // in ISO 639-1 format
+    public data class Language public constructor(
+        val maxCount: Int,
+    ) {
+        internal fun merge(other: Language): Language = Language(maxCount = minOf(maxCount, other.maxCount))
+
+        private val popularCodes =
+            listOf(
+                "en",
+                "zh",
+                "ja",
+                "ko",
+                "pt",
+                "de",
+                "fr",
+                "es",
+                "ru",
+                "ar",
+                "hi",
+                "it",
+                "id",
+                "th",
+                "vi",
+            )
+
+        // since ISO 639-1 will never change(maybe), hard code the codes here
+        private val allCodes =
+            listOf(
+                "aa",
+                "ab",
+                "ae",
+                "af",
+                "ak",
+                "am",
+                "an",
+                "ar",
+                "as",
+                "av",
+                "ay",
+                "az",
+                "ba",
+                "be",
+                "bg",
+                "bi",
+                "bm",
+                "bn",
+                "bo",
+                "br",
+                "bs",
+                "ca",
+                "ce",
+                "ch",
+                "co",
+                "cr",
+                "cs",
+                "cu",
+                "cv",
+                "cy",
+                "da",
+                "de",
+                "dv",
+                "dz",
+                "ee",
+                "el",
+                "en",
+                "eo",
+                "es",
+                "et",
+                "eu",
+                "fa",
+                "ff",
+                "fi",
+                "fj",
+                "fo",
+                "fr",
+                "fy",
+                "ga",
+                "gd",
+                "gl",
+                "gn",
+                "gu",
+                "gv",
+                "ha",
+                "he",
+                "hi",
+                "ho",
+                "hr",
+                "ht",
+                "hu",
+                "hy",
+                "hz",
+                "ia",
+                "id",
+                "ie",
+                "ig",
+                "ii",
+                "ik",
+                "io",
+                "is",
+                "it",
+                "iu",
+                "ja",
+                "jv",
+                "ka",
+                "kg",
+                "ki",
+                "kj",
+                "kk",
+                "kl",
+                "km",
+                "kn",
+                "ko",
+                "kr",
+                "ks",
+                "ku",
+                "kv",
+                "kw",
+                "ky",
+                "la",
+                "lb",
+                "lg",
+                "li",
+                "ln",
+                "lo",
+                "lt",
+                "lu",
+                "lv",
+                "mg",
+                "mh",
+                "mi",
+                "mk",
+                "ml",
+                "mn",
+                "mr",
+                "ms",
+                "mt",
+                "my",
+                "na",
+                "nb",
+                "nd",
+                "ne",
+                "ng",
+                "nl",
+                "nn",
+                "no",
+                "nr",
+                "nv",
+                "ny",
+                "oc",
+                "oj",
+                "om",
+                "or",
+                "os",
+                "pa",
+                "pi",
+                "pl",
+                "ps",
+                "pt",
+                "qu",
+                "rm",
+                "rn",
+                "ro",
+                "ru",
+                "rw",
+                "sa",
+                "sc",
+                "sd",
+                "se",
+                "sg",
+                "si",
+                "sk",
+                "sl",
+                "sm",
+                "sn",
+                "so",
+                "sq",
+                "sr",
+                "ss",
+                "st",
+                "su",
+                "sv",
+                "sw",
+                "ta",
+                "te",
+                "tg",
+                "th",
+                "ti",
+                "tk",
+                "tl",
+                "tn",
+                "to",
+                "tr",
+                "ts",
+                "tt",
+                "tw",
+                "ty",
+                "ug",
+                "uk",
+                "ur",
+                "uz",
+                "ve",
+                "vi",
+                "vo",
+                "wa",
+                "wo",
+                "xh",
+                "yi",
+                "yo",
+                "za",
+                "zh",
+                "zu",
+            )
+
+        val sortedIsoCodes: List<String> by lazy {
+            val remainder = allCodes.filterNot { it in popularCodes }
+            popularCodes + remainder
+        }
+    }
+
+    @Immutable
+    public data class Media public constructor(
+        val maxCount: Int,
+        val canSensitive: Boolean,
+        val altTextMaxLength: Int,
+        val allowMediaOnly: Boolean,
+        val minCountForNew: Int = 0,
+        val supportedMimeTypes: Set<String>? = null,
+        val compression: Compression = Compression(),
+    ) {
+        public fun supportsMimeType(mimeType: String?): Boolean {
+            val constraints = supportedMimeTypes ?: return true
+            val actual =
+                mimeType
+                    ?.substringBefore(';')
+                    ?.trim()
+                    ?.lowercase()
+                    ?.takeIf(String::isNotEmpty) ?: return false
+            return constraints.any { constraint ->
+                val normalized = constraint.substringBefore(';').trim().lowercase()
+                normalized == actual || (normalized.endsWith("/*") && actual.startsWith(normalized.removeSuffix("*")))
+            }
+        }
+
+        internal fun merge(other: Media): Media =
+            Media(
+                maxCount = minOf(maxCount, other.maxCount),
+                canSensitive = canSensitive && other.canSensitive,
+                altTextMaxLength = minOf(altTextMaxLength, other.altTextMaxLength),
+                allowMediaOnly = allowMediaOnly && other.allowMediaOnly,
+                minCountForNew = maxOf(minCountForNew, other.minCountForNew),
+                supportedMimeTypes = intersectMimeTypeConstraints(supportedMimeTypes, other.supportedMimeTypes),
+                compression = compression.merge(other.compression),
+            )
+
+        @Immutable
+        public data class Compression(
+            val maxSizeBytes: Long = 1L * 1024 * 1024,
+            val maxWidth: Int = 2000,
+            val maxHeight: Int = 2000,
+        ) {
+            internal fun merge(other: Compression): Compression =
+                Compression(
+                    maxSizeBytes = minOf(maxSizeBytes, other.maxSizeBytes),
+                    maxWidth = minOf(maxWidth, other.maxWidth),
+                    maxHeight = minOf(maxHeight, other.maxHeight),
+                )
+        }
+    }
+
+    @Immutable
+    public data class Poll public constructor(
+        val maxOptions: Int,
+    ) {
+        internal fun merge(other: Poll): Poll =
+            Poll(
+                maxOptions = minOf(maxOptions, other.maxOptions),
+            )
+    }
+
+    @Immutable
+    public data class Emoji public constructor(
+        public val emoji: CacheData<ImmutableMap<String, ImmutableList<UiEmoji>>>,
+        // Emojis picker can be merged only if their mergeTag is the same.
+        val mergeTag: String,
+        val accountKey: MicroBlogKey,
+    ) {
+        internal fun merge(other: Emoji): Emoji? =
+            if (mergeTag == other.mergeTag) {
+                Emoji(
+                    emoji = emoji,
+                    mergeTag = mergeTag,
+                    accountKey = accountKey,
+                )
+            } else {
+                null
+            }
+    }
+
+    @Immutable
+    public data object ContentWarning
+
+    @Immutable
+    public data class Visibility public constructor(
+        val allVisibilities: ImmutableList<UiTimelineV2.Post.Visibility> =
+            persistentListOf(
+                UiTimelineV2.Post.Visibility.Public,
+                UiTimelineV2.Post.Visibility.Home,
+                UiTimelineV2.Post.Visibility.Followers,
+                UiTimelineV2.Post.Visibility.Specified,
+            ),
+        val defaultVisibility: UiTimelineV2.Post.Visibility = UiTimelineV2.Post.Visibility.Public,
+    ) {
+        init {
+            require(allVisibilities.isNotEmpty()) { "Compose visibility options must not be empty" }
+            require(defaultVisibility in allVisibilities) {
+                "Default compose visibility must be included in the available options"
+            }
+        }
+
+        internal fun merge(other: Visibility): Visibility? {
+            if (defaultVisibility != other.defaultVisibility || allVisibilities.toSet() != other.allVisibilities.toSet()) {
+                return null
+            }
+            return this
+        }
+    }
+
+    internal fun merge(other: ComposeConfig): ComposeConfig {
+        val text =
+            if (text != null && other.text != null) {
+                text.merge(other.text)
+            } else {
+                text ?: other.text
+            }
+        val media =
+            if (media != null && other.media != null) {
+                media.merge(other.media)
+            } else {
+                null
+            }
+        val poll =
+            if (poll != null && other.poll != null) {
+                poll.merge(other.poll)
+            } else {
+                null
+            }
+        val emoji =
+            if (emoji != null && other.emoji != null) {
+                emoji.merge(other.emoji)
+            } else {
+                null
+            }
+        val contentWarning =
+            if (contentWarning != null && other.contentWarning != null) {
+                contentWarning
+            } else {
+                null
+            }
+        val visibility =
+            if (visibility != null && other.visibility != null) {
+                visibility.merge(other.visibility)
+            } else {
+                null
+            }
+        val language =
+            if (language != null && other.language != null) {
+                language.merge(other.language)
+            } else {
+                null
+            }
+        return ComposeConfig(
+            text = text,
+            media = media,
+            poll = poll,
+            emoji = emoji,
+            contentWarning = contentWarning,
+            visibility = visibility,
+            language = language,
+        )
+    }
+}
+
+/** Null is unrestricted; an empty intersection permits no media. */
+public fun intersectMimeTypeConstraints(
+    first: Set<String>?,
+    second: Set<String>?,
+): Set<String>? {
+    fun Set<String>.normalized() = mapTo(linkedSetOf()) { it.substringBefore(';').trim().lowercase() }
+    if (first == null) return second?.normalized()
+    if (second == null) return first.normalized()
+    val normalizedSecond = second.normalized()
+    return first.normalized().flatMapTo(linkedSetOf()) { left ->
+        normalizedSecond.mapNotNull { right ->
+            when {
+                left == right -> left
+                left.endsWith("/*") && right.startsWith(left.removeSuffix("*")) -> right
+                right.endsWith("/*") && left.startsWith(right.removeSuffix("*")) -> left
+                else -> null
+            }
+        }
+    }
+}

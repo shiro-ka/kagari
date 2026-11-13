@@ -1,0 +1,677 @@
+package dev.dimension.flare.ui.screen.rss
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.delete
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.CircleCheck
+import compose.icons.fontawesomeicons.solid.CircleChevronDown
+import compose.icons.fontawesomeicons.solid.CircleXmark
+import dev.dimension.flare.Res
+import dev.dimension.flare.add_rss_source
+import dev.dimension.flare.cancel
+import dev.dimension.flare.data.database.app.model.RssDisplayMode
+import dev.dimension.flare.data.database.app.model.SubscriptionType
+import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.edit_rss_source
+import dev.dimension.flare.mastodon_available_timelines
+import dev.dimension.flare.mastodon_federated_timeline
+import dev.dimension.flare.mastodon_local_timeline
+import dev.dimension.flare.mastodon_trending_statuses
+import dev.dimension.flare.ok
+import dev.dimension.flare.opml_import
+import dev.dimension.flare.rss_open_mode_checking
+import dev.dimension.flare.rss_open_mode_recommended
+import dev.dimension.flare.rss_open_mode_unknown
+import dev.dimension.flare.rss_source_checking
+import dev.dimension.flare.rss_source_invalid
+import dev.dimension.flare.rss_source_options_available
+import dev.dimension.flare.rss_source_valid
+import dev.dimension.flare.rss_sources_description_only
+import dev.dimension.flare.rss_sources_discovered_rss_sources
+import dev.dimension.flare.rss_sources_display_mode
+import dev.dimension.flare.rss_sources_full_content
+import dev.dimension.flare.rss_sources_open_in_browser
+import dev.dimension.flare.rss_sources_pinned_in_tabs
+import dev.dimension.flare.rss_sources_rss_hub_host_hint
+import dev.dimension.flare.rss_sources_rss_hub_host_label
+import dev.dimension.flare.rss_sources_title_label
+import dev.dimension.flare.rss_sources_url_label
+import dev.dimension.flare.subscription_url_hint
+import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.NetworkImage
+import dev.dimension.flare.ui.component.listCard
+import dev.dimension.flare.ui.model.UiRssSource
+import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.flatMap
+import dev.dimension.flare.ui.model.isSuccess
+import dev.dimension.flare.ui.model.map
+import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.model.toUiImage
+import dev.dimension.flare.ui.presenter.home.rss.CheckRssSourcePresenter
+import dev.dimension.flare.ui.presenter.home.rss.EditRssSourcePresenter
+import dev.dimension.flare.ui.presenter.home.rss.RssReadingMode
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.theme.LocalComposeWindow
+import io.github.composefluent.FluentTheme
+import io.github.composefluent.component.Button
+import io.github.composefluent.component.CardExpanderItem
+import io.github.composefluent.component.CheckBox
+import io.github.composefluent.component.ContentDialog
+import io.github.composefluent.component.ContentDialogButton
+import io.github.composefluent.component.MenuFlyoutContainer
+import io.github.composefluent.component.MenuFlyoutItem
+import io.github.composefluent.component.ProgressRing
+import io.github.composefluent.component.Text
+import io.github.composefluent.component.TextField
+import kotlinx.coroutines.FlowPreview
+import moe.tlaster.precompose.molecule.producePresenter
+import org.jetbrains.compose.resources.stringResource
+import java.io.File
+
+@Composable
+fun EditRssSourceScreen(
+    onDismissRequest: () -> Unit,
+    id: Int?,
+    initialUrl: String? = null,
+    onImport: (String) -> Unit,
+) {
+    val mastodonTypeNames =
+        mapOf(
+            SubscriptionType.MASTODON_TRENDS to stringResource(Res.string.mastodon_trending_statuses),
+            SubscriptionType.MASTODON_PUBLIC to stringResource(Res.string.mastodon_federated_timeline),
+            SubscriptionType.MASTODON_LOCAL to stringResource(Res.string.mastodon_local_timeline),
+        )
+    val composeWindow = LocalComposeWindow.current
+    val state by producePresenter("rss_source_edit_${id}_$initialUrl") { presenter(id, initialUrl) }
+
+    ContentDialog(
+        title =
+            if (id == null) {
+                stringResource(Res.string.add_rss_source)
+            } else {
+                stringResource(Res.string.edit_rss_source)
+            },
+        visible = true,
+        primaryButtonText = stringResource(Res.string.ok),
+        closeButtonText = stringResource(Res.string.cancel),
+        secondaryButtonText =
+            if (id == null) {
+                stringResource(Res.string.opml_import)
+            } else {
+                null
+            },
+        onButtonClick = {
+            when (it) {
+                ContentDialogButton.Primary -> {
+                    state.inputState.onSuccess { inputState ->
+                        when (inputState) {
+                            is EditRssSourcePresenter.State.RssInputState.RssFeed -> {
+                                val data =
+                                    inputState.save(
+                                        title = state.title.text.toString(),
+                                        displayMode = state.displayMode,
+                                    )
+                                state.save(
+                                    sources = listOf(data),
+                                )
+                                onDismissRequest.invoke()
+                            }
+
+                            is EditRssSourcePresenter.State.RssInputState.RssHub -> {
+                                if (inputState.checkState.isSuccess &&
+                                    inputState.checkState.takeSuccess() is CheckRssSourcePresenter.State.RssState.RssFeed
+                                ) {
+                                    val data =
+                                        inputState.save(
+                                            title = state.title.text.toString(),
+                                            displayMode = state.displayMode,
+                                        )
+                                    state.save(
+                                        sources = listOf(data),
+                                    )
+                                    onDismissRequest.invoke()
+                                }
+                            }
+
+                            is EditRssSourcePresenter.State.RssInputState.RssSources -> {
+                                if (state.selectedSource.isNotEmpty()) {
+                                    inputState.save(
+                                        sources = state.selectedSource,
+                                    )
+                                    state.save(
+                                        sources = state.selectedSource,
+                                    )
+                                    onDismissRequest.invoke()
+                                }
+                            }
+
+                            is EditRssSourcePresenter.State.RssInputState.SubscriptionInstance -> {
+                                if (state.selectedMastodonTypes.isNotEmpty()) {
+                                    val savedSources =
+                                        inputState.save(
+                                            state.selectedMastodonTypes,
+                                            mastodonTypeNames,
+                                        )
+                                    state.save(sources = savedSources)
+                                    onDismissRequest.invoke()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ContentDialogButton.Secondary -> {
+                    java.awt
+                        .FileDialog(composeWindow)
+                        .apply {
+                            filenameFilter =
+                                java.io.FilenameFilter { _, name ->
+                                    name.endsWith(".opml", ignoreCase = true)
+                                }
+                            isVisible = true
+                        }.takeIf { dialog ->
+                            dialog.file.isNotEmpty() && dialog.directory.isNotEmpty()
+                        }?.let {
+                            onDismissRequest()
+                            onImport.invoke(
+                                File(it.directory, it.file).absolutePath,
+                            )
+                        }
+                }
+
+                ContentDialogButton.Close -> {
+                    onDismissRequest.invoke()
+                }
+            }
+        },
+        content = {
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+            }
+            Column(
+                verticalArrangement =
+                    androidx.compose.foundation.layout.Arrangement
+                        .spacedBy(8.dp),
+            ) {
+                TextField(
+                    state = state.url,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                    header = { Text(text = stringResource(Res.string.rss_sources_url_label)) },
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    placeholder = { Text(text = stringResource(Res.string.subscription_url_hint)) },
+                    trailing = {
+                        RssCheckStateIndicator(state.checkState) { modifier ->
+                            ProgressRing(modifier = modifier)
+                        }
+                    },
+                )
+
+                state.checkState.onSuccess { rssState ->
+                    when (rssState) {
+                        is CheckRssSourcePresenter.State.RssState.RssFeed -> {
+                            TextField(
+                                state = state.title,
+                                header = { Text(text = stringResource(Res.string.rss_sources_title_label)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                                keyboardOptions =
+                                    KeyboardOptions(
+                                        imeAction = ImeAction.Done,
+                                        autoCorrectEnabled = false,
+                                    ),
+                                leadingIcon =
+                                    rssState.icon?.let {
+                                        {
+                                            NetworkImage(
+                                                it.toUiImage(proxy = ProxyRef.Global),
+                                                contentDescription = null,
+                                                modifier =
+                                                    Modifier
+                                                        .size(24.dp)
+                                                        .clip(RoundedCornerShape(4.dp)),
+                                            )
+                                        }
+                                    },
+                            )
+                        }
+
+                        CheckRssSourcePresenter.State.RssState.RssHub -> {
+                            TextField(
+                                state = state.title,
+                                header = { Text(text = stringResource(Res.string.rss_sources_title_label)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                            )
+                            TextField(
+                                state = state.rssHubHostText,
+                                header = { Text(text = stringResource(Res.string.rss_sources_rss_hub_host_label)) },
+                                modifier = Modifier.fillMaxWidth(),
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                                trailing = {
+                                    state.inputState.onSuccess {
+                                        if (it is EditRssSourcePresenter.State.RssInputState.RssHub) {
+                                            RssCheckStateIndicator(it.checkState) { modifier ->
+                                                CircularProgressIndicator(modifier = modifier)
+                                            }
+                                        } else {
+                                            RssInvalidIndicator()
+                                        }
+                                    }
+                                },
+                                placeholder = {
+                                    Text(text = stringResource(Res.string.rss_sources_rss_hub_host_hint))
+                                },
+                            )
+                            publicRssHubServer.forEachIndexed { index, it ->
+                                CardExpanderItem(
+                                    heading = {
+                                        Text(text = it)
+                                    },
+                                    onClick = {
+                                        state.rssHubHostText.edit {
+                                            delete(0, state.rssHubHostText.text.length)
+                                            append(it)
+                                        }
+                                    },
+                                )
+                            }
+                        }
+
+                        is CheckRssSourcePresenter.State.RssState.RssSources -> {
+                            Text(stringResource(Res.string.rss_sources_discovered_rss_sources))
+                            rssState.sources.forEachIndexed { index, source ->
+                                CardExpanderItem(
+                                    icon = {
+                                        NetworkImage(
+                                            source.favIcon.toUiImage(proxy = ProxyRef.Global),
+                                            contentDescription = null,
+                                            modifier =
+                                                Modifier
+                                                    .size(24.dp)
+                                                    .clip(RoundedCornerShape(4.dp)),
+                                        )
+                                    },
+                                    heading = {
+                                        Text(text = source.title.orEmpty())
+                                    },
+                                    caption = {
+                                        Text(text = source.url)
+                                    },
+                                    trailing = {
+                                        CheckBox(
+                                            checked = state.selectedSource.contains(source),
+                                            onCheckStateChange = {
+                                                state.selectSource(source)
+                                            },
+                                        )
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .listCard(
+                                                index = index,
+                                                totalCount = rssState.sources.size,
+                                            ).clickable {
+                                                state.selectSource(source)
+                                            },
+                                )
+                                if (state.selectedSource.contains(source)) {
+                                    state.readingModes.firstOrNull { it.url == source.url }?.let { mode ->
+                                        RssReadingModePicker(mode) { state.setSourceDisplayMode(source.url, it) }
+                                    }
+                                }
+                            }
+                        }
+
+                        is CheckRssSourcePresenter.State.RssState.SubscriptionInstance -> {
+                            Text(stringResource(Res.string.mastodon_available_timelines))
+                            rssState.availableTimelines.forEachIndexed { index, type ->
+                                val label =
+                                    when (type) {
+                                        SubscriptionType.MASTODON_TRENDS -> stringResource(Res.string.mastodon_trending_statuses)
+                                        SubscriptionType.MASTODON_PUBLIC -> stringResource(Res.string.mastodon_federated_timeline)
+                                        SubscriptionType.MASTODON_LOCAL -> stringResource(Res.string.mastodon_local_timeline)
+                                        else -> type.name
+                                    }
+                                CardExpanderItem(
+                                    icon =
+                                        rssState.icon?.let {
+                                            {
+                                                NetworkImage(
+                                                    it.toUiImage(proxy = ProxyRef.Global),
+                                                    contentDescription = null,
+                                                    modifier =
+                                                        Modifier
+                                                            .size(24.dp)
+                                                            .clip(RoundedCornerShape(4.dp)),
+                                                )
+                                            }
+                                        },
+                                    heading = {
+                                        Text(text = label)
+                                    },
+                                    trailing = {
+                                        CheckBox(
+                                            checked = state.selectedMastodonTypes.contains(type),
+                                            onCheckStateChange = {
+                                                state.toggleMastodonType(type)
+                                            },
+                                        )
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .listCard(
+                                                index = index,
+                                                totalCount = rssState.availableTimelines.size,
+                                            ).clickable {
+                                                state.toggleMastodonType(type)
+                                            },
+                                )
+                            }
+                        }
+                    }
+                }
+                state.inputState.onSuccess { inputState ->
+                    if (inputState !is EditRssSourcePresenter.State.RssInputState.RssSources &&
+                        inputState !is EditRssSourcePresenter.State.RssInputState.SubscriptionInstance
+                    ) {
+                        state.readingModes.firstOrNull()?.let { readingMode ->
+                            RssReadingModePicker(readingMode, state::setDisplayMode)
+                        }
+                    }
+                    Row(
+                        horizontalArrangement =
+                            androidx.compose.foundation.layout.Arrangement
+                                .spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    state.setPinnedInTabs(!state.pinnedInTabs)
+                                },
+                    ) {
+                        CheckBox(
+                            checked = state.pinnedInTabs,
+                            onCheckStateChange = { state.setPinnedInTabs(it) },
+                        )
+                        Text(
+                            text = stringResource(Res.string.rss_sources_pinned_in_tabs),
+                        )
+                    }
+
+                    if (inputState is EditRssSourcePresenter.State.RssInputState.RssHub) {
+                        LaunchedEffect(state.rssHubHostText.text) {
+                            inputState.checkWithServer(state.rssHubHostText.text.toString())
+                        }
+                        inputState.checkState.onSuccess {
+                            if (it is CheckRssSourcePresenter.State.RssState.RssFeed) {
+                                DisposableEffect(it) {
+                                    if (state.title.text.isEmpty()) {
+                                        state.title.edit {
+                                            append(it.title)
+                                        }
+                                    }
+                                    onDispose {
+                                        if (state.title.text == it) {
+                                            state.title.edit {
+                                                delete(0, it.title.length)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun RssCheckStateIndicator(
+    state: UiState<CheckRssSourcePresenter.State.RssState>,
+    loadingIndicator: @Composable (Modifier) -> Unit,
+) {
+    val checkingDescription = stringResource(Res.string.rss_source_checking)
+    when (state) {
+        is UiState.Success -> {
+            val (icon, description) =
+                when (state.data) {
+                    is CheckRssSourcePresenter.State.RssState.RssFeed,
+                    is CheckRssSourcePresenter.State.RssState.SubscriptionInstance,
+                    -> FontAwesomeIcons.Solid.CircleCheck to Res.string.rss_source_valid
+
+                    CheckRssSourcePresenter.State.RssState.RssHub,
+                    is CheckRssSourcePresenter.State.RssState.RssSources,
+                    -> FontAwesomeIcons.Solid.CircleChevronDown to Res.string.rss_source_options_available
+                }
+            FAIcon(
+                icon,
+                contentDescription = stringResource(description),
+                modifier = Modifier.size(24.dp),
+            )
+        }
+
+        is UiState.Error -> {
+            RssInvalidIndicator()
+        }
+
+        is UiState.Loading -> {
+            loadingIndicator(
+                Modifier
+                    .size(24.dp)
+                    .semantics {
+                        contentDescription = checkingDescription
+                    },
+            )
+        }
+    }
+}
+
+@Composable
+private fun RssInvalidIndicator() {
+    FAIcon(
+        FontAwesomeIcons.Solid.CircleXmark,
+        contentDescription = stringResource(Res.string.rss_source_invalid),
+        tint = FluentTheme.colors.system.critical,
+        modifier = Modifier.size(24.dp),
+    )
+}
+
+@OptIn(FlowPreview::class)
+@Composable
+private fun presenter(
+    id: Int?,
+    initialUrl: String?,
+) = run {
+    val state = remember(id) { EditRssSourcePresenter(id) }.invoke()
+    val tabState = remember { RssListWithTabsPresenter() }.invoke()
+    val titleText = rememberTextFieldState()
+    val urlText = rememberTextFieldState(initialText = initialUrl.orEmpty())
+    val rssHubHostText = rememberTextFieldState()
+    val selectedSource = remember { mutableStateListOf<UiRssSource>() }
+    val selectedMastodonTypes = remember { mutableStateListOf<SubscriptionType>() }
+    var pinnedInTabs by remember { mutableStateOf(false) }
+    state.data.onSuccess {
+        LaunchedEffect(Unit) {
+            titleText.edit {
+                append(it.title)
+            }
+            urlText.edit {
+                append(it.url)
+            }
+        }
+    }
+
+    val currentTabs =
+        remember(state.data, tabState.pins) {
+            state.data.flatMap { rssSource ->
+                tabState.pins.map {
+                    it.contains(rssSource)
+                }
+            }
+        }
+    currentTabs.onSuccess {
+        LaunchedEffect(it) {
+            pinnedInTabs = it
+        }
+    }
+    state.checkState.onSuccess {
+        if (it is CheckRssSourcePresenter.State.RssState.RssFeed) {
+            DisposableEffect(it) {
+                if (titleText.text.isEmpty()) {
+                    titleText.edit {
+                        append(it.title)
+                    }
+                }
+                onDispose {
+                    if (titleText.text == it) {
+                        titleText.edit {
+                            delete(0, it.title.length)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(state.checkState) {
+        selectedSource.clear()
+        state.clearSelectedSources()
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { urlText.text }
+            .collect {
+                state.checkUrl(it.toString())
+            }
+    }
+    object : EditRssSourcePresenter.State by state {
+        val pinnedInTabs = pinnedInTabs
+        val selectedSource = selectedSource
+        val selectedMastodonTypes: List<SubscriptionType> = selectedMastodonTypes
+        val rssHubHostText = rssHubHostText
+
+        fun setPinnedInTabs(value: Boolean) {
+            pinnedInTabs = value
+        }
+
+        fun selectSource(source: UiRssSource) {
+            if (selectedSource.contains(source)) {
+                selectedSource.remove(source)
+            } else {
+                selectedSource.add(source)
+            }
+            state.selectSource(source.url, selectedSource.contains(source))
+        }
+
+        fun toggleMastodonType(type: SubscriptionType) {
+            if (selectedMastodonTypes.contains(type)) {
+                selectedMastodonTypes.remove(type)
+            } else {
+                selectedMastodonTypes.add(type)
+            }
+        }
+
+        fun save(sources: List<UiRssSource>) {
+            sources.forEach {
+                if (pinnedInTabs) {
+                    tabState.pinTab(it)
+                } else {
+                    tabState.unpinTab(it)
+                }
+            }
+        }
+
+        val title = titleText
+        val url = urlText
+    }
+}
+
+private val publicRssHubServer =
+    listOf(
+        "https://rsshub.rssforever.com",
+        "https://hub.slarker.me",
+        "https://rsshub.pseudoyu.com",
+    )
+
+@Composable
+private fun RssReadingModePicker(
+    mode: RssReadingMode,
+    onSelect: (RssDisplayMode) -> Unit,
+) {
+    CardExpanderItem(
+        heading = { Text(stringResource(Res.string.rss_sources_display_mode)) },
+        trailing = {
+            MenuFlyoutContainer(
+                flyout = {
+                    RssDisplayMode.entries.forEach { value ->
+                        MenuFlyoutItem(
+                            text = { Text(rssReadingModeLabel(value)) },
+                            onClick = {
+                                onSelect(value)
+                                isFlyoutVisible = false
+                            },
+                        )
+                    }
+                },
+                adaptivePlacement = true,
+            ) {
+                Button(onClick = { isFlyoutVisible = !isFlyoutVisible }) { Text(rssReadingModeLabel(mode.displayMode)) }
+            }
+        },
+    )
+    if (mode.automatic) {
+        Text(
+            stringResource(
+                when {
+                    mode.checking -> Res.string.rss_open_mode_checking
+                    mode.recommended != null -> Res.string.rss_open_mode_recommended
+                    else -> Res.string.rss_open_mode_unknown
+                },
+            ),
+        )
+    }
+}
+
+@Composable
+private fun rssReadingModeLabel(mode: RssDisplayMode): String =
+    stringResource(
+        when (mode) {
+            RssDisplayMode.FULL_CONTENT -> Res.string.rss_sources_full_content
+            RssDisplayMode.DESCRIPTION_ONLY -> Res.string.rss_sources_description_only
+            RssDisplayMode.OPEN_IN_BROWSER -> Res.string.rss_sources_open_in_browser
+        },
+    )

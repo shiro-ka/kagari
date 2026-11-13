@@ -1,0 +1,929 @@
+import SwiftUI
+import AuthenticationServices
+import Combine
+import Observation
+import Foundation
+import FlareAppleCore
+import FlareAppleUI
+@preconcurrency import KotlinSharedUI
+import WebKit
+
+private enum MacOSServiceSelectionAnimation {
+    static let standard: Animation = .easeInOut(duration: 0.2)
+    static let inline: AnyTransition = .opacity.combined(with: .scale(scale: 0.98))
+}
+
+struct ServiceSelectionScreen: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let toHome: () -> Void
+
+    @State private var presenter: KotlinPresenter<ServiceSelectState>
+    @State private var instanceInput = ""
+    @State private var selectedMethods: [String: LoginMethodType] = [:]
+
+    init(toHome: @escaping () -> Void) {
+        self.toHome = toHome
+        self._presenter = .init(wrappedValue: .init(presenter: ServiceSelectPresenter(toHome: toHome)))
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                header
+            }
+
+            Section {
+                instanceInputView(state: presenter.state)
+            } footer: {
+                Text(ServiceSelectCopy.welcomeHint)
+            }
+
+            if let node = detectedNode(from: presenter.state.detectedPlatformId), presenter.state.canNext {
+                Section {
+                    loginContent(state: presenter.state, node: node)
+                        .id("login-\(node.platformId)-\(node.host)")
+                        .transition(MacOSServiceSelectionAnimation.inline)
+                }
+            } else {
+                Section {
+                    recommendedInstances(state: presenter.state)
+                        .id("recommendations")
+                        .transition(MacOSServiceSelectionAnimation.inline)
+                } header: {
+                    Text(ServiceSelectCopy.welcomeListHint)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .animation(MacOSServiceSelectionAnimation.standard, value: serviceContentKey(state: presenter.state))
+        .onChange(of: instanceInput) { _, newValue in
+            presenter.state.setFilter(value: newValue)
+        }
+        .navigationTitle("Login")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label {
+                        Text("Cancel")
+                    } icon: {
+                        Image(fontAwesome: .xmark)
+                    }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(ServiceSelectCopy.welcomeTitle)
+                .font(.title2.weight(.semibold))
+            Text(ServiceSelectCopy.welcomeMessage)
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func instanceInputView(state: ServiceSelectState) -> some View {
+        HStack(spacing: 10) {
+            platformIndicator(state: state)
+                .frame(width: 20, height: 20)
+
+            TextField(ServiceSelectCopy.instancePlaceholder, text: $instanceInput)
+                .textFieldStyle(.roundedBorder)
+                .disabled(state.loading)
+                .onSubmit {
+                    state.setFilter(value: instanceInput)
+                }
+
+            Button {
+                instanceInput = ""
+                state.setFilter(value: "")
+                selectedMethods.removeAll()
+            } label: {
+                Image(fontAwesome: instanceInput.isEmpty ? .magnifyingGlass : .xmark)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .disabled(instanceInput.isEmpty)
+            .help(instanceInput.isEmpty ? ServiceSelectCopy.search : ServiceSelectCopy.clear)
+            .accessibilityLabel(Text(instanceInput.isEmpty ? ServiceSelectCopy.search : ServiceSelectCopy.clear))
+        }
+    }
+
+    @ViewBuilder
+    private func platformIndicator(state: ServiceSelectState) -> some View {
+        ZStack {
+            switch onEnum(of: state.detectedPlatformId) {
+            case .success(let success):
+                TabIcon(icon: success.data.platformIcon, size: 20)
+                .accessibilityLabel(
+                    Text(verbatim: String(format: String(localized: "service_select_detected_platform"), success.data.platformId))
+                )
+            case .loading:
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(Text("service_select_detecting_platform"))
+            case .error:
+                Image(systemName: "questionmark.circle")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("service_select_unknown_platform"))
+            }
+        }
+        .animation(MacOSServiceSelectionAnimation.standard, value: platformIndicatorKey(state: state))
+    }
+
+    @ViewBuilder
+    private func loginContent(state: ServiceSelectState, node: NodeData) -> some View {
+        let methods = node.loginMethods
+        if let firstMethod = methods.first {
+            let key = "\(node.platformId)-\(node.host)"
+            let selectedMethod = Binding<LoginMethodType>(
+                get: { selectedMethods[key] ?? firstMethod.type },
+                set: { method in
+                    withAnimation(MacOSServiceSelectionAnimation.standard) {
+                        selectedMethods[key] = method
+                    }
+                }
+            )
+
+            VStack(alignment: .leading, spacing: 12) {
+                platformHeader(state: state, node: node) {
+                    if methods.count > 1 {
+                        Picker("", selection: selectedMethod) {
+                            ForEach(methods.indices, id: \.self) { index in
+                                Text(methods[index].title.text).tag(methods[index].type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                    }
+                }
+
+                if node.compatibleMode {
+                    Text(ServiceSelectCopy.compatibilityWarning(node.software))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                LoginFlowView {
+                    state.createLoginHandler(
+                        platformId: node.platformId,
+                        host: node.host,
+                        methodType: selectedMethod.wrappedValue,
+                        redirectUri: nil,
+                    )
+                }
+                    .id("\(key)-\(selectedMethod.wrappedValue)")
+
+                LoginAgreementView(
+                    urlString: state.agreementUrl(platformId: node.platformId, host: node.host)
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(MacOSServiceSelectionAnimation.standard, value: "\(selectedMethod.wrappedValue)")
+        }
+    }
+
+    private func platformHeader<Trailing: View>(
+        state: ServiceSelectState,
+        node: NodeData,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: 8) {
+            TabIcon(icon: node.platformIcon, size: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(node.platformDisplayNameText.text)
+                    .font(.headline)
+                Text(node.host)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            trailing()
+        }
+    }
+
+    private func recommendedInstances(state: ServiceSelectState) -> some View {
+        PagingView(
+            data: state.instances,
+            maxCount: 20,
+            successContent: { instance in
+                ServiceInstanceRow(
+                    instance: instance
+                ) {
+                    select(instance: instance, state: state)
+                }
+            },
+            loadingContent: {
+                ServiceInstancePlaceholderRow()
+            },
+            errorContent: { error, retry in
+                ListErrorView(error: error, onRetry: retry)
+            },
+            emptyContent: {
+                Text(ServiceSelectCopy.emptyMessage)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+            }
+        )
+    }
+
+    private func select(instance: UiInstance, state: ServiceSelectState) {
+        withAnimation(MacOSServiceSelectionAnimation.standard) {
+            instanceInput = instance.domain
+            state.setFilter(value: instance.domain)
+            selectedMethods.removeAll()
+        }
+    }
+
+    private func detectedNode(from state: UiState<NodeData>) -> NodeData? {
+        guard case .success(let success) = onEnum(of: state) else {
+            return nil
+        }
+        return success.data
+    }
+
+    private func serviceContentKey(state: ServiceSelectState) -> String {
+        if let node = detectedNode(from: state.detectedPlatformId), state.canNext {
+            return "login-\(node.platformId)-\(node.host)-\(node.compatibleMode)"
+        }
+        return "recommendations"
+    }
+
+    private func platformIndicatorKey(state: ServiceSelectState) -> String {
+        switch onEnum(of: state.detectedPlatformId) {
+        case .success(let success):
+            return "success-\(success.data.platformId)-\(success.data.host)"
+        case .loading:
+            return "loading"
+        case .error:
+            return "error"
+        }
+    }
+
+}
+
+struct ReloginScreen: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let target: ReloginTarget
+    let toHome: () -> Void
+
+    @State private var presenter: KotlinPresenter<ReloginState>
+    @State private var selectedMethod: LoginMethodType?
+
+    init(target: ReloginTarget, toHome: @escaping () -> Void) {
+        self.target = target
+        self.toHome = toHome
+        self._presenter = .init(wrappedValue: .init(presenter: ReloginPresenter(target: target, onSuccess: toHome)))
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                header
+            }
+            Section {
+                loginContent(state: presenter.state)
+                    .id("\(target.accountKey)-\(selectedMethod.map { String(describing: $0) } ?? "default")")
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle(ServiceSelectCopy.loginExpired)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label {
+                        Text("Cancel")
+                    } icon: {
+                        Image(fontAwesome: .xmark)
+                    }
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            TabIcon(icon: presenter.state.platformIcon(), size: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ServiceSelectCopy.loginExpired)
+                    .font(.title3.weight(.semibold))
+                Text("\(target.accountKey.id)@\(target.accountKey.host)")
+                    .font(.headline)
+                Text(ServiceSelectCopy.loginExpiredMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func loginContent(state: ReloginState) -> some View {
+        let methods = state.methods
+        if let firstMethod = methods.first {
+            let selectedMethod = Binding<LoginMethodType>(
+                get: { self.selectedMethod ?? firstMethod.type },
+                set: { method in
+                    withAnimation(MacOSServiceSelectionAnimation.standard) {
+                        self.selectedMethod = method
+                    }
+                }
+            )
+            VStack(alignment: .leading, spacing: 12) {
+                if methods.count > 1 {
+                    Picker("", selection: selectedMethod) {
+                        ForEach(methods.indices, id: \.self) { index in
+                            Text(methods[index].title.text).tag(methods[index].type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+
+                LoginFlowView {
+                    state.createLoginHandler(methodType: selectedMethod.wrappedValue)
+                }
+                .id("\(target.accountKey)-\(selectedMethod.wrappedValue)")
+
+                LoginAgreementView(urlString: state.agreementUrl())
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+}
+
+private struct LoginFlowView: View {
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+
+    @State private var presenter: KotlinPresenter<LoginFlowPresenterState>
+    @State private var qrContent: String?
+    @State private var webCookieUrl: String?
+    @State private var webCookieProbes: [LoginCookieProbe] = []
+
+    init(handler: @escaping () -> LoginMethodHandler) {
+        self._presenter = .init(wrappedValue: .init(presenter: LoginFlowPresenter(handler: handler())))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(presenter.state.flowState.fields, id: \.id) { field in
+                LoginFieldView(field: field) { id, value in
+                    presenter.state.updateField(id: id, value: value)
+                } onSubmit: {
+                    if let action = presenter.state.flowState.actions.first(where: { $0.enabled }) {
+                        presenter.state.perform(actionId: action.id)
+                    }
+                }
+            }
+
+            if let qrContent {
+                QRLoginView(content: qrContent)
+                    .frame(maxWidth: .infinity)
+                    .transition(MacOSServiceSelectionAnimation.inline)
+            }
+
+            ForEach(presenter.state.flowState.actions, id: \.id) { action in
+                Button {
+                    presenter.state.perform(actionId: action.id)
+                    if action.id == "cancel" {
+                        withAnimation(MacOSServiceSelectionAnimation.standard) {
+                            qrContent = nil
+                        }
+                    }
+                } label: {
+                    progressButtonLabel(title: action.label.text, isLoading: presenter.state.flowState.loading)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .frame(maxWidth: .infinity)
+                .disabled(!action.enabled || presenter.state.flowState.loading)
+            }
+
+            LoginErrorText(message: presenter.state.flowState.error)
+        }
+        .animation(MacOSServiceSelectionAnimation.standard, value: flowAnimationKey)
+        .task {
+            await collectEffects()
+        }
+        .sheet(isPresented: Binding(
+            get: { webCookieUrl != nil },
+            set: { value in
+                if !value {
+                    webCookieUrl = nil
+                }
+            }
+        )) {
+            if let webCookieUrl {
+                NavigationStack {
+                    MacOSWebLoginScreen(onCookie: { cookies in
+                        checkCookies(cookies, sourceUrl: webCookieUrl)
+                    }, url: webCookieUrl)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button {
+                                self.webCookieUrl = nil
+                            } label: {
+                                Label {
+                                    Text("Cancel")
+                                } icon: {
+                                    Image(fontAwesome: .xmark)
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(width: 600, height: 600)
+            }
+        }
+    }
+
+    private func collectEffects() async {
+        for await effect in presenter.state.effects {
+            switch onEnum(of: effect) {
+            case .openUrl(let openUrl):
+                await authenticate(url: openUrl.url)
+            case .showQr(let showQr):
+                withAnimation(MacOSServiceSelectionAnimation.standard) {
+                    qrContent = showQr.content
+                }
+            case .openWebCookieLogin(let webCookie):
+                webCookieProbes = webCookie.probes
+                webCookieUrl = webCookie.url
+            }
+        }
+    }
+
+    private func checkCookies(_ cookies: [HTTPCookie], sourceUrl: String) {
+        let snapshot = loginCookieSnapshot(cookies: cookies, probes: webCookieProbes, fallbackUrl: sourceUrl)
+        Task {
+            if (try? await presenter.state.checkCookies(snapshot: snapshot)) == true {
+                webCookieUrl = nil
+            }
+        }
+    }
+
+    private func progressButtonLabel(title: String, isLoading: Bool) -> some View {
+        HStack(spacing: 8) {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(title)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var flowAnimationKey: String {
+        let flowState = presenter.state.flowState
+        let fields =
+            flowState.fields
+                .map { "\($0.id):\($0.type):\($0.readOnly)" }
+                .joined(separator: ",")
+        let actions =
+            flowState.actions
+                .map { "\($0.id):\($0.label):\($0.enabled)" }
+                .joined(separator: ",")
+        return [
+            fields,
+            actions,
+            "\(flowState.loading)",
+            flowState.error ?? "",
+            qrContent ?? "",
+        ].joined(separator: "|")
+    }
+
+    private func authenticate(url: String) async {
+        guard let authURL = URL(string: url) else {
+            presenter.state.onExternalAuthenticationDismissed(
+                error: URLError(.badURL).localizedDescription
+            )
+            return
+        }
+        do {
+            let response = try await webAuthenticationSession.authenticate(
+                using: authURL,
+                callbackURLScheme: authURL.isPixivOAuthUrl ? "pixiv" : APPSCHEMA
+            )
+            presenter.state.resume(value: response.absoluteString)
+        } catch is CancellationError {
+            presenter.state.onExternalAuthenticationDismissed(error: nil)
+        } catch {
+            presenter.state.onExternalAuthenticationDismissed(
+                error: error.isCanceledWebAuthentication ? nil : error.localizedDescription
+            )
+        }
+    }
+}
+
+private extension Error {
+    var isCanceledWebAuthentication: Bool {
+        let error = self as NSError
+        return error.domain == ASWebAuthenticationSessionErrorDomain &&
+            error.code == ASWebAuthenticationSessionError.Code.canceledLogin.rawValue
+    }
+}
+
+private struct LoginFieldView: View {
+    let field: LoginField
+    let onUpdate: (String, String) -> Void
+    let onSubmit: () -> Void
+
+    @State private var value: String
+
+    init(
+        field: LoginField,
+        onUpdate: @escaping (String, String) -> Void,
+        onSubmit: @escaping () -> Void
+    ) {
+        self.field = field
+        self.onUpdate = onUpdate
+        self.onSubmit = onSubmit
+        self.value = field.value
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            switch field.type {
+            case .passwordInput:
+                SecureField(field.label.text, text: $value)
+                    .textFieldStyle(.roundedBorder)
+            case .displayText:
+                Text(field.value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            default:
+                TextField(field.label.text, text: $value)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(field.id == "username" ? .username : nil)
+            }
+
+            LoginErrorText(message: field.error)
+        }
+        .disabled(field.readOnly)
+        .onChange(of: value) { _, newValue in
+            onUpdate(field.id, newValue)
+        }
+        .onSubmit {
+            onSubmit()
+        }
+    }
+}
+
+private struct QRLoginView: View {
+    let content: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text(ServiceSelectCopy.nostrQRHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            QRCodeView(text: content)
+                .frame(width: 200, height: 200)
+                .background(.white, in: RoundedRectangle(cornerRadius: 8))
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(ServiceSelectCopy.nostrQRWaiting)
+                    .font(.caption)
+            }
+            Text(ServiceSelectCopy.nostrQRLinkLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(content)
+                .font(.caption2)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.center)
+                .lineLimit(4)
+        }
+    }
+}
+
+private struct ServiceInstanceRow: View {
+    let instance: UiInstance
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                instanceIcon
+                    .frame(width: 28, height: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(instance.name)
+                        .lineLimit(1)
+                    Text(instance.domain)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    if let description = instance.description_, !description.isEmpty {
+                        Text(description)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer()
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var instanceIcon: some View {
+        if let iconUrl = instance.iconUrl, !iconUrl.isEmpty {
+            NetworkImage(data: UiMediaImage(url: iconUrl, proxy: ProxyRef.Global.shared))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        } else {
+            TabIcon(icon: instance.platformIcon, size: 28)
+        }
+    }
+}
+
+private struct ServiceInstancePlaceholderRow: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "questionmark.circle")
+                .frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Placeholder")
+                Text("placeholder")
+                    .font(.caption)
+                Text("Description Placeholder")
+                    .font(.caption)
+            }
+            Spacer()
+        }
+        .redacted(reason: .placeholder)
+    }
+}
+
+private struct LoginErrorText: View {
+    let message: String?
+
+    var body: some View {
+        if let message, !message.isEmpty {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct LoginAgreementView: View {
+    let urlString: String?
+
+    var body: some View {
+        if let urlString, let url = URL(string: urlString) {
+            Text(agreement(url: url))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func agreement(url: URL) -> AttributedString {
+        var text = AttributedString(ServiceSelectCopy.loginAgreementPrefix + ServiceSelectCopy.eulaPrivacyPolicy + ".")
+        if let range = text.range(of: ServiceSelectCopy.eulaPrivacyPolicy) {
+            text[range].link = url
+            text[range].foregroundColor = .accentColor
+        }
+        return text
+    }
+}
+
+private struct MacOSWebLoginScreen: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel: MacOSWebLoginViewModel?
+    private let onCookie: ([HTTPCookie]) -> Void
+    private let url: String
+
+    init(
+        onCookie: @escaping ([HTTPCookie]) -> Void,
+        url: String
+    ) {
+        self.url = url
+        self.onCookie = onCookie
+    }
+
+    var body: some View {
+        ProxyWebContent { route in
+            Group {
+                if let viewModel, viewModel.route === route {
+                    VStack(spacing: 0) {
+                        Text(viewModel.currentOrigin)
+                            .font(.callout)
+                            .foregroundStyle(viewModel.currentOrigin.isEmpty || viewModel.currentOrigin == macWebLoginHTTPSOrigin(URL(string: url)) ? Color.secondary : Color.red)
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                        Divider()
+                        MacOSWebView(url: URL(string: url), configuration: viewModel.configuration) { webView in
+                            webView.navigationDelegate = viewModel.delegate
+                            route.bind(webView)
+                        }
+                    }
+                    .task { await viewModel.pollCookies() }
+                } else {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .task(id: route.key) {
+                guard viewModel?.route !== route else { return }
+                viewModel = MacOSWebLoginViewModel(onCookie: onCookie, url: url, route: route)
+            }
+        }
+        .onDisappear { viewModel?.clearCookie() }
+    }
+}
+
+private struct MacOSWebView: NSViewRepresentable {
+    let url: URL?
+    let configuration: WKWebViewConfiguration
+    let configure: (WKWebView) -> Void
+
+    func makeNSView(context: Context) -> WKWebView {
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        configure(webView)
+        if let url {
+            webView.load(URLRequest(url: url))
+        }
+        return webView
+    }
+
+    func updateNSView(_ nsView: WKWebView, context: Context) {}
+
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: ()) {
+        nsView.stopLoading()
+        nsView.navigationDelegate = nil
+        nsView.loadHTMLString("", baseURL: nil)
+    }
+}
+
+private final class MacOSCookieNavigationDelegate: NSObject, WKNavigationDelegate {
+    private let route: WebViewProxyRoute
+    private let onNavigationResponse: () -> Void
+    var onOriginChange: (String) -> Void = { _ in }
+
+    init(route: WebViewProxyRoute, onNavigationResponse: @escaping () -> Void) {
+        self.route = route
+        self.onNavigationResponse = onNavigationResponse
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        guard route.isValid else { return .cancel }
+        guard navigationAction.targetFrame?.isMainFrame != false else {
+            return .allow
+        }
+        guard let origin = macWebLoginHTTPSOrigin(navigationAction.request.url) else {
+            return .cancel
+        }
+        onOriginChange(origin)
+        return .allow
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async -> WKNavigationResponsePolicy {
+        guard route.isValid else { return .cancel }
+        onNavigationResponse()
+        return macWebLoginHTTPSOrigin(navigationResponse.response.url) == nil ? .cancel : .allow
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        route.report(error)
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        route.report(error)
+    }
+
+}
+
+@Observable
+private final class MacOSWebLoginViewModel {
+    let route: WebViewProxyRoute
+    var currentOrigin: String
+
+    private let onCookie: ([HTTPCookie]) -> Void
+    @ObservationIgnored lazy var delegate: MacOSCookieNavigationDelegate = {
+        let delegate = MacOSCookieNavigationDelegate(route: route) { [weak self] in
+            guard let self else { return }
+            route.dataStore.httpCookieStore.getAllCookies { cookies in
+                guard self.route.isValid else { return }
+                self.onCookie(cookies)
+            }
+        }
+        delegate.onOriginChange = { [weak self] origin in
+            self?.currentOrigin = origin
+        }
+        return delegate
+    }()
+
+    init(
+        onCookie: @escaping ([HTTPCookie]) -> Void,
+        url: String,
+        route: WebViewProxyRoute
+    ) {
+        self.route = route
+        self.onCookie = onCookie
+        self.currentOrigin = macWebLoginHTTPSOrigin(URL(string: url)) ?? ""
+    }
+
+    var configuration: WKWebViewConfiguration {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = route.dataStore
+        configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        return configuration
+    }
+
+    func clearCookie() {
+        clearMacWebLoginDataStore(dataStore: route.dataStore)
+    }
+
+    private func getCookies() {
+        route.dataStore.httpCookieStore.getAllCookies { cookies in
+            guard self.route.isValid else { return }
+            self.onCookie(cookies)
+        }
+    }
+
+    func pollCookies() async {
+        while !Task.isCancelled && route.isValid {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled && route.isValid else { return }
+            getCookies()
+        }
+    }
+}
+
+private func macWebLoginHTTPSOrigin(_ url: URL?) -> String? {
+    guard let url, url.scheme?.lowercased() == "https", let host = url.host, !host.isEmpty, url.user == nil, url.password == nil else {
+        return nil
+    }
+    if let port = url.port, port != 443 {
+        return "https://\(host):\(port)"
+    }
+    return "https://\(host)"
+}
+
+private func clearMacWebLoginDataStore(dataStore: WKWebsiteDataStore, completion: @escaping @Sendable () -> Void = {}) {
+    dataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+        dataStore.removeData(
+            ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+            for: records,
+            completionHandler: completion
+        )
+    }
+}
+
+private extension URL {
+    var isPixivOAuthUrl: Bool {
+        scheme == "https" &&
+            host == "app-api.pixiv.net" &&
+            path == "/web/v1/login"
+    }
+}
+
+private enum ServiceSelectCopy {
+    static let welcomeTitle = String(localized: "service_select_welcome_title", defaultValue: "Welcome to Flare")
+    static let welcomeMessage = String(localized: "service_select_welcome_message", defaultValue: "Enter a server to get started.")
+    static let welcomeHint = String(localized: "service_select_welcome_hint", defaultValue: "Flare supports Mastodon, Misskey, Bluesky, Nostr, and X.")
+    static let welcomeListHint = String(localized: "service_select_welcome_list_hint", defaultValue: "Or choose from these servers")
+    static let instancePlaceholder = String(localized: "service_select_instance_input_placeholder", defaultValue: "Instance URL")
+    static let emptyMessage = String(localized: "service_select_empty_message", defaultValue: "No instances found")
+    static let nostrQRHint = String(localized: "nostr_login_qr_hint", defaultValue: "Scan with Amber, Alby, or another Nostr Connect signer.")
+    static let nostrQRWaiting = String(localized: "nostr_login_qr_waiting", defaultValue: "Waiting for signer approval...")
+    static let nostrQRLinkLabel = String(localized: "nostr_login_qr_link_label", defaultValue: "Nostr Connect link")
+    static let eulaPrivacyPolicy = String(localized: "eula_privacy_policy", defaultValue: "EULA and Privacy Policy")
+    static let loginAgreementPrefix = String(localized: "login_agreement_prefix", defaultValue: "By logging in, you agree to the ")
+    static let loginExpired = String(localized: "login_expired", defaultValue: "Login session expired")
+    static let loginExpiredMessage = String(localized: "login_expired_message", defaultValue: "Log in again to continue using this account.")
+    static let search = String(localized: "search")
+    static let clear = String(localized: "Clear")
+
+    static func compatibilityWarning(_ software: String) -> String {
+        String(
+            format: String(
+                localized: "service_select_compatibility_warning",
+                defaultValue: "This server uses %@, Flare will run in compatibility mode. Some features may not work properly."
+            ),
+            software
+        )
+    }
+}

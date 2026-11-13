@@ -1,0 +1,25 @@
+package dev.dimension.flare.data.datasource.microblog.paging
+import kotlin.native.HiddenFromObjC
+
+@HiddenFromObjC
+public data class PagingResult<T : Any>(
+    val data: List<T> = emptyList(),
+    val nextKey: String? = null,
+    val previousKey: String? = null,
+    val continuationFailure: Throwable? = null,
+    val sourceFailures: List<Throwable> = emptyList(),
+    val sourceHeads: Map<String, List<String>> = emptyMap(),
+    val refreshedSources: Set<String> = emptySet(),
+    val refreshedRecommendations: Set<String> = emptySet(),
+) {
+    public constructor(
+        endOfPaginationReached: Boolean,
+        data: List<T> = emptyList(),
+        nextKey: String? = null,
+        previousKey: String? = null,
+    ) : this(
+        data = data.toList(),
+        nextKey = if (endOfPaginationReached) null else nextKey,
+        previousKey = previousKey,
+    )
+}

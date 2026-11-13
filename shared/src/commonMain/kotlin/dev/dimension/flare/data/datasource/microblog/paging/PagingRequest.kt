@@ -1,0 +1,15 @@
+package dev.dimension.flare.data.datasource.microblog.paging
+import kotlin.native.HiddenFromObjC
+
+@HiddenFromObjC
+public sealed interface PagingRequest {
+    public data object Refresh : PagingRequest
+
+    public data class Prepend(
+        val previousKey: String,
+    ) : PagingRequest
+
+    public data class Append(
+        val nextKey: String,
+    ) : PagingRequest
+}

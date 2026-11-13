@@ -1,0 +1,377 @@
+package dev.dimension.flare.ui.component
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.delete
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.ExpandedFullScreenSearchBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSearchBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.ClockRotateLeft
+import compose.icons.fontawesomeicons.solid.MagnifyingGlass
+import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.R
+import dev.dimension.flare.common.ImmutableListWrapper
+import dev.dimension.flare.common.PagingState
+import dev.dimension.flare.common.isEmpty
+import dev.dimension.flare.common.onLoading
+import dev.dimension.flare.common.onSuccess
+import dev.dimension.flare.data.model.TimelineDisplayMode
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.status.AdaptiveCard
+import dev.dimension.flare.ui.component.status.CommonStatusHeaderComponent
+import dev.dimension.flare.ui.component.status.ListEmptyView
+import dev.dimension.flare.ui.component.status.UserPlaceholder
+import dev.dimension.flare.ui.component.status.status
+import dev.dimension.flare.ui.model.UiProfile
+import dev.dimension.flare.ui.model.UiSearchHistory
+import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.presenter.home.SearchHistoryPresenter
+import dev.dimension.flare.ui.presenter.home.SearchHistoryState
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import kotlinx.coroutines.launch
+import androidx.compose.material3.SearchBarState as MaterialSearchBarState
+
+@Composable
+internal fun SearchBar(
+    state: SearchBarState,
+    onSearch: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    historyFloatingActionButton: @Composable (() -> Unit)? = null,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchBarState = rememberSearchBarState()
+    val scope = rememberCoroutineScope()
+    SearchContent(
+        onSearch = {
+            onSearch.invoke(it)
+            state.setQuery(it)
+            scope.launch { searchBarState.animateToCollapsed() }
+            keyboardController?.hide()
+        },
+        searchBarState = searchBarState,
+        onBack = {
+            scope.launch { searchBarState.animateToCollapsed() }
+        },
+        historyState = state.searchHistories,
+        modifier = modifier,
+        onDelete = {
+            state.deleteSearchHistory(it)
+        },
+        queryTextState = state.queryTextState,
+        trailingIcon = trailingIcon,
+        historyFloatingActionButton = historyFloatingActionButton,
+    )
+}
+
+@Composable
+private fun SearchContent(
+    historyState: UiState<ImmutableListWrapper<UiSearchHistory>>,
+    onDelete: (UiSearchHistory) -> Unit,
+    queryTextState: TextFieldState,
+    onSearch: (String) -> Unit,
+    searchBarState: MaterialSearchBarState,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    historyFloatingActionButton: @Composable (() -> Unit)? = null,
+) {
+    val inputField =
+        @Composable {
+            SearchBarDefaults.InputField(
+                searchBarState = searchBarState,
+                textFieldState = queryTextState,
+                onSearch = onSearch,
+                placeholder = {
+                    Text(text = stringResource(R.string.discover_search_placeholder))
+                },
+                leadingIcon = {
+                    AnimatedContent(
+                        searchBarState.currentValue == SearchBarValue.Expanded,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                    ) {
+                        if (it) {
+                            BackButton(onBack = onBack)
+                        } else {
+                            FAIcon(
+                                imageVector = FontAwesomeIcons.Solid.MagnifyingGlass,
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                },
+                trailingIcon = trailingIcon,
+            )
+        }
+    androidx.compose.material3.SearchBar(
+        state = searchBarState,
+        inputField = inputField,
+        modifier =
+            modifier
+                .windowInsetsPadding(SearchBarDefaults.windowInsets)
+                .padding(vertical = 8.dp),
+    )
+    ExpandedFullScreenSearchBar(
+        state = searchBarState,
+        inputField = inputField,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .imePadding(),
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    PaddingValues(
+                        bottom = if (historyFloatingActionButton != null) 88.dp else 0.dp,
+                    ),
+            ) {
+                historyState.onSuccess { history ->
+                    if (history.size == 0) {
+                        item {
+                            ListEmptyView(
+                                modifier = Modifier.fillParentMaxSize(),
+                                text = stringResource(R.string.empty_search_history),
+                                icon = FontAwesomeIcons.Solid.ClockRotateLeft,
+                            )
+                        }
+                    }
+                    items(history.size) { index ->
+                        val item = history[index]
+                        ListItem(
+                            modifier =
+                                Modifier
+                                    .clickable {
+                                        onSearch(item.keyword)
+                                    },
+                            trailingContent = {
+                                IconButton(onClick = {
+                                    onDelete.invoke(item)
+                                }) {
+                                    FAIcon(
+                                        imageVector = FontAwesomeIcons.Solid.Xmark,
+                                        contentDescription = stringResource(R.string.delete),
+                                    )
+                                }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            elevation = ListItemDefaults.elevation(),
+                            content = {
+                                Text(text = item.keyword)
+                            },
+                        )
+                    }
+                }
+            }
+            historyFloatingActionButton?.let { fab ->
+                Box(
+                    modifier =
+                        Modifier
+                            .align(androidx.compose.ui.Alignment.BottomCenter)
+                            .padding(bottom = 16.dp),
+                ) {
+                    fab()
+                }
+            }
+        }
+    }
+}
+
+internal fun LazyStaggeredGridScope.searchContent(
+    searchUsers: PagingState<UiProfile>,
+    searchStatus: PagingState<UiTimelineV2>,
+    toUser: (MicroBlogKey) -> Unit,
+) {
+    if (searchUsers.isEmpty && searchStatus.isEmpty) {
+        item(span = StaggeredGridItemSpan.FullLine) {
+            ListEmptyView(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                text = stringResource(R.string.empty_search_results),
+                icon = FontAwesomeIcons.Solid.MagnifyingGlass,
+            )
+        }
+    }
+    searchUsers
+        .onSuccess {
+            item(
+                span = StaggeredGridItemSpan.FullLine,
+            ) {
+                ListItem(
+                    colors =
+                        ListItemDefaults
+                            .colors(
+                                containerColor = Color.Transparent,
+                            ),
+                    elevation = ListItemDefaults.elevation(),
+                    content = {
+                        Text(text = stringResource(R.string.search_users))
+                    },
+                )
+            }
+            item(
+                span = StaggeredGridItemSpan.FullLine,
+            ) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier =
+                        Modifier
+                            .let {
+                                if (LocalTimelineAppearance.current.timelineDisplayMode == TimelineDisplayMode.Plain) {
+                                    it.padding(horizontal = screenHorizontalPadding)
+                                } else {
+                                    it
+                                }
+                            },
+                ) {
+                    items(itemCount) {
+                        val item = get(it)
+                        AdaptiveCard(
+                            modifier =
+                                Modifier
+                                    .width(256.dp),
+                        ) {
+                            if (item == null) {
+                                UserPlaceholder(
+                                    modifier = Modifier.padding(8.dp),
+                                )
+                            } else {
+                                CommonStatusHeaderComponent(
+                                    modifier = Modifier.padding(8.dp),
+                                    data = item,
+                                    onUserClick = {
+                                        toUser(item.key)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }.onLoading {
+            item(
+                span = StaggeredGridItemSpan.FullLine,
+            ) {
+                ListItem(
+                    colors =
+                        ListItemDefaults
+                            .colors(
+                                containerColor = Color.Transparent,
+                            ),
+                    elevation = ListItemDefaults.elevation(),
+                    content = {
+                        Text(text = stringResource(R.string.search_users))
+                    },
+                )
+            }
+            items(10) {
+                AdaptiveCard(
+                    modifier =
+                        Modifier
+                            .width(256.dp),
+                ) {
+                    UserPlaceholder(
+                        modifier = Modifier.padding(8.dp),
+                    )
+                }
+            }
+        }
+
+    searchStatus.onSuccess {
+        item(
+            span = StaggeredGridItemSpan.FullLine,
+        ) {
+            ListItem(
+                colors =
+                    ListItemDefaults
+                        .colors(
+                            containerColor = Color.Transparent,
+                        ),
+                elevation = ListItemDefaults.elevation(),
+                content = {
+                    Text(text = stringResource(R.string.search_status))
+                },
+            )
+        }
+        status(searchStatus)
+    }
+}
+
+@Composable
+internal fun searchBarPresenter(initialQuery: String = ""): SearchBarState =
+    run {
+        val searchHistoryState = remember { SearchHistoryPresenter() }.invoke()
+        LaunchedEffect(Unit) {
+            if (initialQuery.isNotEmpty()) {
+                searchHistoryState.addSearchHistory(initialQuery)
+            }
+        }
+        val queryTextState = rememberTextFieldState(initialText = initialQuery)
+
+        object :
+            SearchBarState,
+            SearchHistoryState by searchHistoryState {
+            override val queryTextState: TextFieldState
+                get() = queryTextState
+
+            override fun deleteSearchHistory(history: UiSearchHistory) {
+                searchHistoryState.deleteSearchHistory(history.keyword)
+            }
+
+            override fun setQuery(query: String) {
+                if (queryTextState.text == query) return
+                queryTextState.edit {
+                    delete(0, queryTextState.text.length)
+                    append(query)
+                }
+            }
+        }
+    }
+
+internal interface SearchBarState : SearchHistoryState {
+    val queryTextState: TextFieldState
+
+    fun deleteSearchHistory(history: UiSearchHistory)
+
+    fun setQuery(query: String)
+}

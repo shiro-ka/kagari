@@ -1,0 +1,47 @@
+package dev.dimension.flare.ui.presenter.status
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
+import dev.dimension.flare.common.collectAsState
+import dev.dimension.flare.data.datasource.microblog.capabilities
+import dev.dimension.flare.data.repository.AccountRepository
+import dev.dimension.flare.data.repository.accountServiceProvider
+import dev.dimension.flare.di.koinInject
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.flatMap
+import dev.dimension.flare.ui.model.map
+import dev.dimension.flare.ui.model.toUi
+import dev.dimension.flare.ui.presenter.PresenterBase
+
+public class StatusPresenter(
+    private val accountType: AccountType,
+    private val statusKey: MicroBlogKey,
+) : PresenterBase<StatusState>() {
+    private val accountRepository: AccountRepository by koinInject()
+
+    @Composable
+    override fun body(): StatusState {
+        val serviceState = accountServiceProvider(accountType = accountType, repository = accountRepository)
+        val postState = remember(serviceState) { serviceState.map { requireNotNull(it.capabilities.post) } }
+        val accountServiceState =
+            postState.flatMap { post ->
+                remember(post, statusKey) {
+                    post.postHandler.post(statusKey)
+                }.collectAsState().toUi()
+            }
+        remember { LogStatusHistoryPresenter(accountType = accountType, statusKey = statusKey) }.body()
+
+        return object : StatusState {
+            override val status: UiState<UiTimelineV2> = accountServiceState
+        }
+    }
+}
+
+@Immutable
+public interface StatusState {
+    public val status: UiState<UiTimelineV2>
+}

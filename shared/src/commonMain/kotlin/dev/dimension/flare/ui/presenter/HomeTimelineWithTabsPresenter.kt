@@ -1,0 +1,149 @@
+package dev.dimension.flare.ui.presenter
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.dimension.flare.data.datastore.AppDataStore
+import dev.dimension.flare.data.datastore.model.HomeTimelinePreferences
+import dev.dimension.flare.data.model.IconType
+import dev.dimension.flare.data.model.appearance.TimelineAppearance
+import dev.dimension.flare.data.model.tab.UiTimelineTabItem
+import dev.dimension.flare.data.model.tab.resolveTimelineAppearance
+import dev.dimension.flare.data.model.tab.toUiTimelineTabItem
+import dev.dimension.flare.data.platform.CommonTimelineSpecs
+import dev.dimension.flare.data.repository.AccountRepository
+import dev.dimension.flare.data.repository.SettingsRepository
+import dev.dimension.flare.di.koinInject
+import dev.dimension.flare.ui.model.UiIcon
+import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.UiStrings
+import dev.dimension.flare.ui.model.asText
+import dev.dimension.flare.ui.model.collectAsUiState
+import dev.dimension.flare.ui.model.takeSuccessOr
+import dev.dimension.flare.ui.presenter.home.ActiveAccountPresenter
+import dev.dimension.flare.ui.presenter.home.UserState
+import dev.dimension.flare.web.shared.WebPresenter
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+
+@WebPresenter("homeTimelineWithTabs")
+public class HomeTimelineWithTabsPresenter : PresenterBase<HomeTimelineWithTabsPresenter.State>() {
+    private val settingsRepository by koinInject<SettingsRepository>()
+    private val accountRepository by koinInject<AccountRepository>()
+    private val appDataStore by koinInject<AppDataStore>()
+
+    public interface State : UserState {
+        public val tabState: UiState<ImmutableList<UiTimelineTabItem>>
+        public val initialSelectedTabId: String? get() = null
+        public val selectionReady: Boolean get() = true
+
+        public fun selectTab(tabId: String) {}
+
+        public fun resolveAppearance(
+            tab: UiTimelineTabItem,
+            base: TimelineAppearance,
+        ): TimelineAppearance
+    }
+
+    private val isLoggedInFlow by lazy {
+        accountRepository.allAccounts
+            .map { accounts -> accounts.any { it.platformAvailable } }
+            .distinctUntilChanged()
+    }
+
+    private val tabsState by lazy {
+        settingsRepository.homeTimelineTabs.combine(isLoggedInFlow) { tabs, isLoggedIn ->
+            tabs
+                .withGuestMastodonHomeFallback(isLoggedIn = isLoggedIn)
+                .toImmutableList()
+        }
+    }
+
+    private val initialSelection by lazy {
+        flow {
+            val enabled = settingsRepository.appSettings.first().rememberHomeTimelinePosition
+            emit(
+                if (enabled) {
+                    appDataStore.homeTimelinePreferences.data.first()
+                } else {
+                    HomeTimelinePreferences()
+                },
+            )
+        }.catch { error ->
+            if (error is CancellationException) throw error
+            emit(HomeTimelinePreferences())
+        }
+    }
+
+    @Composable
+    override fun body(): State {
+        val accountState =
+            remember {
+                ActiveAccountPresenter()
+            }.body()
+
+        val tabs by tabsState.collectAsUiState()
+        val selection by initialSelection.collectAsUiState()
+        var selectedTab by remember { mutableStateOf<String?>(null) }
+        val rememberPosition by remember {
+            settingsRepository.appSettings.map { it.rememberHomeTimelinePosition }.distinctUntilChanged()
+        }.collectAsState(initial = null)
+        LaunchedEffect(rememberPosition, selectedTab) {
+            if (rememberPosition == true) {
+                selectedTab?.let { id ->
+                    try {
+                        appDataStore.homeTimelinePreferences.updateData { it.copy(selectedTabId = id) }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        error.printStackTrace()
+                    }
+                }
+            }
+        }
+
+        return object : State, UserState by accountState {
+            override val tabState = if (selection is UiState.Success) tabs else UiState.Loading()
+            override val initialSelectedTabId = selection.takeSuccessOr(HomeTimelinePreferences()).selectedTabId
+            override val selectionReady = selection is UiState.Success
+
+            override fun selectTab(tabId: String) {
+                selectedTab = tabId
+            }
+
+            override fun resolveAppearance(
+                tab: UiTimelineTabItem,
+                base: TimelineAppearance,
+            ): TimelineAppearance = tab.resolveTimelineAppearance(base)
+        }
+    }
+}
+
+private const val DEFAULT_GUEST_MASTODON_HOST = "mastodon.social"
+
+private fun List<UiTimelineTabItem>.withGuestMastodonHomeFallback(isLoggedIn: Boolean): List<UiTimelineTabItem> =
+    if (!isLoggedIn && isEmpty()) {
+        listOf(guestMastodonHomeTimelineTab)
+    } else {
+        this
+    }
+
+internal val guestMastodonHomeTimelineTab: UiTimelineTabItem
+    get() =
+        CommonTimelineSpecs.guestHome
+            .candidate(
+                data = CommonTimelineSpecs.GuestHomeData(DEFAULT_GUEST_MASTODON_HOST),
+                title = UiStrings.Home.asText(),
+                icon = IconType.Material(UiIcon.Home),
+            ).toUiTimelineTabItem()

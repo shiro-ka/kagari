@@ -1,0 +1,750 @@
+package dev.dimension.flare.ui.screen.media
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.isUnspecified
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.times
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.roundToIntSize
+import androidx.compose.ui.unit.toOffset
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.memory.MemoryCache
+import coil3.request.crossfade
+import coil3.size.Size
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.FloppyDisk
+import compose.icons.fontawesomeicons.solid.Pause
+import compose.icons.fontawesomeicons.solid.Play
+import dev.dimension.flare.Res
+import dev.dimension.flare.common.DesktopDownloadManager
+import dev.dimension.flare.common.DesktopSaveDialog
+import dev.dimension.flare.common.FlareHardwareShortcutDetector
+import dev.dimension.flare.common.FlareHardwareShortcutsElement
+import dev.dimension.flare.common.MediaFileNamePolicy
+import dev.dimension.flare.data.model.VideoAutoplay
+import dev.dimension.flare.media_pause
+import dev.dimension.flare.media_play
+import dev.dimension.flare.media_playback_position
+import dev.dimension.flare.media_save
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.component.MediaViewerPlayback
+import dev.dimension.flare.ui.component.MediaViewerSelection
+import dev.dimension.flare.ui.component.NetworkImage
+import dev.dimension.flare.ui.component.UgoiraPlayer
+import dev.dimension.flare.ui.component.VideoPlayer
+import dev.dimension.flare.ui.component.accessibleDescription
+import dev.dimension.flare.ui.component.rememberMediaImageRequest
+import dev.dimension.flare.ui.component.status.MediaItem
+import dev.dimension.flare.ui.humanizer.humanize
+import dev.dimension.flare.ui.model.UiMedia
+import dev.dimension.flare.ui.model.contentPostOrNull
+import dev.dimension.flare.ui.model.map
+import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.media.ImageTranslationPresenter
+import dev.dimension.flare.ui.presenter.status.StatusPresenter
+import dev.dimension.flare.ui.presenter.status.StatusState
+import dev.dimension.flare.ui.screen.settings.imageTranslationText
+import dev.dimension.flare.ui.theme.LocalComposeWindow
+import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import io.github.composefluent.FluentTheme
+import io.github.composefluent.component.CommandBarSeparator
+import io.github.composefluent.component.GridViewItem
+import io.github.composefluent.component.HorizontalFlipView
+import io.github.composefluent.component.ProgressBar
+import io.github.composefluent.component.ProgressRing
+import io.github.composefluent.component.Slider
+import io.github.composefluent.component.SubtleButton
+import io.github.composefluent.component.Text
+import io.github.composefluent.surface.Card
+import io.github.kdroidfilter.composemediaplayer.VideoPlayerState
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import me.saket.telephoto.ExperimentalTelephotoApi
+import me.saket.telephoto.zoomable.DoubleClickToZoomListener
+import me.saket.telephoto.zoomable.HardwareShortcutsSpec
+import me.saket.telephoto.zoomable.ZoomSpec
+import me.saket.telephoto.zoomable.ZoomableContentLocation
+import me.saket.telephoto.zoomable.ZoomableContentLocation.SameAsLayoutBounds
+import me.saket.telephoto.zoomable.ZoomableContentLocation.Unspecified
+import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.zoomable
+import moe.tlaster.precompose.molecule.producePresenter
+import org.apache.commons.lang3.SystemUtils
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import kotlin.math.max
+import kotlin.math.roundToLong
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
+
+@Composable
+internal fun StatusMediaScreen(
+    accountType: AccountType,
+    statusKey: MicroBlogKey,
+    index: Int,
+) {
+    MediaViewerPlayback { StatusMediaContent(accountType, statusKey, index) }
+}
+
+@Composable
+private fun StatusMediaContent(
+    accountType: AccountType,
+    statusKey: MicroBlogKey,
+    index: Int,
+) {
+    val translation = remember(accountType) { ImageTranslationPresenter(accountType) }.invoke()
+    val scope = rememberCoroutineScope()
+    val window = LocalComposeWindow.current
+    val state by producePresenter(
+        "StatusMediaScreen_${accountType}_$statusKey",
+    ) {
+        presenter(
+            accountType = accountType,
+            statusKey = statusKey,
+            window = window,
+        )
+    }
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize(),
+    ) {
+        state.medias.onSuccess { medias ->
+            val pagerState =
+                rememberPagerState(
+                    initialPage = index,
+                ) {
+                    medias.size
+                }
+            MediaViewerSelection(medias.map { it.url }, pagerState.currentPage)
+            HorizontalFlipView(
+                state = pagerState,
+                enabled = state.lockPager,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .onKeyEvent {
+                            when (it.key) {
+                                androidx.compose.ui.input.key.Key.DirectionRight -> {
+                                    if (pagerState.currentPage < pagerState.pageCount - 1) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+
+                                androidx.compose.ui.input.key.Key.DirectionLeft -> {
+                                    if (pagerState.currentPage > 0) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+
+                                else -> {
+                                    false
+                                }
+                            }
+                        },
+            ) {
+                val media = medias[it]
+                when (media) {
+                    is UiMedia.Ugoira -> {
+                        val zoom = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 10f))
+                        LaunchedEffect(zoom.zoomFraction) { state.setLockPager((zoom.zoomFraction ?: 0f) > .01f) }
+                        UgoiraPlayer(media, Modifier.fillMaxSize().zoomable(zoom), autoplay = pagerState.currentPage == it)
+                    }
+
+                    is UiMedia.Image -> {
+                        ImageItem(
+                            translating = translation.item(media).loading,
+                            modifier = Modifier.fillMaxSize(),
+                            media = translation.displayed(media),
+                            onLoadError = {
+                                val result = translation.displayed(media)
+                                if (result.url != media.url) translation.imageFailed(media, result.url)
+                            },
+                            description = media.accessibleDescription(),
+                            isFocused = pagerState.currentPage == it,
+                            setLockPager = state::setLockPager,
+                        )
+                    }
+
+                    is UiMedia.Video -> {
+                        if (pagerState.currentPage == it) {
+                            VideoItem(
+                                media = media,
+                                description = media.accessibleDescription(),
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize(),
+                            )
+                        } else {
+                            ImageItem(
+                                modifier = Modifier.fillMaxSize(),
+                                media = media.preview,
+                                description = media.accessibleDescription(),
+                                isFocused = pagerState.currentPage == it,
+                                setLockPager = state::setLockPager,
+                            )
+                        }
+                    }
+
+                    else -> {
+                        CompositionLocalProvider(
+                            LocalTimelineAppearance provides
+                                LocalTimelineAppearance
+                                    .current
+                                    .copy(
+                                        videoAutoplay = VideoAutoplay.ALWAYS,
+                                    ),
+                        ) {
+                            MediaItem(
+                                media = media,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                    }
+                }
+            }
+            LazyRow(
+                modifier =
+                    Modifier
+                        .background(FluentTheme.colors.background.layer.default)
+                        .height(64.dp)
+                        .padding(8.dp)
+                        .fillMaxWidth(),
+                horizontalArrangement =
+                    Arrangement.spacedBy(
+                        8.dp,
+                        Alignment.CenterHorizontally,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (medias.size > 1) {
+                    items(medias.size) { index ->
+                        val media = medias[index]
+                        GridViewItem(
+                            selected = pagerState.currentPage == index,
+                            onSelectedChange = {
+                                if (it) {
+                                    scope.launch {
+                                        pagerState.scrollToPage(index)
+                                    }
+                                }
+                            },
+                        ) {
+                            NetworkImage(
+                                model = media.preview,
+                                contentDescription = media.accessibleDescription(),
+                                modifier =
+                                    Modifier
+                                        .aspectRatio(1f),
+                            )
+                        }
+                    }
+                    item {
+                        CommandBarSeparator()
+                    }
+                }
+                medias.getOrNull(pagerState.currentPage)?.let { current ->
+                    if (current is UiMedia.Image) item { ImageTranslationActions(translation, current) }
+                }
+                if (medias.getOrNull(pagerState.currentPage) !is UiMedia.Ugoira) {
+                    item {
+                        SubtleButton(
+                            onClick = {
+                                val current = medias[pagerState.currentPage]
+                                state.save(current, translation.displayed(current))
+                            },
+                            content = {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.FloppyDisk,
+                                    contentDescription = stringResource(Res.string.media_save),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun VideoItem(
+    media: UiMedia.Video,
+    description: String?,
+    modifier: Modifier = Modifier,
+) {
+    var showControls by remember { mutableStateOf(true) }
+    VideoPlayer(
+        media = media,
+        contentDescription = description,
+        modifier = modifier.clickable { showControls = !showControls },
+        muted = false,
+        showControls = true,
+        contentScale = ContentScale.Fit,
+        controls = { playerState, seek ->
+            AnimatedVisibility(
+                showControls,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                        .widthIn(max = 480.dp),
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+            ) {
+                Card(
+                    modifier = Modifier,
+                ) {
+                    PlayerControl(
+                        state = playerState,
+                        onSeek = seek,
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun PlayerControl(
+    state: VideoPlayerState,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val playbackPositionLabel = stringResource(Res.string.media_playback_position)
+    val playerState by rememberUpdatedState(state)
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (playerState.isLoading) {
+            ProgressBar(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+            )
+        } else {
+            SubtleButton(
+                onClick = {
+                    if (playerState.isPlaying) {
+                        playerState.pause()
+                    } else {
+                        playerState.play()
+                    }
+                },
+                disabled = playerState.isLoading,
+            ) {
+                FAIcon(
+                    if (!playerState.isPlaying) {
+                        FontAwesomeIcons.Solid.Play
+                    } else {
+                        FontAwesomeIcons.Solid.Pause
+                    },
+                    contentDescription =
+                        stringResource(
+                            if (playerState.isPlaying) {
+                                Res.string.media_pause
+                            } else {
+                                Res.string.media_play
+                            },
+                        ),
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            if (!playerState.sliderPos.isNaN()) {
+                Slider(
+                    value = playerState.sliderPos,
+                    onValueChange = {
+                        playerState.sliderPos = it
+                        playerState.userDragging = true
+                    },
+                    onValueChangeFinished = {
+                        playerState.userDragging = false
+                        onSeek(playerState.sliderPos)
+                    },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .semantics {
+                                contentDescription = playbackPositionLabel
+                            },
+                    valueRange = 0f..1000f,
+                    tooltipContent = {
+                        val duration = state.metadata.duration
+                        if (duration != null) {
+                            Text(
+                                (it.value / 1000f * duration)
+                                    .roundToLong()
+                                    .let {
+                                        // https://github.com/kdroidFilter/ComposeMediaPlayer/issues/153
+                                        if (SystemUtils.IS_OS_MAC_OSX) {
+                                            it.seconds
+                                        } else if (SystemUtils.IS_OS_LINUX) {
+                                            it.nanoseconds
+                                        } else {
+                                            it.milliseconds
+                                        }
+                                    }.humanize(),
+                            )
+                        }
+                    },
+                )
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+            val currentTime by remember {
+                derivedStateOf {
+                    buildString {
+                        append(playerState.positionText)
+                        append(" / ")
+                        append(playerState.durationText)
+                    }
+                }
+            }
+            Text(currentTime)
+            Spacer(Modifier.width(screenHorizontalPadding))
+        }
+    }
+}
+
+@OptIn(ExperimentalTelephotoApi::class)
+@Composable
+internal fun ImageItem(
+    media: UiMedia?,
+    description: String?,
+    setLockPager: (Boolean) -> Unit,
+    isFocused: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onLoadError: () -> Unit = {},
+    translating: Boolean = false,
+) {
+    val translationBlur by animateDpAsState(if (translating) 8.dp else 0.dp, label = "Image translation blur")
+    val loadingDescription = imageTranslationText("Translating image")
+    val currentOnLoadError by androidx.compose.runtime.rememberUpdatedState(onLoadError)
+    var previousCacheKey by remember { mutableStateOf<MemoryCache.Key?>(null) }
+    val currentMediaKey by androidx.compose.runtime.rememberUpdatedState(media?.cacheKey)
+    val baseRequest = rememberMediaImageRequest(media, crossfade = false)
+    val request =
+        remember(baseRequest) {
+            val requestedKey = media?.cacheKey
+            baseRequest
+                .newBuilder()
+                .size(Size.ORIGINAL)
+                .apply { previousCacheKey?.let { placeholderMemoryCacheKey(it) } }
+                .listener(onSuccess = { _, result -> previousCacheKey = result.memoryCacheKey }, onError = { _, _ ->
+                    if (requestedKey ==
+                        currentMediaKey
+                    ) {
+                        currentOnLoadError()
+                    }
+                })
+                .build()
+        }
+    val painter = rememberAsyncImagePainter(request)
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            focusRequester.requestFocus()
+        } else {
+            focusRequester.freeFocus()
+        }
+    }
+    val zoomableState =
+        rememberZoomableState(
+            zoomSpec = ZoomSpec(maxZoomFactor = 50f, minZoomFactor = 0.1f),
+            hardwareShortcutsSpec =
+                HardwareShortcutsSpec(
+                    enabled = false,
+                    shortcutDetector = FlareHardwareShortcutDetector,
+                ),
+        ).apply {
+            LaunchedEffect(painter.intrinsicSize) {
+                setContentLocation(
+                    scaledInsideAndCenterAligned(painter.intrinsicSize),
+                )
+            }
+        }
+    LaunchedEffect(zoomableState.zoomFraction) {
+        zoomableState.zoomFraction?.let {
+            setLockPager(it > 0.01f)
+        } ?: setLockPager(false)
+    }
+    LaunchedEffect(painter.intrinsicSize) {
+        val aspectRatio = painter.intrinsicSize.height / painter.intrinsicSize.width
+        val targetAspectRatio = 19.5f / 9f
+        if (aspectRatio > targetAspectRatio) {
+            zoomableState.contentAlignment = Alignment.TopCenter
+            zoomableState.contentScale = ContentScale.FillWidth
+        } else {
+            zoomableState.contentAlignment = Alignment.Center
+            zoomableState.contentScale = ContentScale.Fit
+        }
+    }
+    val onDoubleClick =
+        remember(zoomableState) {
+            DoubleClickToZoomListener { state, centroid ->
+                val transformation = state.contentTransformation.takeIf { it.isSpecified } ?: return@DoubleClickToZoomListener
+                val isZoomedIn = transformation.scaleMetadata.userZoom > 1.01f
+                if (isZoomedIn) {
+                    state.zoomTo(
+                        zoomFactor =
+                            max(
+                                transformation.scaleMetadata.initialScale.scaleX,
+                                transformation.scaleMetadata.initialScale.scaleY,
+                            ),
+                    )
+                } else {
+                    state.zoomTo(zoomFactor = 3f, centroid = centroid)
+                }
+            }
+        }
+
+    val state by painter.state.collectAsState()
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter,
+            contentDescription = description,
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .blur(translationBlur)
+                    .focusRequester(focusRequester)
+                    .zoomable(
+                        state = zoomableState,
+                        onClick = {
+                            onClick?.invoke()
+                        },
+                        onDoubleClick = onDoubleClick,
+                    ).then(FlareHardwareShortcutsElement(zoomableState))
+                    .focusable(),
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.Center,
+        )
+        AnimatedVisibility(
+            visible = translating || state is AsyncImagePainter.State.Loading,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            ProgressRing(
+                modifier = if (translating) Modifier.semantics { contentDescription = loadingDescription } else Modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun presenter(
+    accountType: AccountType,
+    statusKey: MicroBlogKey,
+    window: ComposeWindow?,
+) = run {
+    // io scope
+    val scope: CoroutineScope = koinInject()
+    val desktopDownloadManager: DesktopDownloadManager = koinInject()
+    var lockPager by remember { mutableStateOf(false) }
+    val state =
+        remember(
+            "StatusMediaScreen_${accountType}_$statusKey",
+        ) {
+            StatusPresenter(accountType = accountType, statusKey = statusKey)
+        }.invoke()
+
+    val medias =
+        state.status.map {
+            it
+                .contentPostOrNull()
+                ?.images
+                .orEmpty()
+                .toImmutableList()
+        }
+
+    object : StatusState by state {
+        val medias = medias
+        val lockPager = lockPager
+
+        fun setLockPager(value: Boolean) {
+            lockPager = value
+        }
+
+        fun save(
+            item: UiMedia,
+            displayed: UiMedia = item,
+        ) {
+            if (item is UiMedia.Ugoira) return
+            val export =
+                dev.dimension.flare.common.prepareImageTranslationExport(
+                    displayed,
+                    dev.dimension.flare.common.FileSystemUtilsExt
+                        .flareCacheDirectory(),
+                )
+            val status = state.status.takeSuccess()?.contentPostOrNull()
+            if (status != null) {
+                val userHandle = status.user?.handle?.canonical ?: "unknown"
+                val fileName =
+                    MediaFileNamePolicy.statusMediaFileName(
+                        statusKey = statusKey.toString(),
+                        userHandle = userHandle,
+                        media = item,
+                        mediaIndex = status.images.indexOf(item).coerceAtLeast(0),
+                    )
+                val targetFile =
+                    DesktopSaveDialog.chooseFile(
+                        window = window,
+                        defaultName =
+                            if (displayed.url ==
+                                item.url
+                            ) {
+                                fileName
+                            } else {
+                                fileName.substringBeforeLast('.') + "_" +
+                                    MediaFileNamePolicy.rawMediaFileName(displayed)
+                            },
+                    ) ?: return
+                scope.launch {
+                    desktopDownloadManager.download(
+                        media = export,
+                        targetFile = targetFile,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Stable
+private fun scaledInsideAndCenterAligned(size: androidx.compose.ui.geometry.Size?): ZoomableContentLocation =
+    when {
+        size == null -> {
+            Unspecified
+        }
+
+        size.isUnspecified -> {
+            SameAsLayoutBounds
+        }
+
+        else -> {
+            RelativeContentLocation(
+                size = size,
+                scale = ContentScale.Fit,
+                alignment = Alignment.Center,
+            )
+        }
+    }
+
+@Immutable
+private data class RelativeContentLocation(
+    private val size: androidx.compose.ui.geometry.Size,
+    private val scale: ContentScale,
+    private val alignment: Alignment,
+) : ZoomableContentLocation {
+    @Deprecated("No longer used")
+    override fun size(layoutSize: androidx.compose.ui.geometry.Size): androidx.compose.ui.geometry.Size {
+        val scaleFactor =
+            if (size.isEmpty()) {
+                androidx.compose.ui.layout
+                    .ScaleFactor(0f, 0f)
+            } else {
+                scale.computeScaleFactor(
+                    srcSize = size,
+                    dstSize = layoutSize,
+                )
+            }
+        return size * scaleFactor
+    }
+
+    override fun location(
+        layoutSize: androidx.compose.ui.geometry.Size,
+        direction: LayoutDirection,
+    ): Rect {
+        check(!layoutSize.isEmpty()) { "Layout size is empty" }
+
+        @Suppress("DEPRECATION")
+        val scaledSize = size(layoutSize)
+        val alignedOffset =
+            alignment.align(
+                size = scaledSize.roundToIntSize(),
+                space = layoutSize.roundToIntSize(),
+                layoutDirection = direction,
+            )
+        return Rect(
+            offset = alignedOffset.toOffset(),
+            size = scaledSize,
+        )
+    }
+}

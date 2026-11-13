@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="changelog_current"><![CDATA[
+            <span>版本 %1$s：</span>
+            <ul>
+                <li>新增圖片翻譯，設定翻譯服務後，可切換查看原圖與譯圖，並儲存或分享翻譯結果。</li>
+                <li>分享貼文圖片時可選擇附帶回覆與子回覆，支援產生長圖。</li>
+                <li>微博新增分組、好友圈與悄悄關注時間軸，支援發文可見範圍設定及 Live Photo 播放，恢復 IP 所在地顯示。</li>
+                <li>新增全域與個別帳號的代理伺服器設定，支援 HTTPS、SOCKS5 代理伺服器。</li>
+                <li>修正部分圖片載入失敗、圖庫收藏與 FANBOX 連結跳轉異常，改善混合時間軸、翻譯顯示及帳號選擇記憶。</li>
+            </ul>
+        ]]></string>
+    <string name="changelog_title">歡迎回來！</string>
+    <string name="changelog_message">自你上次登入以來我們做了一些變更。詳情如下：</string>
+</resources>

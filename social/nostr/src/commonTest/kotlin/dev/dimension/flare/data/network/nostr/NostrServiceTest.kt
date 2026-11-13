@@ -1,0 +1,609 @@
+package dev.dimension.flare.data.network.nostr
+
+import dev.dimension.flare.data.datasource.nostr.NostrCache
+import dev.dimension.flare.data.network.ktorClient
+import dev.dimension.flare.data.platform.NostrCredential
+import dev.dimension.flare.data.platform.NostrSignerCredential
+import dev.dimension.flare.di.startKoin
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.model.ReferenceType
+import dev.dimension.flare.ui.model.ClickEvent
+import dev.dimension.flare.ui.model.UiHandle
+import dev.dimension.flare.ui.model.UiMedia
+import dev.dimension.flare.ui.model.UiProfile
+import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.render.toUiPlainText
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.koin.core.context.stopKoin
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+class NostrServiceTest {
+    @BeforeTest
+    fun setUp() {
+        stopKoin()
+        startKoin()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        stopKoin()
+    }
+
+    @Test
+    fun unavailableRelayLimitsAreCached() =
+        runTest {
+            for (failure in listOf("timeout", "http", "invalid-json")) {
+                var requests = 0
+                val httpClient =
+                    HttpClient(MockEngine) {
+                        expectSuccess = true
+                        engine {
+                            dispatcher = StandardTestDispatcher(testScheduler)
+                            addHandler {
+                                requests++
+                                when (failure) {
+                                    "timeout" -> {
+                                        delay(6_000)
+                                        respond("{}")
+                                    }
+
+                                    "http" -> {
+                                        respond("", HttpStatusCode.NotFound)
+                                    }
+
+                                    else -> {
+                                        respond("invalid-json")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                val service = createService(httpClient)
+                try {
+                    assertEquals(NostrTextLimits(), service.fetchTextLimits("wss://relay.example"), failure)
+                    assertEquals(NostrTextLimits(), service.fetchTextLimits("wss://relay.example"), failure)
+                    assertEquals(1, requests, failure)
+                } finally {
+                    service.close()
+                }
+            }
+        }
+
+    @Test
+    fun concurrentRelayLookupsPreserveRestrictiveLimits() =
+        runTest {
+            var requests = 0
+            val httpClient =
+                HttpClient(MockEngine) {
+                    engine {
+                        dispatcher = StandardTestDispatcher(testScheduler)
+                        addHandler {
+                            requests++
+                            if (requests == 1) {
+                                delay(1_000)
+                                respond("""{"limitation":{"max_content_length":10,"max_message_length":1000}}""")
+                            } else {
+                                delay(6_000)
+                                respond("{}")
+                            }
+                        }
+                    }
+                }
+            val service = createService(httpClient)
+            try {
+                val expected = NostrTextLimits(maxContentLength = 10, maxMessageLength = 1000)
+                val results = List(2) { async { service.fetchTextLimits("wss://relay.example") } }.awaitAll()
+                assertEquals(expected, service.fetchTextLimits("wss://relay.example"))
+                assertEquals(listOf(expected, expected), results)
+                assertEquals(1, requests)
+            } finally {
+                service.close()
+            }
+        }
+
+    @Test
+    fun cancelledRelayLookupCanBeRetriedByWaitingCaller() =
+        runTest {
+            var requests = 0
+            val started = CompletableDeferred<Unit>()
+            val httpClient =
+                HttpClient(MockEngine) {
+                    engine {
+                        dispatcher = StandardTestDispatcher(testScheduler)
+                        addHandler {
+                            requests++
+                            if (requests == 1) {
+                                started.complete(Unit)
+                                awaitCancellation()
+                            }
+                            respond("""{"limitation":{"max_content_length":10}}""")
+                        }
+                    }
+                }
+            val service = createService(httpClient)
+            try {
+                val first = async { service.fetchTextLimits("wss://relay.example") }
+                started.await()
+                val waiting = async { service.fetchTextLimits("wss://relay.example") }
+                first.cancelAndJoin()
+                val expected = NostrTextLimits(maxContentLength = 10)
+                assertEquals(expected, waiting.await())
+                assertEquals(expected, service.fetchTextLimits("wss://relay.example"))
+                assertEquals(2, requests)
+            } finally {
+                service.close()
+            }
+        }
+
+    @Test
+    fun relayLimitsAreCachedSeparately() =
+        runTest {
+            var requests = 0
+            val secondRelayStarted = CompletableDeferred<Unit>()
+            val httpClient =
+                HttpClient(MockEngine) {
+                    engine {
+                        dispatcher = StandardTestDispatcher(testScheduler)
+                        addHandler { request ->
+                            requests++
+                            assertEquals("https", request.url.protocol.name)
+                            assertEquals("application/nostr+json", request.headers["Accept"])
+                            val maxContentLength = if (request.url.host == "first.example") 10 else 20
+                            if (request.url.host == "first.example") {
+                                secondRelayStarted.await()
+                            } else {
+                                secondRelayStarted.complete(Unit)
+                            }
+                            respond("""{"limitation":{"max_content_length":$maxContentLength,"max_message_length":1000}}""")
+                        }
+                    }
+                }
+            val service = createService(httpClient)
+            try {
+                val first = NostrTextLimits(maxContentLength = 10, maxMessageLength = 1000)
+                val second = NostrTextLimits(maxContentLength = 20, maxMessageLength = 1000)
+                val results =
+                    listOf(
+                        async { service.fetchTextLimits("wss://first.example") },
+                        async { service.fetchTextLimits("wss://second.example") },
+                    ).awaitAll()
+                assertEquals(listOf(first, second), results)
+                assertEquals(first, service.fetchTextLimits("wss://first.example"))
+                assertEquals(2, requests)
+            } finally {
+                service.close()
+            }
+        }
+
+    @Test
+    fun exportAccountKeepsPrivateAndPublicKeysConsistent() =
+        runTest {
+            val generated = NostrService.generateAccount()
+            val exported =
+                NostrService.exportAccount(
+                    NostrCredential(
+                        pubkeyHex = generated.pubkeyHex,
+                        signer = NostrSignerCredential.LocalKey(generated.nsec),
+                    ),
+                )
+
+            assertMatchesKeyPair(exported)
+            assertEquals(generated.pubkeyHex, exported.pubkeyHex)
+            assertEquals(generated.npub, exported.npub)
+        }
+
+    @Test
+    fun importAccountAcceptsSecretOnly() =
+        runTest {
+            val imported =
+                NostrService.importAccount(
+                    input = SECRET_KEY_HEX,
+                )
+
+            assertMatchesKeyPair(imported)
+        }
+
+    @Test
+    fun importAccountAcceptsReadOnlyNpub() =
+        runTest {
+            val generated = NostrService.generateAccount()
+
+            val imported =
+                NostrService.importAccount(
+                    input = generated.npub,
+                )
+
+            assertIs<NostrService.ImportedAccount.ReadOnly>(imported)
+            assertEquals(generated.pubkeyHex, imported.pubkeyHex)
+            assertEquals(generated.npub, imported.npub)
+        }
+
+    @Test
+    fun parsePublicKeyHexNormalizesNpubToHex() {
+        val generated = NostrService.generateAccount()
+
+        val parsed = parsePublicKeyHex(generated.npub)
+
+        assertEquals(generated.pubkeyHex, parsed)
+    }
+
+    @Test
+    fun readOnlyAccountRejectsPublishing() =
+        runTest {
+            val service =
+                NostrService(
+                    cache =
+                        object : NostrCache {
+                            override suspend fun getProfiles(pubKeys: List<String>): Map<String, UiProfile> = emptyMap()
+
+                            override suspend fun getPost(
+                                accountKey: MicroBlogKey,
+                                statusKey: MicroBlogKey,
+                            ): UiTimelineV2.Post? = null
+                        },
+                    accountKey = MicroBlogKey(ROOT_EVENT_PUBKEY, NostrService.NOSTR_HOST),
+                    credential =
+                        NostrCredential(
+                            pubkeyHex = ROOT_EVENT_PUBKEY,
+                        ),
+                    amberSignerBridge = UnsupportedAmberSignerBridge("Amber signer is unavailable in tests."),
+                )
+
+            try {
+                val error =
+                    assertFailsWith<IllegalStateException> {
+                        service.composeNote(
+                            content = "read only",
+                        )
+                    }
+                assertTrue(error.message?.contains("read-only") == true)
+            } finally {
+                service.close()
+            }
+        }
+
+    private suspend fun assertMatchesKeyPair(account: NostrService.ImportedAccount) {
+        assertEquals(64, account.pubkeyHex.length)
+        assertTrue(account.npub.startsWith("npub1"))
+        val normalizedSecret = assertNotNull((account as? NostrService.ImportedAccount.LocalKey)?.nsec)
+        assertTrue(normalizedSecret.isNotBlank())
+
+        val reImported =
+            NostrService.importAccount(
+                input = normalizedSecret,
+            )
+        assertEquals(account.pubkeyHex, reImported.pubkeyHex)
+        assertEquals(account.npub, nostrBech32PublicKey(account.pubkeyHex))
+    }
+
+    @Test
+    fun timelineMapsParentsMediaQuoteAndRepost() {
+        val quotedReplyId = "c".repeat(64)
+        val events =
+            listOf(
+                ROOT_EVENT_JSON,
+                REPLY_EVENT_JSON,
+                QUOTE_EVENT_JSON,
+                REPOST_EVENT_JSON,
+                REPLY_EVENT_JSON.replace(REPLY_EVENT_ID, quotedReplyId).replace(ROOT_EVENT_ID, QUOTE_EVENT_ID),
+            ).map {
+                Event.fromJson(it)
+            }
+
+        val eventGraph = events.associateBy { it.id }
+        val service = createService()
+        val timeline =
+            try {
+                service.run {
+                    events.toUiTimeline(
+                        profiles =
+                            mapOf(
+                                ROOT_EVENT_PUBKEY to
+                                    profileOf(
+                                        pubKey = ROOT_EVENT_PUBKEY,
+                                        metadata = null,
+                                        cachedProfile = null,
+                                    ),
+                            ),
+                        eventsById = eventGraph,
+                    )
+                }
+            } finally {
+                service.close()
+            }
+
+        val root = rootPostOf(timeline.first { it.statusKey.id == ROOT_EVENT_ID })
+        assertEquals(1, root.images.size)
+        val rootImage = assertIs<UiMedia.Image>(root.images.first())
+        assertEquals("https://image.nostr.build/0e2f4411fcc7be6fdc0ef68f2ee58d24f8cdcea0e1475299555c5321e4f4fd02.jpg", rootImage.url)
+        assertEquals(1440f, rootImage.width)
+        assertEquals(1080f, rootImage.height)
+
+        val replyItem = timelinePostItemOf(timeline.first { it.statusKey.id == REPLY_EVENT_ID })
+        val reply = replyItem.post
+        assertEquals(listOf(ROOT_EVENT_ID), replyItem.presentation.inlineParents.map { it.statusKey.id })
+        assertEquals(listOf(ROOT_EVENT_ID), reply.references.filter { it.type == ReferenceType.Reply }.map { it.statusKey.id })
+        assertEquals(
+            1,
+            replyItem.presentation.inlineParents
+                .first()
+                .displayPost.images.size,
+        )
+
+        val quoteItem = timelinePostItemOf(timeline.first { it.statusKey.id == QUOTE_EVENT_ID })
+        assertEquals(listOf(ROOT_EVENT_ID), quoteItem.presentation.quotes.map { it.statusKey.id })
+        assertEquals(
+            listOf(ROOT_EVENT_ID),
+            quoteItem.post.references
+                .filter { it.type == ReferenceType.Quote }
+                .map { it.statusKey.id },
+        )
+        val quotedReply = timelinePostItemOf(timeline.first { it.statusKey.id == quotedReplyId })
+        val quotedParent = quotedReply.presentation.inlineParents.single()
+        assertEquals(QUOTE_EVENT_ID, quotedParent.statusKey.id)
+        assertEquals(listOf(ROOT_EVENT_ID), quotedParent.presentation.quotes.map { it.statusKey.id })
+
+        val repost = timelinePostItemOf(timeline.first { it.statusKey.id == REPOST_EVENT_ID })
+        val reposted = assertNotNull(repost.presentation.repost)
+        assertEquals(ROOT_EVENT_ID, reposted.statusKey.id)
+        val message = assertNotNull(repost.presentation.message)
+        assertEquals(1754504040L, repost.createdAt.value.epochSeconds)
+        assertEquals(repost.createdAt, message.createdAt)
+        assertEquals(1754504013L, reposted.createdAt.value.epochSeconds)
+        assertEquals(
+            UiTimelineV2.Message.Type.Localized.MessageId.Repost,
+            assertIs<UiTimelineV2.Message.Type.Localized>(message.type).data,
+        )
+    }
+
+    private fun rootPostOf(item: UiTimelineV2): UiTimelineV2.Post =
+        when (item) {
+            is UiTimelineV2.TimelinePostItem -> item.post
+            is UiTimelineV2.Post -> item
+            else -> error("Expected post timeline item, got ${item::class.simpleName}")
+        }
+
+    @Test
+    fun notificationsDoNotFetchOrAttachParentsButKeepQuoteAndRepostTargets() {
+        val events = listOf(REPLY_EVENT_JSON, ROOT_EVENT_JSON, QUOTE_EVENT_JSON, REPOST_EVENT_JSON).map(Event::fromJson)
+        val service = createService()
+        try {
+            service.run {
+                assertTrue(referencedEventIds(events[0], includeReplyParents = false).isEmpty())
+                assertEquals(listOf(ROOT_EVENT_ID), referencedEventIds(events[0], includeReplyParents = true))
+                assertEquals(listOf(ROOT_EVENT_ID), referencedEventIds(events[2], includeReplyParents = false))
+                assertEquals(listOf(ROOT_EVENT_ID), referencedEventIds(events[3], includeReplyParents = false))
+                val items =
+                    events.toUiNotifications(
+                        accountPubkey = ROOT_EVENT_PUBKEY,
+                        profiles = mapOf(ROOT_EVENT_PUBKEY to profileOf(ROOT_EVENT_PUBKEY, null, null)),
+                        eventsById = events.associateBy { it.id },
+                    )
+                assertEquals(events.map { it.id }, items.map { it.statusKey.id })
+                val reply = timelinePostItemOf(items[0])
+                assertTrue(reply.presentation.inlineParents.isEmpty())
+                assertEquals(REPLY_EVENT_ID, reply.presentation.notificationKey?.id)
+                assertEquals(listOf(ROOT_EVENT_ID), timelinePostItemOf(items[2]).presentation.quotes.map { it.statusKey.id })
+                assertEquals(
+                    ROOT_EVENT_ID,
+                    timelinePostItemOf(items[3])
+                        .presentation.repost
+                        ?.statusKey
+                        ?.id,
+                )
+            }
+        } finally {
+            service.close()
+        }
+    }
+
+    private fun timelinePostItemOf(item: UiTimelineV2): UiTimelineV2.TimelinePostItem = assertIs<UiTimelineV2.TimelinePostItem>(item)
+
+    @Test
+    fun quoteTagArrayUsesEventWhenAvailable() {
+        val target = Event.fromJson(ROOT_EVENT_JSON)
+        val service = createService()
+
+        val tag =
+            try {
+                service.quoteTagArray(
+                    target = target,
+                    statusKey = MicroBlogKey(ROOT_EVENT_ID, NostrService.NOSTR_HOST),
+                    cachedAuthorPubKey = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                )
+            } finally {
+                service.close()
+            }
+
+        assertContentEquals(
+            arrayOf("q", ROOT_EVENT_ID, "", target.pubKey),
+            tag,
+        )
+    }
+
+    @Test
+    fun quoteTagArrayFallsBackToCachedAuthorWhenTargetMissing() {
+        val service = createService()
+        val tag =
+            try {
+                service.quoteTagArray(
+                    target = null,
+                    statusKey = MicroBlogKey(ROOT_EVENT_ID, NostrService.NOSTR_HOST),
+                    cachedAuthorPubKey = "0fe0b18b4dbf0e0aa40fcd47209b2a49b3431fc453b460efcf45ca0bd16bd6ac",
+                )
+            } finally {
+                service.close()
+            }
+
+        assertContentEquals(
+            arrayOf(
+                "q",
+                ROOT_EVENT_ID,
+                "0fe0b18b4dbf0e0aa40fcd47209b2a49b3431fc453b460efcf45ca0bd16bd6ac",
+            ),
+            tag,
+        )
+    }
+
+    @Test
+    fun resolveMetadataFallsBackToOlderParsableEvent() {
+        val service = createService()
+        val metadata =
+            try {
+                service.resolveMetadata(
+                    listOf(
+                        Event.fromJson(INVALID_LATEST_METADATA_EVENT_JSON) as MetadataEvent,
+                        Event.fromJson(VALID_OLDER_METADATA_EVENT_JSON) as MetadataEvent,
+                    ),
+                )
+            } finally {
+                service.close()
+            }
+
+        assertNotNull(metadata)
+        assertEquals("alice", metadata.name)
+        assertEquals("https://example.com/avatar.png", metadata.picture)
+    }
+
+    @Test
+    fun profileResolutionKeepsCachedIdentityWhenMetadataIsMissing() {
+        val service = createService()
+        val cachedProfile = createProfile(handle = "alice", name = "Alice")
+
+        val profile =
+            try {
+                service.profileOf(
+                    pubKey = ROOT_EVENT_PUBKEY,
+                    metadata = null,
+                    cachedProfile = cachedProfile,
+                )
+            } finally {
+                service.close()
+            }
+
+        assertEquals("alice", profile.handle.raw)
+        assertEquals("Alice", profile.name.raw)
+    }
+
+    @Test
+    fun profileResolutionLetsMetadataReplaceCachedIdentity() {
+        val service = createService()
+        val cachedProfile = createProfile(handle = "old-handle", name = "Old Name")
+
+        val profile =
+            try {
+                service.profileOf(
+                    pubKey = ROOT_EVENT_PUBKEY,
+                    metadata = UserMetadata(name = "alice", displayName = "Alice"),
+                    cachedProfile = cachedProfile,
+                )
+            } finally {
+                service.close()
+            }
+
+        assertEquals("alice", profile.handle.raw)
+        assertEquals("Alice", profile.name.raw)
+    }
+
+    @Test
+    fun profileResolutionUsesNpubWhenMetadataAndCacheAreMissing() {
+        val service = createService()
+
+        val profile =
+            try {
+                service.profileOf(
+                    pubKey = ROOT_EVENT_PUBKEY,
+                    metadata = null,
+                    cachedProfile = null,
+                )
+            } finally {
+                service.close()
+            }
+
+        val expectedHandle = nostrBech32PublicKey(ROOT_EVENT_PUBKEY).take(16)
+        assertEquals(expectedHandle, profile.handle.raw)
+        assertEquals(expectedHandle, profile.name.raw)
+    }
+
+    private companion object {
+        fun createService(relayInfoClient: HttpClient = ktorClient { expectSuccess = true }): NostrService {
+            val generated = NostrService.generateAccount()
+            return NostrService(
+                cache =
+                    object : NostrCache {
+                        override suspend fun getProfiles(pubKeys: List<String>): Map<String, UiProfile> = emptyMap()
+
+                        override suspend fun getPost(
+                            accountKey: MicroBlogKey,
+                            statusKey: MicroBlogKey,
+                        ): UiTimelineV2.Post? = null
+                    },
+                accountKey = MicroBlogKey("nostr-test", NostrService.NOSTR_HOST),
+                credential =
+                    NostrCredential(
+                        pubkeyHex = generated.pubkeyHex,
+                        signer = NostrSignerCredential.LocalKey(generated.nsec),
+                    ),
+                amberSignerBridge = UnsupportedAmberSignerBridge("Amber signer is unavailable in tests."),
+                relayInfoClient = relayInfoClient,
+            )
+        }
+
+        fun createProfile(
+            handle: String,
+            name: String,
+        ): UiProfile =
+            UiProfile(
+                key = MicroBlogKey(ROOT_EVENT_PUBKEY, NostrService.NOSTR_HOST),
+                handle = UiHandle(handle, NostrService.NOSTR_HOST),
+                avatar = "",
+                nameInternal = name.toUiPlainText(),
+                platformId = "Nostr",
+                clickEvent = ClickEvent.Noop,
+                banner = null,
+                description = null,
+                matrices = UiProfile.Matrices(0, 0, 0),
+                mark = persistentListOf(),
+                bottomContent = null,
+            )
+
+        const val SECRET_KEY_HEX = "1111111111111111111111111111111111111111111111111111111111111111"
+        const val ROOT_EVENT_ID = "1b14014e85b5a3f554dc92198ce118d83562147ca08a98e4bb07b00d003108f7"
+        const val ROOT_EVENT_PUBKEY = "0fe0b18b4dbf0e0aa40fcd47209b2a49b3431fc453b460efcf45ca0bd16bd6ac"
+        const val REPLY_EVENT_ID = "b355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23d"
+        const val QUOTE_EVENT_ID = "c355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23e"
+        const val REPOST_EVENT_ID = "d355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23f"
+        const val VALID_OLDER_METADATA_EVENT_JSON =
+            """{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754503000,"kind":0,"tags":[],"content":"{\"name\":\"alice\",\"picture\":\"https://example.com/avatar.png\"}","sig":"25524fbbf5c22e0d4f953bd8688e753bb9f36efd93b907e4dc34dc30256ddc365924ecf7529dc33e49b84d4b744f5f98b6f97c586bf63b5c0dc5c26f215f7580"}"""
+        const val INVALID_LATEST_METADATA_EVENT_JSON =
+            """{"id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754504000,"kind":0,"tags":[],"content":"{","sig":"35524fbbf5c22e0d4f953bd8688e753bb9f36efd93b907e4dc34dc30256ddc365924ecf7529dc33e49b84d4b744f5f98b6f97c586bf63b5c0dc5c26f215f7580"}"""
+        val ROOT_EVENT_JSON =
+            """{"id":"1b14014e85b5a3f554dc92198ce118d83562147ca08a98e4bb07b00d003108f7","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754504013,"kind":1,"tags":[["imeta","url https://image.nostr.build/0e2f4411fcc7be6fdc0ef68f2ee58d24f8cdcea0e1475299555c5321e4f4fd02.jpg","dim 1440x1080"],["r","https://image.nostr.build/0e2f4411fcc7be6fdc0ef68f2ee58d24f8cdcea0e1475299555c5321e4f4fd02.jpg"]],"content":"test","sig":"25524fbbf5c22e0d4f953bd8688e753bb9f36efd93b907e4dc34dc30256ddc365924ecf7529dc33e49b84d4b744f5f98b6f97c586bf63b5c0dc5c26f215f7580"}"""
+        val REPLY_EVENT_JSON =
+            """{"id":"b355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23d","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754504024,"kind":1,"tags":[["e","1b14014e85b5a3f554dc92198ce118d83562147ca08a98e4bb07b00d003108f7","","root"]],"content":"reply","sig":"d7dcdd1617c5a2bb7788476cd3499de0437bea86129b30eb41d3c7749fec2603ec3fc042ce3f867917069af36b6fa50daf008c82379cc726e04ce1c82003e645"}"""
+        val QUOTE_EVENT_JSON =
+            """{"id":"c355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23e","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754504030,"kind":1,"tags":[["q","1b14014e85b5a3f554dc92198ce118d83562147ca08a98e4bb07b00d003108f7"]],"content":"quoting root","sig":"e7dcdd1617c5a2bb7788476cd3499de0437bea86129b30eb41d3c7749fec2603ec3fc042ce3f867917069af36b6fa50daf008c82379cc726e04ce1c82003e646"}"""
+        val REPOST_EVENT_JSON =
+            """{"id":"d355c1f0b68a9162cc466d3602ad6b93ec05993aeade4c7edc1f6eca8e3ae23f","pubkey":"$ROOT_EVENT_PUBKEY","created_at":1754504040,"kind":6,"tags":[["p","$ROOT_EVENT_PUBKEY"],["e","1b14014e85b5a3f554dc92198ce118d83562147ca08a98e4bb07b00d003108f7"]],"content":"","sig":"f7dcdd1617c5a2bb7788476cd3499de0437bea86129b30eb41d3c7749fec2603ec3fc042ce3f867917069af36b6fa50daf008c82379cc726e04ce1c82003e647"}"""
+    }
+}

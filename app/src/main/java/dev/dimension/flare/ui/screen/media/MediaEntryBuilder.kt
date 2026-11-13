@@ -1,0 +1,93 @@
+package dev.dimension.flare.ui.screen.media
+
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.window.DialogProperties
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.scene.DialogSceneStrategy
+import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.ui.component.BottomSheetSceneStrategy
+import dev.dimension.flare.ui.model.withProxy
+import dev.dimension.flare.ui.route.Route
+import kotlinx.collections.immutable.toImmutableList
+
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun EntryProviderScope<NavKey>.mediaEntryBuilder(
+    navigate: (Route) -> Unit,
+    onBack: () -> Unit,
+    uriHandler: UriHandler,
+) {
+    entry<Route.Media.Image>(
+        metadata = DialogSceneStrategy.dialog(
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            )
+        )
+    ) { args ->
+        MediaScreen(
+            uri = args.uri,
+            previewUrl = args.previewUrl,
+            customHeaders = args.customHeaders,
+            proxy = args.proxy,
+            onDismiss = onBack,
+            toAltText = { media ->
+                media.description?.let { navigate(Route.Status.AltText(it)) }
+            },
+        )
+    }
+
+    entry<Route.Media.RawMedia>(
+        metadata = DialogSceneStrategy.dialog(
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            )
+        )
+    ) { args ->
+        RawMediaScreen(
+            medias = args.medias.mapIndexed { index, media -> media.withProxy(args.proxies.getOrElse(index) { ProxyRef.Global }) }.toImmutableList(),
+            index = args.index,
+            preview = args.preview,
+            onDismiss = onBack,
+            toAltText = { media ->
+                media.description?.let { navigate(Route.Status.AltText(it)) }
+            },
+            uriHandler = uriHandler,
+        )
+    }
+
+    entry<Route.Media.StatusMedia>(
+        metadata = DialogSceneStrategy.dialog(
+            dialogProperties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            )
+        )
+    ) { args ->
+        StatusMediaScreen(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            index = args.index,
+            preview = args.preview,
+            onDismiss = onBack,
+            toAltText = { media ->
+                media.description?.let { navigate(Route.Status.AltText(it)) }
+            },
+            uriHandler = uriHandler
+        )
+    }
+
+    entry<Route.Media.Podcast>(
+        metadata = BottomSheetSceneStrategy.bottomSheet()
+    ) { args ->
+        PodcastScreen(
+            accountType = args.accountType,
+            id = args.id,
+            toUser = { userKey ->
+                navigate(Route.Profile.User(args.accountType, userKey))
+            },
+        )
+    }
+}

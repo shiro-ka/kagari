@@ -1,0 +1,1711 @@
+package dev.dimension.flare.ui.screen.media
+
+import android.Manifest
+import android.content.ClipData
+import android.content.Context
+import android.os.Build
+import android.view.WindowManager
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.rememberSliderState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
+import androidx.window.core.layout.WindowSizeClass
+import coil3.annotation.ExperimentalCoilApi
+import coil3.imageLoader
+import coil3.memory.MemoryCache
+import coil3.size.Size
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.Backward
+import compose.icons.fontawesomeicons.solid.CircleInfo
+import compose.icons.fontawesomeicons.solid.Compress
+import compose.icons.fontawesomeicons.solid.Copy
+import compose.icons.fontawesomeicons.solid.Download
+import compose.icons.fontawesomeicons.solid.Expand
+import compose.icons.fontawesomeicons.solid.Forward
+import compose.icons.fontawesomeicons.solid.GaugeHigh
+import compose.icons.fontawesomeicons.solid.Images
+import compose.icons.fontawesomeicons.solid.Language
+import compose.icons.fontawesomeicons.solid.Pause
+import compose.icons.fontawesomeicons.solid.Play
+import compose.icons.fontawesomeicons.solid.ShareNodes
+import compose.icons.fontawesomeicons.solid.Xmark
+import dev.dimension.flare.R
+import dev.dimension.flare.common.AndroidDownloadManager
+import dev.dimension.flare.common.MediaFileNamePolicy
+import dev.dimension.flare.common.shareImageMedia
+import dev.dimension.flare.data.model.PostActionStyle
+import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
+import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.component.MediaViewerPlayback
+import dev.dimension.flare.ui.component.MediaViewerSelection
+import dev.dimension.flare.ui.component.SurfaceBindingManager
+import dev.dimension.flare.ui.component.UgoiraPlayer
+import dev.dimension.flare.ui.component.VideoPlayer
+import dev.dimension.flare.ui.component.accessibleDescription
+import dev.dimension.flare.ui.component.placeholder
+import dev.dimension.flare.ui.component.rememberMediaImageRequest
+import dev.dimension.flare.ui.component.status.CommonStatusComponent
+import dev.dimension.flare.ui.component.status.ListEmptyView
+import dev.dimension.flare.ui.humanizer.humanize
+import dev.dimension.flare.ui.model.UiMedia
+import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.asTimelinePostItem
+import dev.dimension.flare.ui.model.contentPostOrNull
+import dev.dimension.flare.ui.model.isSuccess
+import dev.dimension.flare.ui.model.onLoading
+import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.model.toUiImage
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.media.ImageTranslationPresenter
+import dev.dimension.flare.ui.presenter.status.StatusPresenter
+import dev.dimension.flare.ui.screen.settings.imageTranslationText
+import dev.dimension.flare.ui.theme.FlareTheme
+import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.saket.telephoto.ExperimentalTelephotoApi
+import me.saket.telephoto.zoomable.DoubleClickToZoomListener
+import me.saket.telephoto.zoomable.Viewport
+import me.saket.telephoto.zoomable.ZoomSpec
+import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
+import me.saket.telephoto.zoomable.rememberZoomableImageState
+import me.saket.telephoto.zoomable.rememberZoomableState
+import me.saket.telephoto.zoomable.spatial.CoordinateSpace
+import me.saket.telephoto.zoomable.zoomable
+import moe.tlaster.precompose.molecule.producePresenter
+import moe.tlaster.swiper.Swiper
+import moe.tlaster.swiper.rememberSwiperState
+import org.koin.compose.koinInject
+import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
+
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalPermissionsApi::class,
+)
+@Composable
+internal fun StatusMediaScreen(
+    statusKey: MicroBlogKey,
+    accountType: AccountType,
+    index: Int,
+    preview: String?,
+    onDismiss: () -> Unit,
+    toAltText: (UiMedia) -> Unit,
+    uriHandler: UriHandler,
+    surfaceBindingManager: SurfaceBindingManager = koinInject(),
+) {
+    val state by producePresenter {
+        statusMediaPresenter(
+            statusKey = statusKey,
+            accountType = accountType,
+        )
+    }
+    val status = state.status.takeSuccess()?.contentPostOrNull()
+    MediaViewerScreen(
+        medias = state.medias,
+        initialIndex = index,
+        previewProxy = ProxyRef.forAccountType(accountType),
+        preview = preview,
+        onDismiss = onDismiss,
+        toAltText = toAltText,
+        uriHandler = uriHandler,
+        fileName = { media ->
+            MediaFileNamePolicy.statusMediaFileName(
+                statusKey = statusKey.toString(),
+                userHandle = status?.user?.handle?.canonical ?: "unknown",
+                media = media,
+                mediaIndex =
+                    state.medias
+                        .takeSuccess()
+                        ?.indexOf(media)
+                        ?.coerceAtLeast(0)
+                        ?: 0,
+            )
+        },
+        fileNames = { medias ->
+            MediaFileNamePolicy.statusMediaFileNames(
+                statusKey = statusKey.toString(),
+                userHandle = status?.user?.handle?.canonical ?: "unknown",
+                medias = medias,
+            )
+        },
+        status = status,
+        quotes =
+            state.status
+                .takeSuccess()
+                ?.asTimelinePostItem()
+                ?.presentation
+                ?.quotes ?: persistentListOf(),
+        surfaceBindingManager = surfaceBindingManager,
+    )
+}
+
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalPermissionsApi::class,
+)
+@Composable
+internal fun MediaViewerScreen(
+    medias: UiState<ImmutableList<UiMedia>>,
+    initialIndex: Int,
+    preview: String?,
+    previewProxy: ProxyRef,
+    onDismiss: () -> Unit,
+    toAltText: (UiMedia) -> Unit,
+    uriHandler: UriHandler,
+    fileName: (UiMedia) -> String,
+    fileNames: (List<UiMedia>) -> Map<String, UiMedia>,
+    status: UiTimelineV2.Post? = null,
+    quotes: ImmutableList<UiTimelineV2.Post> = persistentListOf(),
+    surfaceBindingManager: SurfaceBindingManager = koinInject(),
+) {
+    val showPost = LocalGlobalAppearance.current.showPostInMediaViewer
+    val view = LocalView.current
+    LaunchedEffect(view) {
+        // The background fades with the swipe; the window dim would linger until dismissal.
+        (view.parent as? DialogWindowProvider)?.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+    }
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboard.current
+    val isBigScreen = currentWindowAdaptiveInfoV2().windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND)
+    val hapticFeedback = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val permissionState =
+        rememberPermissionState(
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        )
+    val state by producePresenter(key = MEDIA_VIEWER_PRESENTER_KEY) {
+        mediaViewerPresenter(initialIndex = initialIndex)
+    }
+    val translation by producePresenter("image_translation_viewer") { remember { ImageTranslationPresenter(status?.accountType) }.invoke() }
+
+    fun translatedFileName(
+        media: UiMedia,
+        originalName: String,
+    ): String {
+        val displayed = translation.displayed(media)
+        return if (displayed.url ==
+            media.url
+        ) {
+            originalName
+        } else {
+            originalName.substringBeforeLast('.') + "_" +
+                dev.dimension.flare.common.MediaFileNamePolicy
+                    .rawMediaFileName(displayed)
+        }
+    }
+    val saveMedia: (UiMedia) -> Unit = { media ->
+        state.save(
+            data =
+                dev.dimension.flare.common
+                    .prepareImageTranslationExport(translation.displayed(media), context.cacheDir),
+            fileName = translatedFileName(media, fileName(media)),
+            context = context.applicationContext,
+        )
+    }
+    val saveAllMedia: (List<UiMedia>) -> Unit = { media ->
+        state.saveAll(
+            media =
+                fileNames(media)
+                    .map { (name, original) ->
+                        translatedFileName(original, name) to
+                            dev.dimension.flare.common
+                                .prepareImageTranslationExport(translation.displayed(original), context.cacheDir)
+                    }.toMap(),
+            context = context.applicationContext,
+        )
+    }
+    val shareMedia: (UiMedia) -> Unit = { media ->
+        state.shareMedia(
+            data =
+                dev.dimension.flare.common
+                    .prepareImageTranslationExport(translation.displayed(media), context.cacheDir),
+            fileName = translatedFileName(media, fileName(media)),
+            context = context,
+        )
+    }
+    val pagerState =
+        rememberPagerState(
+            initialPage = initialIndex,
+            pageCount = {
+                when (val mediaState = medias) {
+                    is UiState.Error -> 1
+                    is UiState.Loading -> 1
+                    is UiState.Success -> mediaState.data.size.coerceAtLeast(1)
+                }
+            },
+        )
+    var playbackSpeed by remember { mutableFloatStateOf(NORMAL_PLAYBACK_SPEED) }
+    MediaLandscapeEffect(
+        enabled = state.isLandscapeViewing,
+        originalOrientation = state.originalOrientation,
+        setOriginalOrientation = state::setOriginalOrientation,
+    )
+    LaunchedEffect(pagerState.currentPage) {
+        state.setCurrentPage(pagerState.currentPage)
+        playbackSpeed = NORMAL_PLAYBACK_SPEED
+    }
+    MediaViewerPlaybackTheme {
+        val motionScheme = MaterialTheme.motionScheme
+        val mediaItems = medias.takeSuccess().orEmpty()
+        MediaViewerSelection(mediaItems.map { it.url }, pagerState.currentPage)
+        val swiperState =
+            rememberSwiperState(
+                onDismiss = onDismiss,
+            )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 1 - swiperState.progress))
+                    .alpha(1 - swiperState.progress),
+        ) {
+            MediaPostSheet(
+                post = status,
+                quotes = quotes,
+                visible = showPost && !isBigScreen && state.showUi && !state.isLandscapeViewing,
+                uriHandler = uriHandler,
+            ) { postPeekHeight ->
+                Row {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Swiper(
+                            state = swiperState,
+                        ) {
+                            HorizontalPager(
+                                state = pagerState,
+                                userScrollEnabled = !state.lockPager,
+                                // Keep the loading placeholder attached to the image originally tapped.
+                                key = { index -> if (medias is UiState.Success) index else initialIndex },
+                            ) { index ->
+                                AnimatedContent(
+                                    medias,
+                                    transitionSpec = {
+                                        fadeIn() togetherWith fadeOut()
+                                    },
+                                ) {
+                                    it
+                                        .onSuccess { medias ->
+                                            val media = medias.getOrNull(index)
+                                            if (media == null) {
+                                                CompositionLocalProvider(
+                                                    LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+                                                ) {
+                                                    ListEmptyView(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        text = stringResource(R.string.empty_media),
+                                                        icon = FontAwesomeIcons.Solid.Images,
+                                                    )
+                                                }
+                                                return@onSuccess
+                                            }
+                                            if (pagerState.currentPage != index || media is UiMedia.Image || media is UiMedia.Gif) {
+                                                ImageItem(
+                                                    translating = translation.item(media).loading,
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxSize(),
+                                                    media =
+                                                        if (media is UiMedia.Image ||
+                                                            media is UiMedia.Gif
+                                                        ) {
+                                                            translation.displayed(media)
+                                                        } else {
+                                                            media.preview
+                                                        },
+                                                    onLoadError = {
+                                                        val result = translation.displayed(media)
+                                                        if (result.url != media.url) translation.imageFailed(media, result.url)
+                                                    },
+                                                    description = media.accessibleDescription(),
+                                                    onClick = {
+                                                        state.setShowUi(!state.showUi)
+                                                    },
+                                                    setLockPager = {
+                                                        if (pagerState.currentPage == index) {
+                                                            if (!isBigScreen) {
+                                                                state.setShowUi(!it)
+                                                            }
+                                                            state.setLockPager(it)
+                                                        }
+                                                    },
+                                                    onLongClick = {
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress,
+                                                        )
+                                                        state.setShowSheet(true)
+                                                    },
+                                                )
+                                            } else if (media is UiMedia.Ugoira) {
+                                                val zoom = rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 10f))
+                                                LaunchedEffect(zoom.zoomFraction) { state.setLockPager((zoom.zoomFraction ?: 0f) > .01f) }
+                                                UgoiraPlayer(media, Modifier.fillMaxSize().zoomable(zoom))
+                                            } else if (media is UiMedia.Video) {
+                                                Box(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                ) {
+                                                    VideoPlayer(
+                                                        media = media,
+                                                        contentDescription = media.accessibleDescription(),
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        aspectRatio = media.aspectRatio,
+                                                        autoPlay = true,
+                                                        onClick = null,
+                                                        showControls = true,
+                                                        keepScreenOn = true,
+                                                        muted = false,
+                                                        contentScale = ContentScale.Fit,
+                                                    )
+                                                    surfaceBindingManager.playerFor(media)?.let { player ->
+                                                        key(media.url) {
+                                                            VideoGestureOverlay(
+                                                                player = player,
+                                                                onClick = {
+                                                                    state.setShowUi(!state.showUi)
+                                                                },
+                                                                onPlaybackSpeedChanged = {
+                                                                    playbackSpeed = it
+                                                                },
+                                                                modifier = Modifier.fillMaxSize(),
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else if (media is UiMedia.Audio) {
+                                                VideoPlayer(
+                                                    media = media,
+                                                    contentDescription = media.accessibleDescription(),
+                                                    autoPlay = false,
+                                                    onClick = {
+                                                        state.setShowUi(!state.showUi)
+                                                    },
+                                                    onLongClick = {
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress,
+                                                        )
+                                                        state.setShowSheet(true)
+                                                    },
+                                                )
+                                            }
+                                        }.onLoading {
+                                            if (preview != null) {
+                                                ImageItem(
+                                                    media = preview.toUiImage(proxy = previewProxy),
+                                                    description = null,
+                                                    onClick = { /*TODO*/ },
+                                                    setLockPager = {
+                                                        if (!isBigScreen) {
+                                                            state.setShowUi(!it)
+                                                        }
+                                                        state.setLockPager(it)
+                                                    },
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxSize(),
+                                                    onLongClick = { },
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier =
+                                                        Modifier
+                                                            .aspectRatio(1f)
+                                                            .fillMaxSize()
+                                                            .placeholder(true),
+                                                )
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = state.showUi,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter),
+                            enter =
+                                slideInVertically(
+                                    motionScheme.defaultSpatialSpec(),
+                                ) { -it } + fadeIn(motionScheme.defaultEffectsSpec()),
+                            exit =
+                                slideOutVertically(motionScheme.defaultSpatialSpec()) { -it } + fadeOut(motionScheme.defaultEffectsSpec()),
+                        ) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .systemBarsPadding()
+                                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                FilledTonalIconButton(
+                                    onClick = {
+                                        onDismiss.invoke()
+                                    },
+                                ) {
+                                    FAIcon(
+                                        FontAwesomeIcons.Solid.Xmark,
+                                        contentDescription = stringResource(id = R.string.navigate_back),
+                                    )
+                                }
+                                Spacer(modifier = Modifier.weight(1f))
+                                medias.onSuccess { medias ->
+                                    val current = medias.getOrNull(state.currentPage) ?: return@onSuccess
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            state.setLandscapeViewing(!state.isLandscapeViewing)
+                                        },
+                                    ) {
+                                        FAIcon(
+                                            if (state.isLandscapeViewing) {
+                                                FontAwesomeIcons.Solid.Compress
+                                            } else {
+                                                FontAwesomeIcons.Solid.Expand
+                                            },
+                                            contentDescription =
+                                                if (state.isLandscapeViewing) "Exit landscape view" else "Landscape view",
+                                        )
+                                    }
+                                    val translationItem = translation.item(current)
+                                    if (translation.canToggle(current)) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                translation.toggle(current)
+                                            },
+                                            enabled = !translationItem.loading,
+                                        ) {
+                                            FAIcon(
+                                                FontAwesomeIcons.Solid.Language,
+                                                contentDescription =
+                                                    imageTranslationText(
+                                                        if (translationItem.showingTranslated) {
+                                                            "Show original"
+                                                        } else if (translationItem.translated != null) {
+                                                            "Show translation"
+                                                        } else {
+                                                            "Translate image"
+                                                        },
+                                                    ),
+                                            )
+                                        }
+                                    }
+                                    if (!current.description.isNullOrEmpty()) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                toAltText.invoke(current)
+                                            },
+                                        ) {
+                                            FAIcon(
+                                                FontAwesomeIcons.Solid.CircleInfo,
+                                                contentDescription = stringResource(id = R.string.media_alt_text),
+                                            )
+                                        }
+                                    }
+                                    FilledTonalIconButton(
+                                        onClick = {
+                                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                                                if (!permissionState.status.isGranted) {
+                                                    permissionState.launchPermissionRequest()
+                                                } else {
+                                                    saveMedia(current)
+                                                }
+                                            } else {
+                                                saveMedia(current)
+                                            }
+                                        },
+                                    ) {
+                                        FAIcon(
+                                            FontAwesomeIcons.Solid.Download,
+                                            contentDescription = stringResource(id = R.string.media_menu_save),
+                                        )
+                                    }
+                                    AnimatedVisibility(current is UiMedia.Image) {
+                                        FilledTonalIconButton(
+                                            onClick = {
+                                                shareMedia(current)
+                                            },
+                                        ) {
+                                            FAIcon(
+                                                FontAwesomeIcons.Solid.ShareNodes,
+                                                contentDescription = stringResource(id = R.string.media_menu_share_image),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        val currentMedia = medias.takeSuccess()?.getOrNull(state.currentPage)
+                        val isCurrentVideo = currentMedia is UiMedia.Video
+                        val shouldShowBottomUi =
+                            when {
+                                state.isLandscapeViewing -> {
+                                    isCurrentVideo &&
+                                        (state.showUi || playbackSpeed > NORMAL_PLAYBACK_SPEED)
+                                }
+
+                                isCurrentVideo -> {
+                                    state.showUi || playbackSpeed > NORMAL_PLAYBACK_SPEED
+                                }
+
+                                else -> {
+                                    state.showUi &&
+                                        (pagerState.pageCount > 1)
+                                }
+                            }
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = shouldShowBottomUi,
+                            modifier =
+                                Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                                    .padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        bottom =
+                                            maxOf(
+                                                postPeekHeight,
+                                                WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
+                                            ) + 8.dp,
+                                    ).widthIn(max = BottomSheetDefaults.SheetMaxWidth),
+                            enter = slideInVertically(motionScheme.defaultSpatialSpec()) { it } + fadeIn(motionScheme.defaultEffectsSpec()),
+                            exit =
+                                slideOutVertically(
+                                    motionScheme.defaultSpatialSpec(),
+                                ) { it } + fadeOut(motionScheme.defaultEffectsSpec()),
+                        ) {
+                            Surface(
+                                shape = MaterialTheme.shapes.extraLarge,
+                                color = BottomSheetDefaults.ContainerColor,
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    if (!state.isLandscapeViewing && pagerState.pageCount > 1) {
+                                        if (status == null && pagerState.pageCount > 10) {
+                                            MediaPageSlider(
+                                                pageCount = pagerState.pageCount,
+                                                currentPage = pagerState.currentPage,
+                                                onPageSelected = { page ->
+                                                    scope.launch {
+                                                        if (pagerState.currentPage != page) {
+                                                            pagerState.scrollToPage(page)
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier.widthIn(max = 480.dp),
+                                            )
+                                        } else {
+                                            Row(
+                                                horizontalArrangement = Arrangement.Center,
+                                            ) {
+                                                repeat(pagerState.pageCount) { iteration ->
+                                                    val color =
+                                                        if (pagerState.currentPage == iteration) {
+                                                            MaterialTheme.colorScheme.primary
+                                                        } else {
+                                                            MaterialTheme.colorScheme.onBackground.copy(
+                                                                alpha = 0.5f,
+                                                            )
+                                                        }
+                                                    Box(
+                                                        modifier =
+                                                            Modifier
+                                                                .padding(2.dp)
+                                                                .clip(CircleShape)
+                                                                .background(color)
+                                                                .size(8.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    medias.onSuccess { medias ->
+                                        val current =
+                                            remember(
+                                                medias,
+                                                state.currentPage,
+                                            ) {
+                                                medias.getOrNull(state.currentPage)
+                                            }
+                                        if (current is UiMedia.Video) {
+                                            surfaceBindingManager.playerFor(current)?.let { player ->
+                                                key(current.url) {
+                                                    PlayerControl(
+                                                        player,
+                                                        playbackSpeed = playbackSpeed,
+                                                        modifier =
+                                                            Modifier
+                                                                .widthIn(max = 480.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (isBigScreen && status != null && showPost) {
+                        AnimatedVisibility(state.showUi && !state.isLandscapeViewing) {
+                            Surface(
+                                modifier =
+                                    Modifier
+                                        .width(320.dp)
+                                        .fillMaxHeight()
+                                        .verticalScroll(rememberScrollState()),
+                                color = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ) {
+                                CompositionLocalProvider(
+                                    LocalUriHandler provides uriHandler,
+                                ) {
+                                    CommonStatusComponent(
+                                        item = status,
+                                        quotes = quotes,
+                                        showMedia = false,
+                                        modifier =
+                                            Modifier
+                                                .padding(
+                                                    horizontal = screenHorizontalPadding,
+                                                    vertical = 8.dp,
+                                                ).windowInsetsPadding(
+                                                    WindowInsets.systemBars.only(
+                                                        WindowInsetsSides.End + WindowInsetsSides.Vertical,
+                                                    ),
+                                                ),
+                                        maxLines = Int.MAX_VALUE,
+                                        showExpandButton = false,
+                                        isQuote = false,
+                                        isDetail = true,
+                                        forceHideActions = LocalTimelineAppearance.current.postActionStyle == PostActionStyle.Hidden,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        val translationCurrent = medias.takeSuccess()?.getOrNull(state.currentPage)
+        translationCurrent?.let { current ->
+            ImageTranslationErrorDialog(translation, current)
+        }
+        if (state.showSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    state.setShowSheet(false)
+                },
+            ) {
+                ListItem(
+                    modifier =
+                        Modifier
+                            .clickable {
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                                    if (!permissionState.status.isGranted) {
+                                        permissionState.launchPermissionRequest()
+                                    } else {
+                                        medias.onSuccess { medias ->
+                                            medias.getOrNull(state.currentPage)?.let(saveMedia)
+                                        }
+                                    }
+                                } else {
+                                    medias.onSuccess { medias ->
+                                        medias.getOrNull(state.currentPage)?.let(saveMedia)
+                                    }
+                                }
+                                state.setShowSheet(false)
+                            },
+                    leadingContent = {
+                        FAIcon(
+                            FontAwesomeIcons.Solid.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                    colors =
+                        ListItemDefaults.colors(
+                            containerColor = Color.Transparent,
+                        ),
+                    elevation = ListItemDefaults.elevation(),
+                    content = {
+                        Text(stringResource(id = R.string.media_menu_save))
+                    },
+                )
+                medias.onSuccess { medias ->
+                    if (medias.size > 1) {
+                        ListItem(
+                            modifier =
+                                Modifier
+                                    .clickable {
+                                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                                            if (!permissionState.status.isGranted) {
+                                                permissionState.launchPermissionRequest()
+                                            } else {
+                                                saveAllMedia(medias)
+                                            }
+                                        } else {
+                                            saveAllMedia(medias)
+                                        }
+                                        state.setShowSheet(false)
+                                    },
+                            leadingContent = {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.Download,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            },
+                            colors =
+                                ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                ),
+                            elevation = ListItemDefaults.elevation(),
+                            content = {
+                                Text(stringResource(id = R.string.media_menu_download_all))
+                            },
+                        )
+                    }
+
+                    val current = medias.getOrNull(state.currentPage)
+                    if (current is UiMedia.Image) {
+                        if (translation.canRegenerate(current)) {
+                            ListItem(
+                                modifier =
+                                    Modifier.clickable {
+                                        translation.regenerate(current)
+                                        state.setShowSheet(false)
+                                    },
+                                content = { Text(imageTranslationText("Translate again")) },
+                            )
+                        }
+                        ListItem(
+                            modifier =
+                                Modifier
+                                    .clickable {
+                                        shareMedia(current)
+                                        state.setShowSheet(false)
+                                    },
+                            leadingContent = {
+                                FAIcon(
+                                    FontAwesomeIcons.Solid.ShareNodes,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            },
+                            colors =
+                                ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                ),
+                            elevation = ListItemDefaults.elevation(),
+                            content = {
+                                Text(stringResource(id = R.string.media_menu_share_image))
+                            },
+                        )
+                    }
+                }
+
+                medias.onSuccess { medias ->
+                    val label = stringResource(R.string.media_menu_media_link)
+                    val current = medias.getOrNull(state.currentPage) ?: return@onSuccess
+                    ListItem(
+                        modifier =
+                            Modifier
+                                .clickable {
+                                    scope.launch {
+                                        val url = current.url
+                                        clipboard.setClipEntry(
+                                            ClipEntry(
+                                                ClipData.newPlainText(
+                                                    label,
+                                                    url,
+                                                ),
+                                            ),
+                                        )
+                                        state.setShowSheet(false)
+                                    }
+                                },
+                        leadingContent = {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.Copy,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        },
+                        colors =
+                            ListItemDefaults.colors(
+                                containerColor = Color.Transparent,
+                            ),
+                        elevation = ListItemDefaults.elevation(),
+                        content = {
+                            Text(stringResource(id = R.string.media_menu_copy_link))
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaViewerPlaybackTheme(content: @Composable () -> Unit) {
+    MediaViewerPlayback {
+        FlareTheme(darkTheme = true, content = content)
+    }
+}
+
+@Composable
+private fun MediaPageSlider(
+    pageCount: Int,
+    currentPage: Int,
+    onPageSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val maxPage = (pageCount - 1).coerceAtLeast(0)
+    var isDragging by remember { mutableStateOf(false) }
+    val sliderState =
+        remember(pageCount) {
+            SliderState(
+                value = currentPage.coerceIn(0, maxPage).toFloat(),
+                steps = (pageCount - 2).coerceAtLeast(0),
+                trackRange = 0f..maxPage.toFloat(),
+            )
+        }
+    LaunchedEffect(currentPage, maxPage, isDragging) {
+        if (!isDragging) {
+            sliderState.value = currentPage.coerceIn(0, maxPage).toFloat()
+        }
+    }
+
+    val sliderPage = sliderState.value.roundToInt().coerceIn(0, maxPage)
+    val positionLabel = stringResource(R.string.media_page_position)
+    val pageDescription = stringResource(R.string.media_page_of, sliderPage + 1, pageCount)
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = (sliderPage + 1).toString(),
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Slider(
+            state = sliderState,
+            onValueChange = { value ->
+                val page = value.roundToInt().coerceIn(0, maxPage)
+                isDragging = true
+                sliderState.value = page.toFloat()
+                if (page != currentPage) {
+                    onPageSelected(page)
+                }
+            },
+            onValueChangeFinished = {
+                val page = sliderState.value.roundToInt().coerceIn(0, maxPage)
+                isDragging = false
+                if (page != currentPage) {
+                    onPageSelected(page)
+                }
+            },
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription = positionLabel
+                        stateDescription = pageDescription
+                    },
+        )
+        Text(
+            text = pageCount.toString(),
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlayerControl(
+    player: ExoPlayer,
+    modifier: Modifier = Modifier,
+    playbackSpeed: Float = NORMAL_PLAYBACK_SPEED,
+) {
+    val playPauseButtonState = rememberPlayPauseButtonState(player)
+    val playbackPositionLabel = stringResource(R.string.media_playback_position)
+    var isLoaded by remember { mutableStateOf(false) }
+    LaunchedEffect(player) {
+        while (!isLoaded) {
+            isLoaded = player.isPlaying
+            awaitFrame()
+        }
+    }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AnimatedVisibility(
+            visible = playbackSpeed > NORMAL_PLAYBACK_SPEED,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Row(
+                modifier =
+                    Modifier
+                        .padding(top = 8.dp)
+                        .background(Color.Black.copy(alpha = 0.65f), CircleShape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FAIcon(
+                    FontAwesomeIcons.Solid.GaugeHigh,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = Color.White,
+                )
+                Text(
+                    "${playbackSpeed.formatSpeed()}x",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (!isLoaded) {
+                LinearWavyProgressIndicator(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                )
+            } else {
+                var time by remember { mutableStateOf("") }
+                var isSliderChanging by remember {
+                    mutableStateOf(false)
+                }
+                val sliderState = rememberSliderState()
+                if (!playPauseButtonState.showPlay && !isSliderChanging) {
+                    LaunchedEffect(Unit) {
+                        while (true) {
+                            sliderState.value = player.currentPosition.toFloat() / player.duration.toFloat()
+                            time =
+                                buildString {
+                                    append(player.currentPosition.milliseconds.humanize())
+                                    append(" / ")
+                                    append(player.duration.milliseconds.humanize())
+                                }
+                            awaitFrame()
+                        }
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        playPauseButtonState.onClick()
+                    },
+                    enabled = playPauseButtonState.isEnabled,
+                ) {
+                    Icon(
+                        if (playPauseButtonState.showPlay) {
+                            FontAwesomeIcons.Solid.Play
+                        } else {
+                            FontAwesomeIcons.Solid.Pause
+                        },
+                        contentDescription =
+                            stringResource(
+                                if (playPauseButtonState.showPlay) {
+                                    R.string.media_play
+                                } else {
+                                    R.string.media_pause
+                                },
+                            ),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Slider(
+                    state = sliderState,
+                    onValueChange = {
+                        isSliderChanging = true
+                        sliderState.value = it
+                        time =
+                            buildString {
+                                append((player.duration * it).toLong().milliseconds.humanize())
+                                append(" / ")
+                                append(player.duration.milliseconds.humanize())
+                            }
+                    },
+                    onValueChangeFinished = {
+                        player.seekTo((player.duration * sliderState.value).toLong())
+                        isSliderChanging = false
+                    },
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .semantics {
+                                contentDescription = playbackPositionLabel
+                            },
+                )
+                Text(time)
+                Spacer(Modifier.width(screenHorizontalPadding))
+            }
+        }
+    }
+}
+
+private fun Float.formatSpeed(): String =
+    if (this % 1f == 0f) {
+        toInt().toString()
+    } else {
+        "%.1f".format(this)
+    }
+
+@Composable
+private fun VideoGestureOverlay(
+    player: ExoPlayer,
+    onClick: () -> Unit,
+    onPlaybackSpeedChanged: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnPlaybackSpeedChanged by rememberUpdatedState(onPlaybackSpeedChanged)
+    var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
+    var seekFeedbackVersion by remember { mutableIntStateOf(0) }
+    var fastPlaybackWasPlaying by remember { mutableStateOf(false) }
+    var isFastPlayback by remember { mutableStateOf(false) }
+
+    fun showSeekFeedback(feedback: SeekFeedback) {
+        seekFeedback = feedback
+        seekFeedbackVersion += 1
+    }
+
+    fun beginFastPlayback() {
+        if (isFastPlayback) return
+        fastPlaybackWasPlaying = player.isPlaying
+        player.setPlaybackSpeed(FAST_PLAYBACK_SPEED)
+        if (!player.isPlaying) {
+            player.play()
+        }
+        isFastPlayback = true
+        currentOnPlaybackSpeedChanged(FAST_PLAYBACK_SPEED)
+    }
+
+    fun endFastPlayback() {
+        if (!isFastPlayback) return
+        player.setPlaybackSpeed(NORMAL_PLAYBACK_SPEED)
+        if (!fastPlaybackWasPlaying) {
+            player.pause()
+        }
+        isFastPlayback = false
+        currentOnPlaybackSpeedChanged(NORMAL_PLAYBACK_SPEED)
+    }
+
+    LaunchedEffect(seekFeedbackVersion) {
+        if (seekFeedbackVersion > 0) {
+            delay(SEEK_FEEDBACK_VISIBLE_MS)
+            seekFeedback = null
+        }
+    }
+
+    androidx.compose.runtime.DisposableEffect(player) {
+        onDispose {
+            if (isFastPlayback) {
+                player.setPlaybackSpeed(NORMAL_PLAYBACK_SPEED)
+                currentOnPlaybackSpeedChanged(NORMAL_PLAYBACK_SPEED)
+            }
+        }
+    }
+
+    Box(
+        modifier =
+            modifier
+                .pointerInput(player) {
+                    detectTapGestures(
+                        onTap = {
+                            currentOnClick()
+                        },
+                        onDoubleTap = { offset ->
+                            if (offset.x < size.width / 2f) {
+                                player.seekBy(-SEEK_INTERVAL_MS)
+                                showSeekFeedback(SeekFeedback.Backward)
+                            } else {
+                                player.seekBy(SEEK_INTERVAL_MS)
+                                showSeekFeedback(SeekFeedback.Forward)
+                            }
+                        },
+                        onLongPress = {},
+                        onPress = {
+                            var longPressStarted = false
+                            coroutineScope {
+                                val longPressJob =
+                                    launch {
+                                        delay(LONG_PRESS_DELAY_MS)
+                                        longPressStarted = true
+                                        beginFastPlayback()
+                                    }
+                                try {
+                                    tryAwaitRelease()
+                                } finally {
+                                    longPressJob.cancel()
+                                    if (longPressStarted) {
+                                        endFastPlayback()
+                                    }
+                                }
+                            }
+                        },
+                    )
+                },
+    ) {
+        SeekFeedbackOverlay(seekFeedback)
+    }
+}
+
+@Composable
+private fun SeekFeedbackOverlay(feedback: SeekFeedback?) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        AnimatedVisibility(
+            visible = feedback == SeekFeedback.Backward,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 56.dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            SeekFeedbackContent(SeekFeedback.Backward)
+        }
+        AnimatedVisibility(
+            visible = feedback == SeekFeedback.Forward,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 56.dp),
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            SeekFeedbackContent(SeekFeedback.Forward)
+        }
+    }
+}
+
+@Composable
+private fun SeekFeedbackContent(feedback: SeekFeedback) {
+    Column(
+        modifier =
+            Modifier
+                .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        FAIcon(
+            when (feedback) {
+                SeekFeedback.Backward -> FontAwesomeIcons.Solid.Backward
+                SeekFeedback.Forward -> FontAwesomeIcons.Solid.Forward
+            },
+            contentDescription =
+                stringResource(
+                    when (feedback) {
+                        SeekFeedback.Backward -> R.string.seek_backward_5_seconds
+                        SeekFeedback.Forward -> R.string.seek_forward_5_seconds
+                    },
+                ),
+            modifier = Modifier.size(32.dp),
+            tint = Color.White,
+        )
+        Text(
+            "5s",
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+private enum class SeekFeedback {
+    Backward,
+    Forward,
+}
+
+private fun ExoPlayer.seekBy(offsetMs: Long) {
+    val durationMs = duration.takeIf { it > 0L && it != C.TIME_UNSET }
+    val targetMs = currentPosition + offsetMs
+    seekTo(
+        if (durationMs != null) {
+            targetMs.coerceIn(0L, durationMs)
+        } else {
+            targetMs.coerceAtLeast(0L)
+        },
+    )
+}
+
+private const val SEEK_INTERVAL_MS = 5_000L
+private const val LONG_PRESS_DELAY_MS = 350L
+private const val SEEK_FEEDBACK_VISIBLE_MS = 450L
+private const val NORMAL_PLAYBACK_SPEED = 1f
+private const val FAST_PLAYBACK_SPEED = 2f
+private const val MEDIA_VIEWER_PRESENTER_KEY = "media_viewer"
+
+@OptIn(ExperimentalTelephotoApi::class)
+@Composable
+internal fun ImageItem(
+    media: UiMedia?,
+    description: String?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    setLockPager: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    onLoadError: () -> Unit = {},
+    translating: Boolean = false,
+) {
+    val loadingEffect by animateFloatAsState(
+        targetValue = if (translating) 1f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        label = "Image translation loading",
+    )
+    val loadingDescription = stringResource(R.string.image_translation_loading)
+    val currentOnLoadError by rememberUpdatedState(onLoadError)
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnLongClick by rememberUpdatedState(onLongClick)
+    val currentSetLockPager by rememberUpdatedState(setLockPager)
+    val scope = rememberCoroutineScope()
+    val zoomableState =
+        rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 10f))
+    LaunchedEffect(zoomableState.zoomFraction) {
+        zoomableState.zoomFraction?.let {
+            currentSetLockPager(it > 0.01f)
+        } ?: currentSetLockPager(false)
+    }
+    BackHandler(
+        enabled = (zoomableState.zoomFraction ?: 0f) > 0.01f,
+    ) {
+        scope.launch {
+            zoomableState.resetZoom()
+        }
+    }
+    var imageAspect by remember { mutableFloatStateOf(0f) }
+    var loadedMediaKey by remember { mutableStateOf<String?>(null) }
+    var previousCacheKey by remember { mutableStateOf<MemoryCache.Key?>(null) }
+    val currentMediaKey by rememberUpdatedState(media?.cacheKey)
+    val baseRequest = rememberMediaImageRequest(media, crossfade = false)
+    val request =
+        remember(baseRequest) {
+            val requestedKey = media?.cacheKey
+            baseRequest
+                .newBuilder()
+                .size(Size.ORIGINAL)
+                .apply { previousCacheKey?.let { placeholderMemoryCacheKey(it) } }
+                .listener(onError = { _, _ ->
+                    if (requestedKey == currentMediaKey) {
+                        loadedMediaKey = requestedKey
+                        currentOnLoadError()
+                    }
+                }, onSuccess = { _, result ->
+                    if (requestedKey == currentMediaKey) {
+                        previousCacheKey = result.memoryCacheKey
+                        loadedMediaKey = requestedKey
+                        if (result.image.width > 0) imageAspect = result.image.height.toFloat() / result.image.width
+                    }
+                })
+                .build()
+        }
+    val isLongImage = imageAspect > 19.5f / 9f
+    val alignment = if (isLongImage) Alignment.TopCenter else Alignment.Center
+    val contentScale = if (isLongImage) ContentScale.FillWidth else ContentScale.Fit
+
+    Box(modifier) {
+        ZoomableAsyncImage(
+            model = request,
+            contentDescription = description,
+            state = rememberZoomableImageState(zoomableState),
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .blur((8 * loadingEffect).dp)
+                    .alpha(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 1f else 1f - 0.2f * loadingEffect),
+            contentScale = contentScale,
+            alignment = alignment,
+            onClick = {
+                currentOnClick()
+            },
+            onLongClick = {
+                currentOnLongClick()
+            },
+            onDoubleClick = DoubleClickToZoomListener.cycle(2f),
+        )
+        AnimatedVisibility(
+            visible = translating || (media != null && !media.isRemote && loadedMediaKey != media.cacheKey),
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        ) {
+            LoadingIndicator(
+                modifier = if (translating) Modifier.semantics { contentDescription = loadingDescription } else Modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun statusMediaPresenter(
+    statusKey: MicroBlogKey,
+    accountType: AccountType,
+) = run {
+    val state =
+        remember(accountType, statusKey) {
+            StatusPresenter(accountType = accountType, statusKey = statusKey)
+        }.invoke()
+    var medias: UiState<ImmutableList<UiMedia>> by remember(accountType, statusKey) {
+        mutableStateOf(UiState.Loading())
+    }
+    // Prevent media changes after the first successful load so the visible page stays stable.
+    if (!medias.isSuccess) {
+        LaunchedEffect(state) {
+            state.status
+                .onSuccess {
+                    medias =
+                        UiState.Success(
+                            it
+                                .contentPostOrNull()
+                                ?.images
+                                .orEmpty()
+                                .toImmutableList(),
+                        )
+                }
+        }
+    }
+    object {
+        val status = state.status
+        val medias = medias
+    }
+}
+
+@OptIn(ExperimentalCoilApi::class)
+@Composable
+private fun mediaViewerPresenter(
+    initialIndex: Int,
+    scope: CoroutineScope = koinInject(),
+    mediaDownloadManager: AndroidDownloadManager = koinInject(),
+) = run {
+    var showSheet by remember {
+        mutableStateOf(false)
+    }
+    var showUi by remember {
+        mutableStateOf(true)
+    }
+    var lockPager by remember {
+        mutableStateOf(false)
+    }
+    var isLandscapeViewing by remember {
+        mutableStateOf(false)
+    }
+    var originalOrientation: Int? by remember {
+        mutableStateOf<Int?>(null)
+    }
+    var currentPage by remember {
+        mutableIntStateOf(initialIndex)
+    }
+    object {
+        val showUi = showUi
+        val currentPage = currentPage
+        val lockPager = lockPager
+        val showSheet = showSheet
+        val isLandscapeViewing = isLandscapeViewing
+        val originalOrientation = originalOrientation
+
+        fun setShowSheet(value: Boolean) {
+            showSheet = value
+        }
+
+        fun setShowUi(value: Boolean) {
+            if (!lockPager) {
+                showUi = value
+            }
+        }
+
+        fun setCurrentPage(value: Int) {
+            currentPage = value
+        }
+
+        fun setLockPager(value: Boolean) {
+            lockPager = value
+        }
+
+        fun setLandscapeViewing(value: Boolean) {
+            isLandscapeViewing = value
+        }
+
+        fun setOriginalOrientation(value: Int?) {
+            originalOrientation = value
+        }
+
+        fun save(
+            data: UiMedia,
+            fileName: String,
+            context: Context,
+        ) {
+            when (data) {
+                is UiMedia.Audio -> download(data, fileName, context)
+                is UiMedia.Gif -> download(data, fileName, context)
+                is UiMedia.Image -> saveImage(data, fileName, context)
+                is UiMedia.Video -> download(data, fileName, context)
+                is UiMedia.Ugoira -> scope.launch { mediaDownloadManager.saveUgoira(data, fileName) }
+            }
+        }
+
+        fun saveAll(
+            media: Map<String, UiMedia>,
+            context: Context,
+        ) {
+            scope.launch {
+                withContext(Dispatchers.Main) {
+                    Toast
+                        .makeText(
+                            context,
+                            context.getString(R.string.media_download_started),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+                val result =
+                    runCatching {
+                        mediaDownloadManager.downloadAllMedia(media)
+                    }.getOrNull()
+                withContext(Dispatchers.Main) {
+                    Toast
+                        .makeText(
+                            context,
+                            context.getString(
+                                if (result != null && result.failedFileNames.isEmpty()) {
+                                    R.string.media_save_success
+                                } else {
+                                    R.string.media_save_fail
+                                },
+                            ),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+            }
+        }
+
+        fun shareMedia(
+            data: UiMedia,
+            fileName: String,
+            context: Context,
+        ) {
+            when (data) {
+                is UiMedia.Audio -> {}
+
+                is UiMedia.Gif -> {}
+
+                is UiMedia.Image -> {
+                    scope.launch {
+                        shareImageMedia(
+                            context = context,
+                            media = data,
+                            fileName = fileName,
+                        )
+                    }
+                }
+
+                is UiMedia.Video, is UiMedia.Ugoira -> {}
+            }
+        }
+
+        fun download(
+            media: UiMedia,
+            fileName: String,
+            context: Context,
+        ) {
+            scope.launch {
+                mediaDownloadManager.downloadMedia(
+                    media = media,
+                    fileName = fileName,
+                    callback =
+                        object : AndroidDownloadManager.DownloadCallback {
+                            override fun onDownloadStarted(downloadId: Long) {
+                                scope.launch {
+                                    withContext(Dispatchers.Main) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.media_download_started),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    }
+                                }
+                            }
+
+                            override fun onDownloadSuccess(downloadId: Long) {
+                                scope.launch {
+                                    withContext(Dispatchers.Main) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.media_save_success),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    }
+                                }
+                            }
+
+                            override fun onDownloadFailed(downloadId: Long) {
+                                scope.launch {
+                                    withContext(Dispatchers.Main) {
+                                        Toast
+                                            .makeText(
+                                                context,
+                                                context.getString(R.string.media_save_fail),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                    }
+                                }
+                            }
+                        },
+                )
+            }
+        }
+
+        fun saveImage(
+            media: UiMedia.Image,
+            fileName: String,
+            context: Context,
+        ) {
+            scope.launch {
+                context.imageLoader.diskCache?.openSnapshot(media.cacheKey)?.use {
+                    val byteArray = it.data.toFile().readBytes()
+                    val success =
+                        mediaDownloadManager.saveByteArray(
+                            byteArray = byteArray,
+                            fileName = fileName,
+                        )
+                    withContext(Dispatchers.Main) {
+                        Toast
+                            .makeText(
+                                context,
+                                context.getString(
+                                    if (success) {
+                                        R.string.media_save_success
+                                    } else {
+                                        R.string.media_save_fail
+                                    },
+                                ),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                } ?: run { download(media, fileName, context) }
+            }
+        }
+    }
+}

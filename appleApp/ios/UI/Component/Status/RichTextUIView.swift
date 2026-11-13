@@ -1,0 +1,1853 @@
+import FlareAppleUI
+import UIKit
+import Kingfisher
+import KotlinSharedUI
+import SwiftUI
+import FlareAppleCore
+import FlareAppleUI
+import Combine
+
+/// Pure-UIKit renderer for the iOS `RichText` SwiftUI view.
+final class RichTextUIView: UIView, TimelineHeightProviding {
+    // MARK: - Public inputs
+
+    var text: UiRichText? { didSet { if !isBatchUpdating { update() } } }
+    /// Optional caller-provided stable key for `text`. When set, the structural
+    /// signature compares by key instead of deep-walking Kotlin bridged values.
+    /// Callers must guarantee: same key ⇒ same text.
+    var contentKey: Int? { didSet { if !isBatchUpdating { update() } } }
+    var lineLimit: Int? = nil {
+        didSet {
+            guard !isBatchUpdating, oldValue != lineLimit else { return }
+            updateHorizontalLayoutPolicy()
+            update()
+        }
+    }
+    var isTextSelectionEnabled: Bool = false {
+        didSet {
+            if !isBatchUpdating, oldValue != isTextSelectionEnabled {
+                update()
+            }
+        }
+    }
+    var fixedVertical: Bool = true {
+        didSet {
+            guard !isBatchUpdating, oldValue != fixedVertical else { return }
+            invalidateIntrinsicContentSize()
+        }
+    }
+    var onOpenURL: ((URL) -> Void)?
+    var baseTextStyle: UIFont.TextStyle = .body { didSet { if !isBatchUpdating { update() } } }
+    var baseTextColor: UIColor = .label { didSet { if !isBatchUpdating { update() } } }
+    var preferredContentSizeCategory: UIContentSizeCategory = .medium {
+        didSet {
+            guard !isBatchUpdating, oldValue != preferredContentSizeCategory else { return }
+            update(force: true)
+        }
+    }
+
+    // MARK: - Private state
+
+    private let stack: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.alignment = .fill
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }()
+
+    private var inlineImagePixelHeight: CGFloat = 0
+    private var inlineImages: [String: UIImage] = [:]
+    private var textBlocks: [RenderedTextBlock] = []
+    private var measurementBlocks: [RichTextMeasurementBlock] = []
+    private var renderGeneration = 0
+    private var lastLayoutWidth: CGFloat = 0
+    private var naturalStackSizeCache: [Int: CGSize] = [:]
+    private var isBatchUpdating = false
+    private var lastStructuralSignature: StructuralSignature?
+    private var traitRegistration: UITraitChangeRegistration?
+    private var stackBottomConstraint: NSLayoutConstraint?
+    private var collapseAboveLineCount: Int?
+    private var needsContentRebuild = false
+    private var renderedWidthKey: Int?
+    private var collapsedPreviewHeight: CGFloat?
+    private var renderedInlineImageURLs: Set<String> = []
+    private var loadingInlineImageURLs: Set<String> = []
+    private var inlineImageRevision = 0
+    private var proxyObservation: AnyCancellable?
+    private var blockImageAspectRatios: [String: CGFloat] = [:]
+
+    private struct StructuralSignature: Equatable {
+        let contentKey: Int?
+        let text: UiRichText?
+        let isTextSelectionEnabled: Bool
+        let baseTextStyle: UIFont.TextStyle
+        let baseTextColor: UIColor
+        let preferredContentSizeCategory: UIContentSizeCategory
+        let lineLimit: Int?
+        let collapseAboveLineCount: Int?
+
+        static func == (lhs: StructuralSignature, rhs: StructuralSignature) -> Bool {
+            guard lhs.isTextSelectionEnabled == rhs.isTextSelectionEnabled,
+                  lhs.baseTextStyle == rhs.baseTextStyle,
+                  lhs.baseTextColor.isEqual(rhs.baseTextColor),
+                  lhs.preferredContentSizeCategory == rhs.preferredContentSizeCategory,
+                  lhs.lineLimit == rhs.lineLimit,
+                  lhs.collapseAboveLineCount == rhs.collapseAboveLineCount else {
+                return false
+            }
+            if let l = lhs.contentKey, let r = rhs.contentKey {
+                return l == r
+            }
+            return Self.textsAreEqual(lhs.text, rhs.text)
+        }
+
+        private static func textsAreEqual(_ lhs: UiRichText?, _ rhs: UiRichText?) -> Bool {
+            switch (lhs, rhs) {
+            case (nil, nil):
+                return true
+            case let (l?, r?):
+                if (l as AnyObject) === (r as AnyObject) { return true }
+                return (l as AnyObject).isEqual(r)
+            default:
+                return false
+            }
+        }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        commonInit()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    private func commonInit() {
+        addSubview(stack)
+        let bottomConstraint = stack.bottomAnchor.constraint(equalTo: bottomAnchor)
+        stackBottomConstraint = bottomConstraint
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: topAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bottomConstraint,
+        ])
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .vertical)
+        updateHorizontalLayoutPolicy()
+        traitRegistration = registerForTraitChanges([
+            UITraitUserInterfaceStyle.self,
+            UITraitPreferredContentSizeCategory.self,
+            UITraitLegibilityWeight.self,
+            UITraitAccessibilityContrast.self,
+            UITraitDisplayScale.self,
+        ]) { (view: RichTextUIView, _) in
+            view.update(force: true)
+        }
+    }
+
+    // MARK: - Rendering
+
+    func configure(
+        text: UiRichText?,
+        lineLimit: Int?,
+        isTextSelectionEnabled: Bool,
+        onOpenURL: ((URL) -> Void)?,
+        baseTextStyle: UIFont.TextStyle = .body,
+        baseTextColor: UIColor = .label,
+        preferredContentSizeCategory: UIContentSizeCategory = .medium,
+        contentKey: Int? = nil,
+        collapseAboveLineCount: Int? = nil
+    ) {
+        let oldLineLimit = self.lineLimit
+        let oldCollapseAboveLineCount = self.collapseAboveLineCount
+        isBatchUpdating = true
+        self.text = text
+        self.contentKey = contentKey
+        self.lineLimit = lineLimit
+        self.collapseAboveLineCount = collapseAboveLineCount
+        self.isTextSelectionEnabled = isTextSelectionEnabled
+        self.onOpenURL = onOpenURL
+        self.baseTextStyle = baseTextStyle
+        self.baseTextColor = baseTextColor
+        self.preferredContentSizeCategory = preferredContentSizeCategory
+        isBatchUpdating = false
+
+        if oldLineLimit != lineLimit || oldCollapseAboveLineCount != collapseAboveLineCount {
+            updateHorizontalLayoutPolicy()
+            updateVerticalLayoutPolicy()
+        }
+        update()
+    }
+
+    private func update(force: Bool = false) {
+        let structuralSignature = StructuralSignature(
+            contentKey: contentKey,
+            text: text,
+            isTextSelectionEnabled: isTextSelectionEnabled,
+            baseTextStyle: baseTextStyle,
+            baseTextColor: baseTextColor,
+            preferredContentSizeCategory: preferredContentSizeCategory,
+            lineLimit: lineLimit,
+            collapseAboveLineCount: collapseAboveLineCount
+        )
+        guard force || lastStructuralSignature != structuralSignature else { return }
+        lastStructuralSignature = structuralSignature
+        renderGeneration += 1
+        loadingInlineImageURLs.removeAll()
+        blockImageAspectRatios.removeAll()
+        clearStack()
+        needsContentRebuild = true
+        renderedWidthKey = nil
+        if !usesCollapsedLayout {
+            rebuildContent(for: bounds.width)
+        }
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    private var usesCollapsedLayout: Bool {
+        collapseAboveLineCount != nil && lineLimit != nil
+    }
+
+    private func ensureContent(for width: CGFloat) {
+        if needsContentRebuild || (usesCollapsedLayout && renderedWidthKey != Self.measurementWidthKey(width)) {
+            rebuildContent(for: width)
+        }
+    }
+
+    private func rebuildContent(for width: CGFloat) {
+        clearStack()
+        needsContentRebuild = false
+        renderedWidthKey = Self.measurementWidthKey(width)
+
+        guard let text else {
+            proxyObservation = nil
+            invalidateIntrinsicContentSize()
+            return
+        }
+
+        let generation = renderGeneration
+        let contents = (text.platformText as? NSArray)?.compactMap { $0 as? PlatformTextContent } ?? []
+        if usesCollapsedLayout, width > 0 {
+            addCollapsedContents(contents, width: width)
+        } else {
+            for content in contents {
+                switch content {
+                case let textContent as PlatformTextTextContent:
+                    addTextContent(textContent)
+                case let imageContent as PlatformTextBlockImageContent:
+                    addBlockImage(media: imageContent.media, href: imageContent.href)
+                default:
+                    continue
+                }
+            }
+        }
+
+        loadInlineImages(for: text, generation: generation)
+        invalidateIntrinsicContentSize()
+    }
+
+    private func clearStack() {
+        textBlocks = []
+        measurementBlocks = []
+        collapsedPreviewHeight = nil
+        renderedInlineImageURLs.removeAll()
+        naturalStackSizeCache.removeAll(keepingCapacity: true)
+        lastLayoutWidth = 0
+        stack.arrangedSubviews.forEach {
+            stack.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+    }
+
+    func prepareForFitting(width: CGFloat) {
+        guard width.isFinite, width > 0 else { return }
+        ensureContent(for: width)
+        let widthKey = Self.measurementWidthKey(width)
+        guard widthKey != Self.measurementWidthKey(lastLayoutWidth) else { return }
+        lastLayoutWidth = width
+        bounds = CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height)
+        stack.bounds = CGRect(x: 0, y: 0, width: width, height: stack.bounds.height)
+        for subview in stack.arrangedSubviews {
+            prepareSubview(subview, forFittingWidth: width)
+        }
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    private func prepareSubview(_ view: UIView, forFittingWidth width: CGFloat) {
+        if let fittingView = view as? RichTextFittingPreparing {
+            fittingView.prepareForFitting(width: width)
+            return
+        }
+        guard Self.measurementWidthKey(view.bounds.width) != Self.measurementWidthKey(width) else { return }
+        view.bounds = CGRect(x: view.bounds.minX, y: view.bounds.minY, width: width, height: view.bounds.height)
+        for subview in view.subviews {
+            prepareSubview(subview, forFittingWidth: width)
+        }
+        view.invalidateIntrinsicContentSize()
+        view.setNeedsLayout()
+    }
+
+//    override var intrinsicContentSize: CGSize {
+//        let exposesWidth = exposesHorizontalIntrinsicSize
+//        let size = measuredStackSize(for: bounds.width, exposesWidth: exposesWidth)
+//        return CGSize(
+//            width: exposesWidth ? ceil(size.width) : UIView.noIntrinsicMetric,
+//            height: fixedVertical ? ceil(size.height) : UIView.noIntrinsicMetric
+//        )
+//    }
+
+    override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        let exposesWidth = exposesHorizontalIntrinsicSize && horizontalFittingPriority != .required
+        if horizontalFittingPriority == .required,
+           targetSize.width.isFinite,
+           targetSize.width > 0 {
+            prepareForFitting(width: targetSize.width)
+        }
+        let size = measuredStackSize(for: targetSize.width, exposesWidth: exposesWidth)
+        return CGSize(
+            width: horizontalFittingPriority == .required ? targetSize.width : (exposesWidth ? ceil(size.width) : UIView.noIntrinsicMetric),
+            height: fixedVertical ? ceil(size.height) : UIView.noIntrinsicMetric
+        )
+    }
+
+    private func measuredStackSize(for proposedWidth: CGFloat, exposesWidth: Bool) -> CGSize {
+        if exposesWidth {
+            return measuredSingleLineStackSize()
+        }
+
+        let width = proposedWidth.isFinite && proposedWidth > 0
+            ? proposedWidth
+            : (bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width)
+        guard width > 0 else { return .zero }
+
+        ensureContent(for: width)
+        if let collapsedPreviewHeight {
+            return CGSize(width: width, height: collapsedPreviewHeight)
+        }
+        return naturalStackSize(for: width)
+    }
+
+    private func naturalStackSize(for width: CGFloat) -> CGSize {
+        ensureContent(for: width)
+        let widthKey = Self.measurementWidthKey(width)
+        if let cached = naturalStackSizeCache[widthKey] {
+            return cached
+        }
+        var height: CGFloat = 0
+        var measuredWidth: CGFloat = 0
+        for (index, block) in measurementBlocks.enumerated() {
+            let size = block.measuredSize(width: width, lineLimit: renderedLineLimit)
+            if index > 0 {
+                height += stack.spacing
+            }
+            height += ceil(size.height)
+            measuredWidth = max(measuredWidth, size.width)
+        }
+        let size = CGSize(width: measuredWidth, height: height)
+        naturalStackSizeCache[widthKey] = size
+        return size
+    }
+
+    func hasCollapsedOverflow(for width: CGFloat) -> Bool {
+        guard width.isFinite, width > 0 else { return false }
+        ensureContent(for: width)
+        return collapsedPreviewHeight != nil
+    }
+
+    private var lineHeight: CGFloat {
+        ceil(preferredFont(forTextStyle: baseTextStyle).lineHeight)
+    }
+
+    func singleLineContentSize() -> CGSize {
+        measuredSingleLineStackSize()
+    }
+
+    func timelineHeight(for width: CGFloat) -> CGFloat? {
+        guard width.isFinite, width > 0 else { return nil }
+        return ceil(measuredStackSize(for: width, exposesWidth: false).height)
+    }
+
+    private func measuredSingleLineStackSize() -> CGSize {
+        var height: CGFloat = 0
+        var measuredWidth: CGFloat = 0
+        for (index, block) in measurementBlocks.enumerated() {
+            let size = block.singleLineSize(lineLimit: renderedLineLimit)
+            if index > 0 {
+                height += stack.spacing
+            }
+            height += ceil(size.height)
+            measuredWidth = max(measuredWidth, size.width)
+        }
+        return CGSize(width: measuredWidth, height: height)
+    }
+
+    override func layoutSubviews() {
+        prepareForFitting(width: bounds.width)
+        super.layoutSubviews()
+    }
+
+    override var forFirstBaselineLayout: UIView {
+        firstBaselineCandidate(in: stack) ?? super.forFirstBaselineLayout
+    }
+
+    override var forLastBaselineLayout: UIView {
+        lastBaselineCandidate(in: stack) ?? super.forLastBaselineLayout
+    }
+
+    private var exposesHorizontalIntrinsicSize: Bool {
+        renderedLineLimit == 1
+    }
+
+    private var renderedLineLimit: Int? {
+        collapseAboveLineCount == nil ? lineLimit : nil
+    }
+
+    fileprivate static let singleLineMeasurementWidth: CGFloat = 10_000
+
+    fileprivate static func measurementWidthKey(_ width: CGFloat) -> Int {
+        guard width.isFinite, width > 0 else { return 0 }
+        return Int((width * UIScreen.main.scale).rounded(.toNearestOrAwayFromZero))
+    }
+
+    private func updateHorizontalLayoutPolicy() {
+        setContentHuggingPriority(exposesHorizontalIntrinsicSize ? .required : .defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        invalidateIntrinsicContentSize()
+    }
+
+    private func updateVerticalLayoutPolicy() {
+        let clipsWholeRichText = collapseAboveLineCount != nil
+        stackBottomConstraint?.isActive = !clipsWholeRichText
+        clipsToBounds = clipsWholeRichText
+        invalidateIntrinsicContentSize()
+    }
+
+    private func firstBaselineCandidate(in view: UIView) -> UIView? {
+        if view is UILabel || view is UITextView {
+            return view
+        }
+        for subview in view.subviews {
+            if let candidate = firstBaselineCandidate(in: subview) {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    private func lastBaselineCandidate(in view: UIView) -> UIView? {
+        if view is UILabel || view is UITextView {
+            return view
+        }
+        for subview in view.subviews.reversed() {
+            if let candidate = lastBaselineCandidate(in: subview) {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    private func addCollapsedContents(_ contents: [PlatformTextContent], width: CGFloat) {
+        let threshold = max(collapseAboveLineCount ?? 1, lineLimit ?? 1, 1)
+        let thresholdHeight = lineHeight * CGFloat(threshold)
+        var blocks: [RichTextCollapsedBlock] = []
+        var lineCount = 0
+        var fullHeight: CGFloat = 0
+        for content in contents {
+            let spacing = blocks.isEmpty ? 0 : stack.spacing
+            switch content {
+            case let content as PlatformTextTextContent:
+                let textWidth = max(width - (content.isBlockQuote ? RichTextQuoteBlockView.horizontalInset : 0), 1)
+                let insets = content.isBlockQuote ? RichTextQuoteBlockView.verticalInset * 2 : 0
+                let (layout, renderer) = limitedLayout(for: content, width: textWidth,
+                    minimumLines: max((lineLimit ?? 1) - lineCount + 1, 1),
+                    heightLimit: thresholdHeight - fullHeight - spacing - insets)
+                // A single block below the threshold is complete and needs no line clipping.
+                if contents.count == 1, layout.text.length > 0, layout.height + insets <= thresholdHeight {
+                    addTextContent(content, attributedText: layout.text, preparedRenderer: renderer)
+                    return
+                }
+                guard !layout.lines.isEmpty else { continue }
+                blocks.append(.text(content, layout, renderer))
+                lineCount += layout.lines.count
+                fullHeight += spacing + insets + layout.height
+            case let content as PlatformTextBlockImageContent:
+                guard URL(string: content.url) != nil else { continue }
+                let height = ceil(width * (blockImageAspectRatios[content.url] ?? 9.0 / 16.0))
+                let imageLines = max(Int(min(ceil(height / lineHeight), CGFloat(threshold + 1))), 1)
+                blocks.append(.image(content, height: height, lines: imageLines))
+                lineCount += imageLines
+                fullHeight += spacing + height
+            default:
+                continue
+            }
+            if fullHeight > thresholdHeight { break }
+        }
+
+        let isCollapsed = fullHeight > thresholdHeight
+        var remainingLines = isCollapsed ? max(lineLimit ?? 1, 1) : lineCount
+        var previewHeight: CGFloat = 0
+        for block in blocks {
+            guard remainingLines > 0 else { break }
+            if !stack.arrangedSubviews.isEmpty { previewHeight += stack.spacing }
+            switch block {
+            case .text(let content, let layout, let preparedRenderer):
+                let visibleLines = min(remainingLines, layout.lines.count)
+                // Keep lookahead for wrapping, but cap the renderer as well so
+                // tall glyphs on the next line cannot peek into the preview.
+                let attributedText = layout.prefix(throughLine: visibleLines + 1)
+                let prepared = attributedText === layout.text ? preparedRenderer
+                    : makeTextRenderer(content: content, attributedText: attributedText, reusing: preparedRenderer)
+                let renderer = addTextContent(content, attributedText: attributedText,
+                                              visibleLineLimit: isCollapsed ? visibleLines : nil,
+                                              preparedRenderer: prepared)
+                let textWidth = max(width - (content.isBlockQuote ? RichTextQuoteBlockView.horizontalInset : 0), 1)
+                // Line-fragment metrics can be shorter than the renderer's CJK lines.
+                previewHeight += renderer.measuredSize(for: textWidth).height
+                if content.isBlockQuote {
+                    previewHeight += RichTextQuoteBlockView.verticalInset
+                    if visibleLines == layout.lines.count {
+                        previewHeight += RichTextQuoteBlockView.verticalInset
+                    }
+                }
+                remainingLines -= visibleLines
+            case .image(let content, let height, let lines):
+                addBlockImage(media: content.media, href: content.href)
+                previewHeight += lines <= remainingLines ? height : min(height, CGFloat(remainingLines) * lineHeight)
+                remainingLines -= min(lines, remainingLines)
+            }
+        }
+        collapsedPreviewHeight = isCollapsed ? ceil(previewHeight) : nil
+    }
+
+    private func limitedLayout(for content: PlatformTextTextContent, width: CGFloat,
+                               minimumLines: Int, heightLimit: CGFloat) -> (RichTextLineLayout, RichTextTextRendering) {
+        var length = 256
+        var renderer: RichTextTextRendering?
+        while true {
+            let prefix = attributedPrefix(for: content, length: length)
+            // Match the rendered block height, including fallback-font metrics.
+            let prepared = makeTextRenderer(content: content, attributedText: prefix.text, reusing: renderer)
+            renderer = prepared
+            let height = prepared.measuredSize(for: width).height
+            let layout = RichTextLineLayout(text: prefix.text, width: width, height: height)
+            // Keep enough lines for the preview even if large glyphs exhaust the height budget first.
+            if prefix.complete || (layout.height > heightLimit && layout.lines.count >= minimumLines) {
+                return (layout, prepared)
+            }
+            // This is a starting window, not a character truncation rule. Wide
+            // columns and narrow/zero-width glyphs grow it until layout decides.
+            length *= 2
+        }
+    }
+
+    @discardableResult
+    private func addTextContent(_ content: PlatformTextTextContent, attributedText: NSAttributedString? = nil,
+                                visibleLineLimit: Int? = nil,
+                                preparedRenderer: RichTextTextRendering? = nil) -> RichTextTextRendering {
+        let attributedText = attributedText ?? attributedString(for: content)
+        attributedText.enumerateAttribute(.richTextInlineImageURL, in: NSRange(location: 0, length: attributedText.length)) { value, _, _ in
+            if let url = value as? String { renderedInlineImageURLs.insert(url) }
+        }
+        let renderer = preparedRenderer ?? makeTextRenderer(
+            content: content,
+            attributedText: attributedText
+        )
+        if let visibleLineLimit {
+            // Both renderers already use word wrapping on the collapsed path.
+            (renderer as? RichTextLabel)?.numberOfLines = visibleLineLimit
+            (renderer as? RichTextTextView)?.textContainer.maximumNumberOfLines = visibleLineLimit
+        }
+        let measurement = RichTextTextMeasurement(
+            attributedText: attributedText,
+            fallbackTextStyle: baseTextStyle
+        )
+        textBlocks.append(RenderedTextBlock(content: .platform(content), renderer: renderer, measurement: measurement))
+
+        if content.isBlockQuote {
+            stack.addArrangedSubview(RichTextQuoteBlockView(contentView: renderer.renderedView))
+            measurementBlocks.append(.quote(measurement, renderer: renderer))
+        } else {
+            stack.addArrangedSubview(renderer.renderedView)
+            measurementBlocks.append(.text(measurement, renderer: renderer))
+        }
+        return renderer
+    }
+
+    private func addTextContent(_ content: RenderContent.Text) {
+        let attributedText = attributedString(for: content)
+        let renderer = makeTextRenderer(
+            content: content,
+            attributedText: attributedText
+        )
+        let measurement = RichTextTextMeasurement(
+            attributedText: attributedText,
+            fallbackTextStyle: baseTextStyle
+        )
+        textBlocks.append(RenderedTextBlock(content: .render(content), renderer: renderer, measurement: measurement))
+
+        if content.block.isBlockQuote {
+            stack.addArrangedSubview(RichTextQuoteBlockView(contentView: renderer.renderedView))
+            measurementBlocks.append(.quote(measurement, renderer: renderer))
+        } else {
+            stack.addArrangedSubview(renderer.renderedView)
+            measurementBlocks.append(.text(measurement, renderer: renderer))
+        }
+    }
+
+    private func addBlockImage(media: UiMediaImage, href: String?) {
+        let url = media.url
+        guard URL(string: url) != nil else { return }
+        let imageView = RichTextBlockImageView(media: media, href: href, aspectRatio: blockImageAspectRatios[url])
+        let measurement = RichTextBlockImageMeasurement()
+        if let ratio = blockImageAspectRatios[url] { measurement.update(aspectRatio: ratio) }
+        let generation = renderGeneration
+        imageView.onOpenURL = { [weak self] in self?.onOpenURL?($0) }
+        imageView.onAspectRatioChanged = { [weak self, measurement] ratio in
+            measurement.update(aspectRatio: ratio)
+            guard let self, self.renderGeneration == generation,
+                  self.blockImageAspectRatios[url] != ratio else { return }
+            self.blockImageAspectRatios[url] = ratio
+            self.needsContentRebuild = self.usesCollapsedLayout
+            self.naturalStackSizeCache.removeAll(keepingCapacity: true)
+            self.lastLayoutWidth = 0
+            self.invalidateIntrinsicContentSize()
+            self.setNeedsLayout()
+        }
+        stack.addArrangedSubview(imageView)
+        measurementBlocks.append(.blockImage(measurement))
+    }
+
+    private func attributedString(for content: RenderContent.Text) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        for run in content.runs {
+            switch run {
+            case let textRun as RenderRun.Text:
+                result.append(
+                    NSAttributedString(
+                        string: textRun.text,
+                        attributes: attributes(for: textRun.style, block: content.block)
+                    )
+                )
+            case let imageRun as RenderRun.Image:
+                result.append(attributedImageRun(imageRun))
+            default:
+                continue
+            }
+        }
+        return result
+    }
+
+    private func attributedString(for content: PlatformTextTextContent) -> NSAttributedString {
+        attributedPrefix(for: content, length: .max).text
+    }
+
+    private func attributedPrefix(for content: PlatformTextTextContent, length: Int) -> (text: NSAttributedString, complete: Bool) {
+        let result = NSMutableAttributedString()
+        for run in content.runs {
+            let remaining = length - result.length
+            guard remaining > 0 else { return (result, false) }
+            switch run {
+            case let attributedRun as PlatformTextAttributedRun:
+                let template = attributedRun.attributedText
+                let range = (template.string as NSString).rangeOfComposedCharacterSequences(
+                    for: NSRange(location: 0, length: min(remaining, template.length))
+                )
+                result.append(resolvedAttributedString(from: template.attributedSubstring(from: range)))
+                if NSMaxRange(range) < template.length { return (result, false) }
+            case let imageRun as PlatformTextImageRun:
+                result.append(attributedImageRun(imageRun))
+            default:
+                continue
+            }
+        }
+        return (result, true)
+    }
+
+    private func resolvedAttributedString(from template: NSAttributedString) -> NSAttributedString {
+        let result = NSMutableAttributedString(attributedString: template)
+        let fullRange = NSRange(location: 0, length: result.length)
+        var descriptors: [(PlatformTextStyleDescriptor?, NSRange)] = []
+        result.enumerateAttribute(.platformTextStyleDescriptor, in: fullRange) { value, range, _ in
+            descriptors.append((value as? PlatformTextStyleDescriptor, range))
+        }
+        for (descriptor, range) in descriptors {
+            result.removeAttribute(.platformTextStyleDescriptor, range: range)
+            result.addAttributes(resolvedAttributes(for: descriptor), range: range)
+        }
+        return result
+    }
+
+    private func resolvedAttributes(for descriptor: PlatformTextStyleDescriptor?) -> [NSAttributedString.Key: Any] {
+        guard let descriptor else {
+            return baseAttributes()
+        }
+
+        var attributes = baseAttributes(
+            font: font(for: descriptor),
+            color: color(for: descriptor)
+        )
+
+        if let link = descriptor.link, let url = URL(string: link) {
+            attributes[.link] = url
+            attributes[.foregroundColor] = linkColor()
+        }
+        if descriptor.strikethrough {
+            attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if descriptor.underline {
+            attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if descriptor.time {
+            attributes[.foregroundColor] = UIColor.secondaryLabel
+            attributes[.backgroundColor] = UIColor.secondaryLabel.withAlphaComponent(0.08)
+        }
+
+        return attributes
+    }
+
+    private var inlineImageTargetHeight: CGFloat {
+        preferredFont(forTextStyle: baseTextStyle).pointSize
+    }
+
+    private func inlineImagePlaceholder(size: CGSize) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            UIColor.secondaryLabel.withAlphaComponent(0.08).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+        }
+    }
+
+    private func attributedImageRun(_ run: PlatformTextImageRun) -> NSAttributedString {
+        attributedImage(url: run.url)
+    }
+
+    private func attributedImageRun(_ run: RenderRun.Image) -> NSAttributedString {
+        attributedImage(url: run.url)
+    }
+
+    private func attributedImage(url: String) -> NSAttributedString {
+        let targetHeight = inlineImageTargetHeight
+        let image = inlineImages[url] ?? inlineImagePlaceholder(size: CGSize(width: targetHeight, height: targetHeight))
+        let ratio = image.size.width / max(image.size.height, 1)
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = CGRect(x: 0, y: -3, width: targetHeight * ratio, height: targetHeight)
+        let result = NSMutableAttributedString(attachment: attachment)
+        result.addAttribute(.richTextInlineImageURL, value: url, range: NSRange(location: 0, length: result.length))
+        return result
+    }
+
+    private func loadInlineImages(for text: UiRichText, generation: Int) {
+        if !inlineImages.isEmpty {
+            inlineImages = inlineImages.filter { renderedInlineImageURLs.contains($0.key) }
+        }
+        guard !renderedInlineImageURLs.isEmpty else { proxyObservation = nil; return }
+        let scale = max(traitCollection.displayScale, 1)
+        let pixelHeight = ceil(inlineImageTargetHeight * scale)
+        if inlineImagePixelHeight != pixelHeight {
+            inlineImages.removeAll()
+            inlineImagePixelHeight = pixelHeight
+        }
+        let processor = ImageDownsamplingProcessor(
+            pixelSize: CGSize(width: .greatestFiniteMagnitude, height: pixelHeight), fillsBounds: false)
+        if proxyObservation == nil {
+            proxyObservation = ProxyNetwork.shared.changes.toPublisher()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in
+                    guard let self, let text = self.text else { return }
+                    self.inlineImageRevision += 1
+                    self.loadingInlineImageURLs.removeAll()
+                    self.loadInlineImages(for: text, generation: self.renderGeneration)
+                }
+        }
+        let revision = inlineImageRevision
+        for urlString in renderedInlineImageURLs where inlineImages[urlString] == nil && !loadingInlineImageURLs.contains(urlString) {
+            guard let media = text.imageMedias.first(where: { $0.url == urlString }) else { continue }
+            loadingInlineImageURLs.insert(urlString)
+            Task { @MainActor [weak self] in
+                let result = try? await ProxyMediaImages.shared.retrieve(media, options: [
+                    .processor(processor), .scaleFactor(scale), .cacheOriginalImage,
+                    .backgroundDecode, .asyncCacheTypeCheck,
+                ])
+                guard let self, self.renderGeneration == generation, self.inlineImageRevision == revision else { return }
+                self.loadingInlineImageURLs.remove(urlString)
+                if let result {
+                    self.inlineImages[urlString] = result.image
+                    self.refreshTextBlocks()
+                }
+            }
+        }
+    }
+
+    private func refreshTextBlocks() {
+        if usesCollapsedLayout {
+            needsContentRebuild = true
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
+            return
+        }
+        for block in textBlocks {
+            let attributedText: NSAttributedString
+            switch block.content {
+            case .platform(let content):
+                attributedText = attributedString(for: content)
+            case .render(let content):
+                attributedText = attributedString(for: content)
+            }
+            block.renderer.applyAttributedText(attributedText)
+            block.measurement.update(attributedText: attributedText)
+        }
+        naturalStackSizeCache.removeAll(keepingCapacity: true)
+        lastLayoutWidth = 0
+        invalidateIntrinsicContentSize()
+    }
+
+    // MARK: - Text styles
+
+    private func attributes(for style: RenderTextStyle, block: RenderBlockStyle) -> [NSAttributedString.Key: Any] {
+        var attributes = baseAttributes(font: font(for: style, block: block), color: color(for: style, block: block))
+
+        if let link = style.resolvedLink, let url = URL(string: link) {
+            attributes[.link] = url
+            attributes[.foregroundColor] = linkColor()
+        }
+        if style.strikethrough {
+            attributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if style.underline {
+            attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        }
+        if style.time {
+            attributes[.foregroundColor] = UIColor.secondaryLabel
+            attributes[.backgroundColor] = UIColor.secondaryLabel.withAlphaComponent(0.08)
+        }
+
+        return attributes
+    }
+
+    private func baseAttributes(font: UIFont? = nil, color: UIColor? = nil) -> [NSAttributedString.Key: Any] {
+        [
+            .font: font ?? preferredFont(forTextStyle: baseTextStyle),
+            .foregroundColor: color ?? baseTextColor,
+        ]
+    }
+
+    private func preferredFont(forTextStyle textStyle: UIFont.TextStyle) -> UIFont {
+        UIFont.preferredFont(
+            forTextStyle: textStyle,
+            compatibleWith: effectiveFontTraitCollection()
+        )
+    }
+
+    private func effectiveFontTraitCollection() -> UITraitCollection {
+        UITraitCollection(traitsFrom: [
+            traitCollection,
+            UITraitCollection(preferredContentSizeCategory: preferredContentSizeCategory),
+        ])
+    }
+
+    private func systemFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let resolvedWeight: UIFont.Weight = traitCollection.legibilityWeight == .bold && weight == .regular
+            ? .semibold
+            : weight
+        return UIFont.systemFont(ofSize: size, weight: resolvedWeight)
+    }
+
+    private func monospacedFont(size: CGFloat, weight: UIFont.Weight) -> UIFont {
+        let resolvedWeight: UIFont.Weight = traitCollection.legibilityWeight == .bold && weight == .regular
+            ? .semibold
+            : weight
+        return UIFont.monospacedSystemFont(ofSize: size, weight: resolvedWeight)
+    }
+
+    private func addingItalicIfNeeded(_ font: UIFont, enabled: Bool) -> UIFont {
+        guard enabled,
+              let descriptor = font.fontDescriptor.withSymbolicTraits(
+                  font.fontDescriptor.symbolicTraits.union(.traitItalic)
+              ) else {
+            return font
+        }
+        return UIFont(descriptor: descriptor, size: font.pointSize)
+    }
+
+    private func color(for style: RenderTextStyle, block: RenderBlockStyle) -> UIColor {
+        if block.isBlockQuote || style.small {
+            return baseTextColor.withAlphaComponent(0.7)
+        }
+        return baseTextColor
+    }
+
+    private func color(for descriptor: PlatformTextStyleDescriptor) -> UIColor {
+        if descriptor.isBlockQuote || descriptor.small {
+            return baseTextColor.withAlphaComponent(0.7)
+        }
+        return baseTextColor
+    }
+
+    private func font(for style: RenderTextStyle, block: RenderBlockStyle) -> UIFont {
+        if let headingLevel = block.headingLevel {
+            switch headingLevel.intValue {
+            case 1:
+                return preferredFont(forTextStyle: .title1)
+            case 2:
+                return preferredFont(forTextStyle: .title2)
+            case 3:
+                return preferredFont(forTextStyle: .title3)
+            case 4:
+                return preferredFont(forTextStyle: .headline)
+            case 5:
+                return preferredFont(forTextStyle: .subheadline)
+            default:
+                return preferredFont(forTextStyle: .body)
+            }
+        }
+
+        let textStyle = baseTextStyle
+        let baseSize = preferredFont(forTextStyle: textStyle).pointSize
+        let baseFont: UIFont
+        if style.code || style.monospace {
+            return addingItalicIfNeeded(
+                monospacedFont(
+                    size: style.small ? baseSize * 0.8 : baseSize,
+                    weight: style.bold ? .bold : .regular
+                ),
+                enabled: style.italic || block.isBlockQuote || block.isFigCaption
+            )
+        } else if style.small {
+            baseFont = systemFont(size: baseSize * 0.8, weight: style.bold ? .bold : .regular)
+        } else if style.bold {
+            baseFont = systemFont(size: baseSize, weight: .bold)
+        } else {
+            baseFont = preferredFont(forTextStyle: textStyle)
+        }
+
+        return addingItalicIfNeeded(
+            baseFont,
+            enabled: style.italic || block.isBlockQuote || block.isFigCaption
+        )
+    }
+
+    private func font(for descriptor: PlatformTextStyleDescriptor) -> UIFont {
+        if let headingLevel = descriptor.headingLevel {
+            switch headingLevel {
+            case 1:
+                return preferredFont(forTextStyle: .title1)
+            case 2:
+                return preferredFont(forTextStyle: .title2)
+            case 3:
+                return preferredFont(forTextStyle: .title3)
+            case 4:
+                return preferredFont(forTextStyle: .headline)
+            case 5:
+                return preferredFont(forTextStyle: .subheadline)
+            default:
+                return preferredFont(forTextStyle: .body)
+            }
+        }
+
+        let baseSize = preferredFont(forTextStyle: baseTextStyle).pointSize
+        let baseFont: UIFont
+        if descriptor.code || descriptor.monospace {
+            return addingItalicIfNeeded(
+                monospacedFont(
+                    size: descriptor.small ? baseSize * 0.8 : baseSize,
+                    weight: descriptor.bold ? .bold : .regular
+                ),
+                enabled: descriptor.italic || descriptor.isBlockQuote || descriptor.isFigCaption
+            )
+        } else if descriptor.small {
+            baseFont = systemFont(size: baseSize * 0.8, weight: descriptor.bold ? .bold : .regular)
+        } else if descriptor.bold {
+            baseFont = systemFont(size: baseSize, weight: .bold)
+        } else {
+            baseFont = preferredFont(forTextStyle: baseTextStyle)
+        }
+
+        return addingItalicIfNeeded(
+            baseFont,
+            enabled: descriptor.italic || descriptor.isBlockQuote || descriptor.isFigCaption
+        )
+    }
+
+    private func linkColor() -> UIColor {
+        traitCollection.userInterfaceStyle == .dark
+            ? UIColor(red: 0.60, green: 0.76, blue: 1.00, alpha: 1.00)
+            : UIColor(red: 0.00, green: 0.40, blue: 0.80, alpha: 1.00)
+    }
+
+    private func textAlignment(for block: RenderBlockStyle) -> NSTextAlignment {
+        switch block.textAlignment {
+        case .center:
+            return .center
+        default:
+            return .natural
+        }
+    }
+
+    private func textAlignment(from alignment: TextAlignment?) -> NSTextAlignment {
+        switch alignment {
+        case .center:
+            return .center
+        case .trailing:
+            return .right
+        default:
+            return .natural
+        }
+    }
+
+    // MARK: - Text view configuration
+
+    private func makeTextRenderer(content: RenderContent.Text, attributedText: NSAttributedString) -> RichTextTextRendering {
+        if isTextSelectionEnabled || hasLinks(in: content) || hasInlineImages(in: content) {
+            return makeTextView(
+                attributedText: attributedText,
+                alignment: textAlignment(for: content.block)
+            )
+        }
+        return makeLabel(
+            attributedText: attributedText,
+            alignment: textAlignment(for: content.block)
+        )
+    }
+
+    private func makeTextRenderer(content: PlatformTextTextContent, attributedText: NSAttributedString,
+                                  reusing renderer: RichTextTextRendering? = nil) -> RichTextTextRendering {
+        var needsTextView = isTextSelectionEnabled
+        attributedText.enumerateAttributes(in: NSRange(location: 0, length: attributedText.length)) { attributes, _, stop in
+            if attributes[.link] != nil || attributes[.attachment] != nil {
+                needsTextView = true
+                stop.pointee = true
+            }
+        }
+        if needsTextView {
+            if let textView = renderer as? RichTextTextView {
+                textView.applyAttributedText(attributedText)
+                return textView
+            }
+            return makeTextView(
+                attributedText: attributedText,
+                alignment: textAlignment(from: content.alignment)
+            )
+        }
+        if let label = renderer as? RichTextLabel {
+            label.applyAttributedText(attributedText)
+            return label
+        }
+        return makeLabel(
+            attributedText: attributedText,
+            alignment: textAlignment(from: content.alignment)
+        )
+    }
+
+    private func makeTextView(attributedText: NSAttributedString, alignment: NSTextAlignment) -> RichTextTextView {
+        let textView = RichTextTextView()
+        textView.configure(
+            attributedText: attributedText,
+            alignment: alignment,
+            lineLimit: renderedLineLimit,
+            selectionEnabled: isTextSelectionEnabled,
+            linkColor: linkColor(),
+            onOpenURL: { [weak self] in self?.onOpenURL?($0) }
+        )
+        return textView
+    }
+
+    private func makeLabel(attributedText: NSAttributedString, alignment: NSTextAlignment) -> RichTextLabel {
+        let label = RichTextLabel()
+        label.configure(
+            attributedText: attributedText,
+            alignment: alignment,
+            lineLimit: renderedLineLimit
+        )
+        return label
+    }
+
+    private func hasLinks(in content: RenderContent.Text) -> Bool {
+        content.runs.contains { run in
+            guard let textRun = run as? RenderRun.Text,
+                  let link = textRun.style.resolvedLink else {
+                return false
+            }
+            return URL(string: link) != nil
+        }
+    }
+
+    private func hasInlineImages(in content: RenderContent.Text) -> Bool {
+        content.runs.contains { $0 is RenderRun.Image }
+    }
+
+}
+
+private extension NSAttributedString.Key {
+    static let richTextInlineImageURL = NSAttributedString.Key("dev.dimension.flare.inlineImageURL")
+}
+
+private enum RichTextCollapsedBlock {
+    case text(PlatformTextTextContent, RichTextLineLayout, RichTextTextRendering)
+    case image(PlatformTextBlockImageContent, height: CGFloat, lines: Int)
+}
+
+/// Layout only a growing prefix, stopping once the caller can decide overflow.
+/// UIKit receives at most the preview plus one line of lookahead afterwards.
+private final class RichTextLineLayout {
+    struct Line {
+        let characterEnd: Int
+    }
+
+    let text: NSAttributedString
+    let height: CGFloat
+    private let width: CGFloat
+
+    init(text: NSAttributedString, width: CGFloat, height: CGFloat) {
+        self.text = text
+        self.height = height
+        self.width = width
+    }
+
+    lazy var lines: [Line] = {
+        guard text.length > 0 else { return [] }
+        let storage = NSTextStorage(attributedString: text)
+        let manager = NSLayoutManager()
+        let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        container.lineBreakMode = .byWordWrapping
+        manager.addTextContainer(container)
+        storage.addLayoutManager(manager)
+        var lines: [Line] = []
+        manager.enumerateLineFragments(forGlyphRange: manager.glyphRange(for: container)) { _, _, _, glyphRange, _ in
+            let range = manager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+            lines.append(Line(characterEnd: NSMaxRange(range)))
+        }
+        if manager.extraLineFragmentTextContainer === container {
+            lines.append(Line(characterEnd: text.length))
+        }
+        return lines
+    }()
+
+    func prefix(throughLine count: Int) -> NSAttributedString {
+        guard count < lines.count else { return text }
+        let range = (text.string as NSString).rangeOfComposedCharacterSequences(
+            for: NSRange(location: 0, length: lines[max(count, 1) - 1].characterEnd)
+        )
+        return text.attributedSubstring(from: range)
+    }
+}
+
+private struct RenderedTextBlock {
+    let content: RenderedTextBlockContent
+    let renderer: RichTextTextRendering
+    let measurement: RichTextTextMeasurement
+}
+
+private enum RenderedTextBlockContent {
+    case platform(PlatformTextTextContent)
+    case render(RenderContent.Text)
+}
+
+private enum RichTextMeasurementBlock {
+    case text(RichTextTextMeasurement, renderer: RichTextTextRendering?)
+    case quote(RichTextTextMeasurement, renderer: RichTextTextRendering?)
+    case blockImage(RichTextBlockImageMeasurement)
+
+    func measuredSize(width: CGFloat, lineLimit: Int?) -> CGSize {
+        switch self {
+        case .text(let text, let renderer):
+            if let renderer {
+                return renderer.measuredSize(for: width)
+            }
+            return text.measuredSize(width: width, lineLimit: lineLimit)
+        case .quote(let text, let renderer):
+            let contentWidth = max(width - RichTextQuoteBlockView.horizontalInset, 1)
+            if let renderer {
+                let size = renderer.measuredSize(for: contentWidth)
+                return CGSize(width: width, height: ceil(size.height + RichTextQuoteBlockView.verticalInset * 2))
+            }
+            let size = text.measuredSize(width: contentWidth, lineLimit: lineLimit)
+            return CGSize(width: width, height: ceil(size.height + RichTextQuoteBlockView.verticalInset * 2))
+        case .blockImage(let image):
+            return image.measuredSize(width: width)
+        }
+    }
+
+    func singleLineSize(lineLimit: Int?) -> CGSize {
+        switch self {
+        case .text(let text, let renderer):
+            return renderer?.measuredSize(for: RichTextUIView.singleLineMeasurementWidth) ?? text.singleLineSize(lineLimit: lineLimit)
+        case .quote(let text, let renderer):
+            if let renderer {
+                let size = renderer.measuredSize(for: RichTextUIView.singleLineMeasurementWidth)
+                return CGSize(
+                    width: ceil(size.width + RichTextQuoteBlockView.horizontalInset),
+                    height: ceil(size.height + RichTextQuoteBlockView.verticalInset * 2)
+                )
+            }
+            let size = text.singleLineSize(lineLimit: lineLimit)
+            return CGSize(
+                width: ceil(size.width + RichTextQuoteBlockView.horizontalInset),
+                height: ceil(size.height + RichTextQuoteBlockView.verticalInset * 2)
+            )
+        case .blockImage(let image):
+            return image.measuredSize(width: RichTextUIView.singleLineMeasurementWidth)
+        }
+    }
+}
+
+private final class RichTextTextMeasurement {
+    private static let prefixCharactersPerLimitedLine = 480
+    private static let prefixOverflowLineAllowance = 1
+
+    private var attributedText: NSAttributedString
+    private let fallbackTextStyle: UIFont.TextStyle
+    private var measuredSizeCache: [MeasurementKey: CGSize] = [:]
+    private var maxLineHeightCache: CGFloat?
+
+    init(attributedText: NSAttributedString, fallbackTextStyle: UIFont.TextStyle) {
+        self.attributedText = attributedText
+        self.fallbackTextStyle = fallbackTextStyle
+    }
+
+    func update(attributedText: NSAttributedString) {
+        self.attributedText = attributedText
+        measuredSizeCache.removeAll(keepingCapacity: true)
+        maxLineHeightCache = nil
+    }
+
+    func measuredSize(width: CGFloat, lineLimit: Int?) -> CGSize {
+        guard width.isFinite, width > 0 else { return .zero }
+        let key = MeasurementKey(widthKey: RichTextUIView.measurementWidthKey(width), lineLimit: lineLimit ?? -1)
+        if let cached = measuredSizeCache[key] {
+            return cached
+        }
+
+        let size = measure(width: width, lineLimit: lineLimit)
+        measuredSizeCache[key] = size
+        return size
+    }
+
+    func singleLineSize(lineLimit: Int?) -> CGSize {
+        measuredSize(width: RichTextUIView.singleLineMeasurementWidth, lineLimit: lineLimit ?? 1)
+    }
+
+    private func measure(width: CGFloat, lineLimit: Int?) -> CGSize {
+        guard attributedText.length > 0 else { return .zero }
+        let lineHeight = maxLineHeight()
+        let maxHeight = lineLimit.map { CGFloat(max($0, 1)) * lineHeight } ?? CGFloat.greatestFiniteMagnitude
+        let boundingHeight = lineLimit == nil ? CGFloat.greatestFiniteMagnitude : ceil(maxHeight + lineHeight)
+        let boundingSize = CGSize(width: width, height: boundingHeight)
+        if let lineLimit,
+           let prefix = limitedMeasurementPrefix(lineLimit: lineLimit),
+           let prefixSize = measuredLimitedPrefixSize(prefix, boundingSize: boundingSize, lineHeight: lineHeight, maxHeight: maxHeight),
+           prefixSize.height >= ceil(maxHeight) {
+            return prefixSize
+        }
+
+        return measuredSize(for: attributedText, boundingSize: boundingSize, lineHeight: lineHeight, maxHeight: maxHeight)
+    }
+
+    private func measuredLimitedPrefixSize(
+        _ prefix: NSAttributedString,
+        boundingSize: CGSize,
+        lineHeight: CGFloat,
+        maxHeight: CGFloat
+    ) -> CGSize? {
+        let size = measuredSize(for: prefix, boundingSize: boundingSize, lineHeight: lineHeight, maxHeight: maxHeight)
+        return size.height >= ceil(maxHeight) ? size : nil
+    }
+
+    private func measuredSize(
+        for attributedText: NSAttributedString,
+        boundingSize: CGSize,
+        lineHeight: CGFloat,
+        maxHeight: CGFloat
+    ) -> CGSize {
+        let rect = attributedText.boundingRect(
+            with: boundingSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil
+        )
+        let height = min(ceil(max(rect.height, lineHeight)), ceil(maxHeight))
+        return CGSize(width: min(ceil(max(rect.width, 0)), boundingSize.width), height: height)
+    }
+
+    private func limitedMeasurementPrefix(lineLimit: Int) -> NSAttributedString? {
+        let characterLimit = max(lineLimit + Self.prefixOverflowLineAllowance, 1) * Self.prefixCharactersPerLimitedLine
+        guard attributedText.length > characterLimit else { return nil }
+        let string = attributedText.string as NSString
+        let roughRange = NSRange(location: 0, length: min(characterLimit, string.length))
+        let safeRange = string.rangeOfComposedCharacterSequences(for: roughRange)
+        guard safeRange.length > 0, safeRange.length < attributedText.length else { return nil }
+        return attributedText.attributedSubstring(from: safeRange)
+    }
+
+    private func maxLineHeight() -> CGFloat {
+        if let maxLineHeightCache {
+            return maxLineHeightCache
+        }
+        var lineHeight = UIFont.preferredFont(forTextStyle: fallbackTextStyle).lineHeight
+        attributedText.enumerateAttribute(.font, in: NSRange(location: 0, length: attributedText.length)) { value, _, _ in
+            if let font = value as? UIFont {
+                lineHeight = max(lineHeight, font.lineHeight)
+            }
+        }
+        maxLineHeightCache = lineHeight
+        return lineHeight
+    }
+
+    private struct MeasurementKey: Hashable {
+        let widthKey: Int
+        let lineLimit: Int
+    }
+}
+
+private final class RichTextBlockImageMeasurement {
+    private var aspectRatio: CGFloat = 9.0 / 16.0
+
+    func update(aspectRatio: CGFloat) {
+        guard aspectRatio.isFinite, aspectRatio > 0 else { return }
+        self.aspectRatio = aspectRatio
+    }
+
+    func measuredSize(width: CGFloat) -> CGSize {
+        guard width.isFinite, width > 0 else { return .zero }
+        return CGSize(width: width, height: ceil(width * aspectRatio))
+    }
+}
+
+private protocol RichTextTextRendering: AnyObject {
+    var renderedView: UIView { get }
+    func applyAttributedText(_ attributedText: NSAttributedString)
+    func update(lineLimit: Int?, selectionEnabled: Bool, linkColor: UIColor, onOpenURL: ((URL) -> Void)?)
+    func measuredSize(for width: CGFloat) -> CGSize
+}
+
+private protocol RichTextFittingPreparing: AnyObject {
+    func prepareForFitting(width: CGFloat)
+}
+
+private final class RichTextLabel: UILabel, RichTextTextRendering, RichTextFittingPreparing {
+    private var lastLayoutWidth: CGFloat = 0
+    private var lastMeasurement: (width: CGFloat, lines: Int, size: CGSize)?
+    var renderedView: UIView { self }
+
+    init() {
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        // The parent resolves fonts for the selected category and observes traits.
+        adjustsFontForContentSizeCategory = false
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .vertical)
+        setContentHuggingPriority(.defaultLow, for: .horizontal)
+        setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not supported")
+    }
+
+    func configure(attributedText: NSAttributedString, alignment: NSTextAlignment, lineLimit: Int?) {
+        self.attributedText = attributedText
+        textAlignment = alignment
+        update(lineLimit: lineLimit, selectionEnabled: false, linkColor: .label, onOpenURL: nil)
+    }
+
+    func applyAttributedText(_ attributedText: NSAttributedString) {
+        self.attributedText = attributedText
+        lastMeasurement = nil
+        lastLayoutWidth = 0
+        setNeedsLayout()
+        invalidateIntrinsicContentSize()
+    }
+
+    func update(lineLimit: Int?, selectionEnabled: Bool, linkColor: UIColor, onOpenURL: ((URL) -> Void)?) {
+        lastMeasurement = nil
+        numberOfLines = lineLimit ?? 0
+        lineBreakMode = lineLimit == nil ? .byWordWrapping : .byTruncatingTail
+        setContentHuggingPriority(lineLimit == 1 ? .required : .defaultLow, for: .horizontal)
+        lastLayoutWidth = 0
+        setNeedsLayout()
+        invalidateIntrinsicContentSize()
+    }
+
+    func prepareForFitting(width: CGFloat) {
+        guard width.isFinite, width > 0 else { return }
+        let widthKey = RichTextUIView.measurementWidthKey(width)
+        guard widthKey != RichTextUIView.measurementWidthKey(lastLayoutWidth) else { return }
+        lastLayoutWidth = width
+        bounds = CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height)
+        guard numberOfLines != 1 else { return }
+        preferredMaxLayoutWidth = width
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+//    override var intrinsicContentSize: CGSize {
+//        guard numberOfLines != 1, bounds.width > 0 else {
+//            return super.intrinsicContentSize
+//        }
+//        return measuredSize(for: bounds.width)
+//    }
+
+    override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        guard numberOfLines != 1,
+              targetSize.width.isFinite,
+              targetSize.width > 0 else {
+            return super.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: horizontalFittingPriority,
+                verticalFittingPriority: verticalFittingPriority
+            )
+        }
+        let size = measuredSize(for: targetSize.width)
+        return CGSize(
+            width: horizontalFittingPriority == .required ? targetSize.width : size.width,
+            height: size.height
+        )
+    }
+
+    func measuredSize(for width: CGFloat) -> CGSize {
+        if let cached = lastMeasurement, cached.width == width, cached.lines == numberOfLines {
+            return cached.size
+        }
+        preferredMaxLayoutWidth = width
+        let size = sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        let measured = CGSize(width: size.width, height: ceil(size.height))
+        lastMeasurement = (width, numberOfLines, measured)
+        return measured
+    }
+}
+
+private final class RichTextTextView: UITextView, UITextViewDelegate, RichTextTextRendering, RichTextFittingPreparing {
+    private var linkHandler: ((URL) -> Void)?
+    private var selectionEnabled = false
+    private var lineLimit: Int?
+    private var lastLayoutWidth: CGFloat = 0
+    private var lastMeasurement: (width: CGFloat, lines: Int, size: CGSize)?
+    var renderedView: UIView { self }
+
+    init() {
+        super.init(frame: .zero, textContainer: nil)
+        backgroundColor = .clear
+        isEditable = false
+        isScrollEnabled = false
+        textContainerInset = .zero
+        textContainer.lineFragmentPadding = 0
+        adjustsFontForContentSizeCategory = false
+        dataDetectorTypes = []
+        textDragInteraction?.isEnabled = false
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .vertical)
+        delegate = self
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not supported")
+    }
+
+    func configure(
+        attributedText: NSAttributedString,
+        alignment: NSTextAlignment,
+        lineLimit: Int?,
+        selectionEnabled: Bool,
+        linkColor: UIColor,
+        onOpenURL: ((URL) -> Void)?
+    ) {
+        textAlignment = alignment
+        update(
+            lineLimit: lineLimit,
+            selectionEnabled: selectionEnabled,
+            linkColor: linkColor,
+            onOpenURL: onOpenURL
+        )
+        self.attributedText = attributedText
+    }
+
+    func applyAttributedText(_ attributedText: NSAttributedString) {
+        self.attributedText = attributedText
+        lastMeasurement = nil
+        lastLayoutWidth = 0
+        invalidateIntrinsicContentSize()
+    }
+
+    func update(
+        lineLimit: Int?,
+        selectionEnabled: Bool,
+        linkColor: UIColor,
+        onOpenURL: ((URL) -> Void)?
+    ) {
+        lastMeasurement = nil
+        self.selectionEnabled = selectionEnabled
+        self.lineLimit = lineLimit
+        linkHandler = onOpenURL
+        isSelectable = true
+        linkTextAttributes = [
+            .foregroundColor: linkColor,
+            .underlineStyle: 0,
+        ]
+        textContainer.maximumNumberOfLines = lineLimit ?? 0
+        textContainer.lineBreakMode = lineLimit == nil ? .byWordWrapping : .byTruncatingTail
+        gestureRecognizers?.forEach {
+            if $0 is UILongPressGestureRecognizer {
+                $0.isEnabled = selectionEnabled
+            }
+        }
+        if !selectionEnabled {
+            selectedTextRange = nil
+        }
+        lastLayoutWidth = 0
+        invalidateIntrinsicContentSize()
+    }
+
+    override var selectedTextRange: UITextRange? {
+        get { selectionEnabled ? super.selectedTextRange : nil }
+        set { super.selectedTextRange = selectionEnabled ? newValue : nil }
+    }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        if selectionEnabled {
+            return super.point(inside: point, with: event)
+        }
+        return url(at: point) != nil
+    }
+
+    func prepareForFitting(width: CGFloat) {
+        guard width.isFinite, width > 0 else { return }
+        let widthKey = RichTextUIView.measurementWidthKey(width)
+        guard widthKey != RichTextUIView.measurementWidthKey(lastLayoutWidth) else { return }
+        lastLayoutWidth = width
+        bounds = CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height)
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+//
+//    override var intrinsicContentSize: CGSize {
+//        let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
+//        return measuredSize(for: width)
+//    }
+
+    override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        let width = targetSize.width.isFinite && targetSize.width > 0
+            ? targetSize.width
+            : (bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width)
+        let size = measuredSize(for: width)
+        return CGSize(
+            width: horizontalFittingPriority == .required ? width : size.width,
+            height: size.height
+        )
+    }
+
+    func measuredSize(for width: CGFloat) -> CGSize {
+        if let cached = lastMeasurement, cached.width == width, cached.lines == textContainer.maximumNumberOfLines {
+            return cached.size
+        }
+        let height: CGFloat
+        if let lineLimit {
+            height = ceil(maxLineHeight() * CGFloat(max(lineLimit, 1)) + maxLineHeight())
+        } else {
+            height = .greatestFiniteMagnitude
+        }
+        let size = sizeThatFits(CGSize(width: width, height: height))
+        let measured = CGSize(width: size.width, height: ceil(size.height))
+        lastMeasurement = (width, textContainer.maximumNumberOfLines, measured)
+        return measured
+    }
+
+    private func maxLineHeight() -> CGFloat {
+        var lineHeight = UIFont.preferredFont(forTextStyle: .body).lineHeight
+        attributedText.enumerateAttribute(.font, in: NSRange(location: 0, length: attributedText.length)) { value, _, _ in
+            if let font = value as? UIFont {
+                lineHeight = max(lineHeight, font.lineHeight)
+            }
+        }
+        return lineHeight
+    }
+
+    func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem, defaultAction: UIAction) -> UIAction? {
+        guard case .link(let url) = textItem.content else { return defaultAction }
+        
+        return UIAction { [weak self] _ in
+            self?.linkHandler?(url)
+        }
+    }
+    
+    func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
+        guard case .link(let url) = textItem.content else {
+            return UITextItem.MenuConfiguration(
+                preview: .none,
+                menu: defaultMenu
+            )
+        }
+        if url.absoluteString.hasPrefix("flare://"), let route = Route.fromDeepLink(url: url.absoluteString) {
+            let host = UIHostingController(rootView: route.view(onNavigate: { _ in
+                
+            }, goBack: {
+                
+            }))
+            host.view.backgroundColor = .clear
+            host.sizingOptions = [.intrinsicContentSize]
+
+
+            return UITextItem.MenuConfiguration(
+                preview: .view(host.view),
+                menu: UIMenu(title: "", children: [])
+            )
+        } else {
+            return UITextItem.MenuConfiguration(
+                preview: .default,
+                menu: defaultMenu
+            )
+        }
+    }
+
+    private func url(at point: CGPoint) -> URL? {
+        guard attributedText.length > 0,
+              let position = closestPosition(to: point) else {
+            return nil
+        }
+        let characterIndex = offset(from: beginningOfDocument, to: position)
+        guard characterIndex < attributedText.length else { return nil }
+
+        if let url = attributedText.attribute(.link, at: characterIndex, effectiveRange: nil) as? URL {
+            return url
+        }
+        if let string = attributedText.attribute(.link, at: characterIndex, effectiveRange: nil) as? String {
+            return URL(string: string)
+        }
+        return nil
+    }
+}
+
+private final class RichTextQuoteBlockView: UIView, RichTextFittingPreparing {
+    static var barWidth: CGFloat { UIFontMetrics(forTextStyle: .body).scaledValue(for: 3) }
+    static var horizontalInset: CGFloat { 12 + barWidth + 11 + 12 }
+    static let verticalInset: CGFloat = 8
+
+    private let contentView: UIView
+    private var lastLayoutWidth: CGFloat = 0
+
+    init(contentView: UIView) {
+        self.contentView = contentView
+        super.init(frame: .zero)
+        backgroundColor = UIColor.secondaryLabel.withAlphaComponent(0.08)
+        layer.cornerRadius = 8
+        layer.masksToBounds = true
+
+        let bar = UIView()
+        bar.backgroundColor = UIColor.secondaryLabel.withAlphaComponent(0.18)
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(bar)
+        addSubview(contentView)
+
+        NSLayoutConstraint.activate([
+            bar.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+            bar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            bar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            bar.widthAnchor.constraint(equalToConstant: Self.barWidth),
+
+            contentView.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+            contentView.leadingAnchor.constraint(equalTo: bar.trailingAnchor, constant: 11),
+            contentView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            contentView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not supported")
+    }
+
+    func prepareForFitting(width: CGFloat) {
+        guard width.isFinite, width > Self.horizontalInset else { return }
+        let widthKey = RichTextUIView.measurementWidthKey(width)
+        guard widthKey != RichTextUIView.measurementWidthKey(lastLayoutWidth) else { return }
+        lastLayoutWidth = width
+        bounds = CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height)
+        let contentWidth = width - Self.horizontalInset
+        if let fittingView = contentView as? RichTextFittingPreparing {
+            fittingView.prepareForFitting(width: contentWidth)
+        } else {
+            guard RichTextUIView.measurementWidthKey(contentView.bounds.width) != RichTextUIView.measurementWidthKey(contentWidth) else { return }
+            contentView.bounds = CGRect(
+                x: contentView.bounds.minX,
+                y: contentView.bounds.minY,
+                width: contentWidth,
+                height: contentView.bounds.height
+            )
+            contentView.invalidateIntrinsicContentSize()
+            contentView.setNeedsLayout()
+        }
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        let width = targetSize.width.isFinite && targetSize.width > 0
+            ? targetSize.width
+            : bounds.width
+        guard width > Self.horizontalInset else {
+            return super.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: horizontalFittingPriority,
+                verticalFittingPriority: verticalFittingPriority
+            )
+        }
+        prepareForFitting(width: width)
+        let contentWidth = width - Self.horizontalInset
+        let contentSize = contentView.systemLayoutSizeFitting(
+            CGSize(width: contentWidth, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        return CGSize(
+            width: horizontalFittingPriority == .required ? targetSize.width : contentSize.width + Self.horizontalInset,
+            height: ceil(contentSize.height + Self.verticalInset * 2)
+        )
+    }
+}
+
+private final class RichTextBlockImageView: UIView, RichTextFittingPreparing {
+    var onOpenURL: ((URL) -> Void)?
+    var onAspectRatioChanged: ((CGFloat) -> Void)?
+
+    private let media: UiMediaImage
+    private var url: String { media.url }
+    private let href: String?
+    private let imageView = UIImageView()
+    private var aspectConstraint: NSLayoutConstraint?
+    private var aspectRatio: CGFloat?
+    private var lastLayoutWidth: CGFloat = 0
+    private var requestedPixelWidth: CGFloat = 0
+
+    init(media: UiMediaImage, href: String?, aspectRatio: CGFloat? = nil) {
+        self.media = media
+        self.href = href
+        self.aspectRatio = aspectRatio
+        super.init(frame: .zero)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not supported")
+    }
+
+    private func setup() {
+        imageView.contentMode = .scaleAspectFit
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 12
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        aspectConstraint = heightAnchor.constraint(equalTo: widthAnchor, multiplier: aspectRatio ?? 9.0 / 16.0)
+        aspectConstraint?.isActive = true
+
+        isAccessibilityElement = true
+        accessibilityLabel = String(
+            localized: "media_image_no_alt",
+            defaultValue: "Image, no alternative text provided"
+        )
+
+        if href?.isEmpty == false {
+            isUserInteractionEnabled = true
+            addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(onTapped)))
+        }
+    }
+
+    private func loadImage(width: CGFloat) {
+        let scale = max(traitCollection.displayScale, 1)
+        let pixelWidth = ceil(width * scale)
+        guard pixelWidth > requestedPixelWidth, URL(string: media.url) != nil else { return }
+        requestedPixelWidth = pixelWidth
+        let processor = ImageDownsamplingProcessor(
+            pixelSize: CGSize(width: pixelWidth, height: .greatestFiniteMagnitude), fillsBounds: false)
+        imageView.setMedia(media, options: [
+            .processor(processor), .scaleFactor(scale), .cacheOriginalImage,
+            .backgroundDecode, .asyncCacheTypeCheck, .keepCurrentImageWhileLoading,
+        ]) { [weak self] result in
+            guard let self else { return }
+            if case .success(let value) = result {
+                self.updateAspectRatio(for: value.image)
+            }
+        }
+    }
+
+    private func updateAspectRatio(for image: UIImage) {
+        aspectConstraint?.isActive = false
+        let ratio = image.size.height / max(image.size.width, 1)
+        aspectRatio = ratio
+        aspectConstraint = heightAnchor.constraint(equalTo: widthAnchor, multiplier: ratio)
+        aspectConstraint?.isActive = true
+        lastLayoutWidth = 0
+        invalidateIntrinsicContentSize()
+        onAspectRatioChanged?(ratio)
+    }
+
+    func prepareForFitting(width: CGFloat) {
+        guard width.isFinite, width > 0 else { return }
+        loadImage(width: width)
+        let widthKey = RichTextUIView.measurementWidthKey(width)
+        guard widthKey != RichTextUIView.measurementWidthKey(lastLayoutWidth) else { return }
+        lastLayoutWidth = width
+        bounds = CGRect(x: bounds.minX, y: bounds.minY, width: width, height: bounds.height)
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    func measuredSize(width: CGFloat) -> CGSize {
+        guard width.isFinite, width > 0 else { return .zero }
+        let ratio = aspectRatio ?? 9.0 / 16.0
+        return CGSize(width: width, height: ceil(width * ratio))
+    }
+
+    override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        let width = targetSize.width.isFinite && targetSize.width > 0
+            ? targetSize.width
+            : bounds.width
+        guard width > 0 else {
+            return super.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: horizontalFittingPriority,
+                verticalFittingPriority: verticalFittingPriority
+            )
+        }
+        let size = measuredSize(width: width)
+        return CGSize(width: horizontalFittingPriority == .required ? targetSize.width : size.width, height: size.height)
+    }
+
+    @objc private func onTapped() {
+        guard let href, let url = URL(string: href) else { return }
+        onOpenURL?(url)
+    }
+}

@@ -1,0 +1,657 @@
+package dev.dimension.flare.common
+
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.provider.MediaStore
+import android.util.Log
+import android.webkit.MimeTypeMap
+import android.widget.Toast
+import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import dev.dimension.flare.R
+import dev.dimension.flare.ui.component.Media3VideoCacheManager
+import dev.dimension.flare.ui.model.UiMedia
+import dev.dimension.flare.ui.presenter.media.UgoiraPresenter
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.koin.core.annotation.Provided
+import org.koin.core.annotation.Single
+import java.io.File
+import java.io.FileOutputStream
+import java.io.OutputStream
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * Saves files to the configured media destination. Remote media reuses the shared Media3 playback
+ * cache when possible.
+ */
+@Stable
+@Single
+@OptIn(UnstableApi::class)
+internal class AndroidDownloadManager(
+    @Provided private val context: Context,
+    private val media3VideoCacheManager: Media3VideoCacheManager,
+    private val mediaSaveLocationRepository: AndroidMediaSaveLocationRepository,
+    private val mediaSavePicker: AndroidMediaSavePicker,
+) {
+    companion object {
+        private const val TAG = "AndroidDownloadManager"
+    }
+
+    private val nextDownloadId = AtomicLong()
+    private val exportScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val exportMutex = Mutex()
+    private var exportJob: Job? = null
+    private var smallerChoice: CompletableDeferred<Boolean>? = null
+    var ugoiraProgress by mutableStateOf<Float?>(null)
+        private set
+    var needsSmallerUgoira by mutableStateOf(false)
+        private set
+
+    fun cancelUgoira() {
+        exportJob?.cancel()
+        smallerChoice?.complete(false)
+    }
+
+    fun exportSmallerUgoira() {
+        smallerChoice?.complete(true)
+    }
+
+    suspend fun saveUgoira(
+        media: UiMedia.Ugoira,
+        fileName: String,
+        askDirectoryUri: Uri? = null,
+    ): Boolean =
+        exportScope
+            .async {
+                exportMutex.withLock {
+                    exportJob = currentCoroutineContext()[Job]
+                    ugoiraProgress = 0f
+                    try {
+                        val presenter = UgoiraPresenter(media)
+                        val animation = presenter.load { ugoiraProgress = it * .5f }
+                        try {
+                            val file = File.createTempFile("ugoira-", ".mp4", context.cacheDir)
+                            try {
+                                suspend fun encode(smaller: Boolean) =
+                                    encodeUgoira(animation, file, smaller) {
+                                        withContext(Dispatchers.Main) { ugoiraProgress = .5f + it * .5f }
+                                    }
+                                try {
+                                    encode(false)
+                                } catch (_: UgoiraResolutionUnsupported) {
+                                    val choice = CompletableDeferred<Boolean>()
+                                    smallerChoice = choice
+                                    needsSmallerUgoira = true
+                                    if (!choice.await()) return@withLock false
+                                    needsSmallerUgoira = false
+                                    encode(true)
+                                }
+                                currentCoroutineContext().ensureActive()
+                                val saved =
+                                    saveFile(fileName, "video/mp4", askDirectoryUri) { output ->
+                                        file.inputStream().use { it.copyTo(output) }
+                                        true
+                                    }
+                                Toast
+                                    .makeText(
+                                        context,
+                                        if (saved) R.string.media_save_success else R.string.media_save_fail,
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                saved
+                            } finally {
+                                file.delete()
+                            }
+                        } finally {
+                            presenter.release(animation)
+                        }
+                    } catch (error: Exception) {
+                        if (error !is CancellationException) {
+                            Toast
+                                .makeText(
+                                    context,
+                                    R.string.media_save_fail,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                        }
+                        false
+                    } finally {
+                        ugoiraProgress = null
+                        needsSmallerUgoira = false
+                        smallerChoice = null
+                        exportJob = null
+                    }
+                }
+            }.await()
+
+    /**
+     * Minimal download callback interface
+     */
+    interface DownloadCallback {
+        /**
+         * Download started because the shared playback cache was not ready.
+         * @param downloadId Download ID
+         */
+        fun onDownloadStarted(downloadId: Long) = Unit
+
+        /**
+         * Download success callback
+         * @param downloadId Download ID
+         */
+        fun onDownloadSuccess(downloadId: Long)
+
+        /**
+         * Download failure callback
+         * @param downloadId Download ID
+         */
+        fun onDownloadFailed(downloadId: Long)
+    }
+
+    fun onResume() = Unit
+
+    fun onPause() = Unit
+
+    suspend fun saveByteArray(
+        byteArray: ByteArray,
+        fileName: String,
+        mimeType: String = imageMimeType(byteArray),
+    ): Boolean =
+        saveFile(fileName = fileName, mimeType = mimeType) { outputStream ->
+            outputStream.write(byteArray)
+            outputStream.flush()
+            true
+        }
+
+    /**
+     * Save a media file. Full progressive cache is exported first; otherwise missing bytes are
+     * fetched through the same Media3 cache and written to the configured destination.
+     */
+    suspend fun downloadMedia(
+        media: UiMedia,
+        fileName: String,
+        callback: DownloadCallback? = null,
+    ): Long {
+        val downloadId = nextDownloadId.incrementAndGet()
+        val success =
+            saveMedia(
+                media = media,
+                fileName = fileName,
+                onDownloadStarted = {
+                    withContext(Dispatchers.Main) {
+                        callback?.onDownloadStarted(downloadId)
+                    }
+                },
+            )
+        withContext(Dispatchers.Main) {
+            if (success) {
+                callback?.onDownloadSuccess(downloadId)
+            } else {
+                callback?.onDownloadFailed(downloadId)
+            }
+        }
+        return downloadId
+    }
+
+    suspend fun downloadAllMedia(mediaByFileName: Map<String, UiMedia>): MediaDownloadBatchResult {
+        val succeededFileNames = mutableListOf<String>()
+        val failedFileNames = mutableListOf<String>()
+        val askEveryTime = mediaSaveLocationRepository.state.value.mode == MediaSaveLocationMode.AskEveryTime
+        val askDirectoryUri =
+            if (askEveryTime) {
+                mediaSavePicker.openDirectory()
+            } else {
+                null
+            }
+        if (askEveryTime && askDirectoryUri == null) {
+            return MediaDownloadBatchResult(
+                succeededFileNames = emptyList(),
+                failedFileNames = mediaByFileName.keys.toList(),
+            )
+        }
+        mediaByFileName.forEach { (fileName, media) ->
+            val success =
+                runCatching {
+                    if (media is UiMedia.Ugoira) {
+                        saveUgoira(media, fileName, askDirectoryUri)
+                    } else {
+                        saveMedia(
+                            media = media,
+                            fileName = fileName,
+                            onDownloadStarted = {},
+                            askDirectoryUri = askDirectoryUri,
+                        )
+                    }
+                }.getOrDefault(false)
+            if (success) {
+                succeededFileNames += fileName
+            } else {
+                failedFileNames += fileName
+            }
+        }
+        return MediaDownloadBatchResult(
+            succeededFileNames = succeededFileNames,
+            failedFileNames = failedFileNames,
+        )
+    }
+
+    /**
+     * Cancel download
+     * @param downloadId Download ID
+     */
+    fun cancelDownload(downloadId: Long) {
+        Log.d(TAG, "Ignoring cancel for completed or non-queued save: $downloadId")
+    }
+
+    /**
+     * Release resources
+     */
+    fun release() = Unit
+
+    private suspend fun saveMedia(
+        media: UiMedia,
+        fileName: String,
+        onDownloadStarted: suspend () -> Unit,
+        askDirectoryUri: Uri? = null,
+    ): Boolean =
+        withContext(Dispatchers.IO) {
+            val uri = media.urlForDownload
+            if (isAdaptiveStream(uri)) {
+                Log.w(TAG, "Adaptive streams cannot be exported as a single media file: $uri")
+                return@withContext false
+            }
+
+            val mimeType = getMimeType(uri = uri, fileName = fileName)
+            if (uri.startsWith("file://")) {
+                if (!isImageTranslationFile(media, context.cacheDir)) return@withContext false
+                onDownloadStarted()
+                return@withContext saveFile(fileName = fileName, mimeType = mimeType, askDirectoryUri = askDirectoryUri) { output ->
+                    java.io
+                        .File(java.net.URI(uri))
+                        .inputStream()
+                        .use { it.copyTo(output) }
+                    true
+                }
+            }
+
+            if (media3VideoCacheManager.isFullyCached(media)) {
+                val saveMode = mediaSaveLocationRepository.state.value.mode
+                val savedFromCache =
+                    saveFile(fileName = fileName, mimeType = mimeType, askDirectoryUri = askDirectoryUri) { outputStream ->
+                        exportToStream(
+                            media = media,
+                            outputStream = outputStream,
+                            cacheOnly = true,
+                        )
+                    }
+                if (savedFromCache) {
+                    Log.d(TAG, "Saved from Media3 cache: $uri")
+                    return@withContext true
+                }
+                if (saveMode != MediaSaveLocationMode.DefaultDownloads) {
+                    return@withContext false
+                }
+            }
+
+            onDownloadStarted()
+
+            saveFile(fileName = fileName, mimeType = mimeType, askDirectoryUri = askDirectoryUri) { outputStream ->
+                exportToStream(
+                    media = media,
+                    outputStream = outputStream,
+                    cacheOnly = false,
+                )
+            }
+        }
+
+    private fun exportToStream(
+        media: UiMedia,
+        outputStream: OutputStream,
+        cacheOnly: Boolean,
+    ): Boolean {
+        val uri = media.urlForDownload
+        val dataSource =
+            if (cacheOnly) {
+                media3VideoCacheManager
+                    .cacheOnlyDataSourceFactory(media)
+                    .createDataSource()
+            } else {
+                media3VideoCacheManager
+                    .downloadingDataSourceFactory(media)
+                    .createDataSourceForDownloading()
+            }
+        return try {
+            dataSource.open(
+                DataSpec
+                    .Builder()
+                    .setUri(uri)
+                    .build(),
+            )
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val bytesRead = dataSource.read(buffer, 0, buffer.size)
+                if (bytesRead == C.RESULT_END_OF_INPUT) {
+                    break
+                }
+                if (bytesRead > 0) {
+                    outputStream.write(buffer, 0, bytesRead)
+                }
+            }
+            outputStream.flush()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to export media: $uri", e)
+            false
+        } finally {
+            runCatching {
+                dataSource.close()
+            }
+        }
+    }
+
+    private fun imageMimeType(byteArray: ByteArray): String {
+        val options =
+            BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+        BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size, options)
+        return options.outMimeType?.lowercase() ?: "image/jpeg"
+    }
+
+    private suspend fun saveFile(
+        fileName: String,
+        mimeType: String,
+        askDirectoryUri: Uri? = null,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean {
+        askDirectoryUri?.let { directoryUri ->
+            return withContext(Dispatchers.IO) {
+                saveToDirectoryUri(
+                    directoryUri = directoryUri,
+                    fileName = fileName,
+                    mimeType = mimeType,
+                    writer = writer,
+                )
+            }
+        }
+
+        val state = mediaSaveLocationRepository.state.value
+        return when (state.mode) {
+            MediaSaveLocationMode.DefaultDownloads -> {
+                withContext(Dispatchers.IO) {
+                    saveToDownloads(fileName = fileName, mimeType = mimeType, writer = writer)
+                }
+            }
+
+            MediaSaveLocationMode.CustomDirectory -> {
+                val directoryUri = state.directoryUri ?: return false
+                if (!hasPersistedWritePermission(directoryUri)) {
+                    mediaSaveLocationRepository.clearCustomDirectoryIfMatches(directoryUri)
+                    return false
+                }
+                withContext(Dispatchers.IO) {
+                    saveToDirectoryUri(
+                        directoryUri = directoryUri,
+                        fileName = fileName,
+                        mimeType = mimeType,
+                        writer = writer,
+                    )
+                }
+            }
+
+            MediaSaveLocationMode.AskEveryTime -> {
+                val outputUri =
+                    mediaSavePicker.createDocument(
+                        fileName = fileName,
+                        mimeType = mimeType,
+                    ) ?: return false
+                withContext(Dispatchers.IO) {
+                    writeToContentUri(outputUri = outputUri, writer = writer)
+                }
+            }
+        }
+    }
+
+    private fun saveToDownloads(
+        fileName: String,
+        mimeType: String,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveToMediaStoreDownloads(fileName = fileName, mimeType = mimeType, writer = writer)
+        } else {
+            saveToPublicDownloads(fileName = fileName, writer = writer)
+        }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun saveToMediaStoreDownloads(
+        fileName: String,
+        mimeType: String,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean {
+        val values =
+            ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+        val contentResolver = context.contentResolver
+        var outputUri: Uri? = null
+        var success = false
+        return try {
+            outputUri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+            if (contentResolver.openOutputStream(outputUri)?.use(writer) != true) {
+                return false
+            }
+            val publishValues =
+                ContentValues().apply {
+                    put(MediaStore.MediaColumns.IS_PENDING, 0)
+                }
+            success = contentResolver.update(outputUri, publishValues, null, null) > 0
+            success
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save MediaStore output: $outputUri", e)
+            false
+        } finally {
+            if (!success) {
+                outputUri?.let { uri ->
+                    runCatching {
+                        contentResolver.delete(uri, null, null)
+                    }.onFailure { error ->
+                        Log.w(TAG, "Failed to delete incomplete MediaStore output: $uri", error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun saveToDirectoryUri(
+        directoryUri: Uri,
+        fileName: String,
+        mimeType: String,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean {
+        val safeFileName = MediaFileNamePolicy.safeLocalFileName(fileName, fallback = "media")
+        val treeDocumentId =
+            runCatching { DocumentsContract.getTreeDocumentId(directoryUri) }.getOrNull()
+                ?: return false
+        val parentUri =
+            DocumentsContract.buildDocumentUriUsingTree(
+                directoryUri,
+                treeDocumentId,
+            )
+        if (!deleteExistingChild(directoryUri = directoryUri, fileName = safeFileName)) {
+            return false
+        }
+        val outputUri =
+            runCatching {
+                DocumentsContract.createDocument(
+                    context.contentResolver,
+                    parentUri,
+                    mimeType,
+                    safeFileName,
+                )
+            }.getOrNull() ?: return false
+        return writeToContentUri(outputUri = outputUri, writer = writer)
+    }
+
+    private fun writeToContentUri(
+        outputUri: Uri,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean {
+        val contentResolver = context.contentResolver
+        val success =
+            try {
+                contentResolver.openOutputStream(outputUri)?.use(writer) == true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write content output: $outputUri", e)
+                false
+            }
+        if (!success) {
+            runCatching {
+                DocumentsContract.deleteDocument(contentResolver, outputUri)
+            }
+        }
+        return success
+    }
+
+    private fun deleteExistingChild(
+        directoryUri: Uri,
+        fileName: String,
+    ): Boolean {
+        val treeDocumentId =
+            runCatching { DocumentsContract.getTreeDocumentId(directoryUri) }.getOrNull()
+                ?: return false
+        val childrenUri =
+            DocumentsContract.buildChildDocumentsUriUsingTree(
+                directoryUri,
+                treeDocumentId,
+            )
+        val resolver = context.contentResolver
+        return try {
+            resolver
+                .query(
+                    childrenUri,
+                    arrayOf(
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    ),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    val idColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                    val nameColumn = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                    while (cursor.moveToNext()) {
+                        val childName = cursor.getString(nameColumn)
+                        if (childName == fileName) {
+                            val documentId = cursor.getString(idColumn)
+                            val documentUri =
+                                DocumentsContract.buildDocumentUriUsingTree(
+                                    directoryUri,
+                                    documentId,
+                                )
+                            return DocumentsContract.deleteDocument(resolver, documentUri)
+                        }
+                    }
+                }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to inspect custom save directory: $directoryUri", e)
+            false
+        }
+    }
+
+    private fun hasPersistedWritePermission(directoryUri: Uri): Boolean =
+        context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == directoryUri && permission.isWritePermission
+        }
+
+    private fun saveToPublicDownloads(
+        fileName: String,
+        writer: (OutputStream) -> Boolean,
+    ): Boolean {
+        val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        if (!directory.exists() && !directory.mkdirs()) {
+            return false
+        }
+        val file = File(directory, fileName)
+        val success =
+            try {
+                FileOutputStream(file).use(writer)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write public Downloads output: $file", e)
+                false
+            }
+        if (!success) {
+            file.delete()
+        }
+        return success
+    }
+
+    private fun isAdaptiveStream(uri: String): Boolean {
+        val normalized = uri.substringBefore("?").substringBefore("#").lowercase(Locale.ROOT)
+        val extension = getExtension(uri)
+        return extension == "m3u8" || extension == "mpd" || normalized.endsWith(".ism/manifest")
+    }
+
+    private fun getMimeType(
+        uri: String,
+        fileName: String,
+    ): String {
+        val extension = getExtension(fileName) ?: getExtension(uri)
+        return extension
+            ?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+            ?: when (extension) {
+                "mov" -> "video/quicktime"
+                "webm" -> "video/webm"
+                "m4v", "mp4" -> "video/mp4"
+                "gif" -> "image/gif"
+                "mp3" -> "audio/mpeg"
+                "m4a" -> "audio/mp4"
+                "aac" -> "audio/aac"
+                "wav" -> "audio/wav"
+                else -> "application/octet-stream"
+            }
+    }
+
+    private fun getExtension(value: String): String? {
+        val cleanValue = value.substringBefore("?").substringBefore("#")
+        val fromMimeTypeMap = MimeTypeMap.getFileExtensionFromUrl(cleanValue)
+        if (fromMimeTypeMap.isNotBlank()) {
+            return fromMimeTypeMap.lowercase(Locale.ROOT)
+        }
+        val name = Uri.parse(cleanValue).lastPathSegment ?: cleanValue.substringAfterLast("/")
+        val separatorIndex = maxOf(name.lastIndexOf('.'), name.lastIndexOf('@'))
+        return name
+            .takeIf { separatorIndex >= 0 && separatorIndex < name.length - 1 }
+            ?.substring(separatorIndex + 1)
+            ?.lowercase(Locale.ROOT)
+    }
+}

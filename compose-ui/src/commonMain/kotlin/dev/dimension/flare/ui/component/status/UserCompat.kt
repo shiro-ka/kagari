@@ -1,0 +1,86 @@
+package dev.dimension.flare.ui.component.status
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import dev.dimension.flare.compose.ui.Res
+import dev.dimension.flare.compose.ui.profile_open_user
+import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.AvatarComponentDefaults
+import dev.dimension.flare.ui.component.RichText
+import dev.dimension.flare.ui.component.platform.PlatformText
+import dev.dimension.flare.ui.model.UiProfile
+import dev.dimension.flare.ui.theme.PlatformTheme
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+public fun UserCompat(
+    user: UiProfile,
+    modifier: Modifier = Modifier,
+    onUserClick: (MicroBlogKey) -> Unit = {},
+    avatarModifier: Modifier = Modifier,
+    nameModifier: Modifier = Modifier,
+    handleModifier: Modifier = Modifier,
+    subtitle: String = user.handle.display,
+    leading: @Composable (RowScope.() -> Unit)? = {
+        Box(avatarModifier, propagateMinConstraints = true) {
+            AvatarComponent(
+                data = user.avatar,
+                size = AvatarComponentDefaults.compatSize,
+                contentDescription =
+                    stringResource(
+                        Res.string.profile_open_user,
+                        user.handle.display,
+                    ),
+                modifier =
+                    Modifier.clickable {
+                        onUserClick.invoke(user.key)
+                    },
+            )
+        }
+    },
+    trailing: @Composable RowScope.() -> Unit = {},
+) {
+    with(user) {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke(this)
+            Row(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable {
+                            onUserClick.invoke(user.key)
+                        },
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                RichText(
+                    text = name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alignByBaseline().then(nameModifier),
+                )
+                PlatformText(
+                    text = subtitle,
+                    style = PlatformTheme.typography.caption,
+                    color = PlatformTheme.colorScheme.caption,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alignByBaseline().then(handleModifier),
+                )
+            }
+            trailing.invoke(this)
+        }
+    }
+}

@@ -1,0 +1,15 @@
+package dev.dimension.flare.data.io
+
+import dev.dimension.flare.common.FileSystemUtilsExt
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
+import okio.SYSTEM
+import org.koin.core.annotation.Single
+
+@Single(binds = [FileStorage::class, AppFileStore::class])
+internal class JvmFileStorage :
+    OkioFileStorage(
+        fileSystem = FileSystem.SYSTEM,
+        cacheRoot = FileSystemUtilsExt.flareCacheDirectory().toOkioPath(),
+        root = FileSystemUtilsExt.flareDirectory().toOkioPath(),
+    )
