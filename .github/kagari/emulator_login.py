@@ -123,10 +123,16 @@ def tap(label, last=False, timeout=20, exact=False):
 
 def open_own_post_menu():
     tried = set()
-    for _ in range(8):
+    for _ in range(12):
         root = dump()
         if root is None:
             time.sleep(1)
+            continue
+        ok = [n for n in root.iter("node") if (n.get("text") or "") == "OK"]
+        if ok:
+            x, y = center(ok[0])
+            adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(3)
             continue
         banner = [n for n in root.iter("node") if "New Post" in (n.get("text") or "")]
         if banner:
