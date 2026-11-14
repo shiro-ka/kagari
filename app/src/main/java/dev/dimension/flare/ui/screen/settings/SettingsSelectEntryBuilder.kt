@@ -203,7 +203,7 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             sceneKey = "Settings"
         )
     ) {
-        AboutScreen(
+        KagariAboutScreen(
             onBack = onBack
         )
     }

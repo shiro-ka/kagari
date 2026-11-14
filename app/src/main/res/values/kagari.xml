@@ -33,4 +33,6 @@
     <string name="kagari_hide_reply_too_many">You can hide up to 300 replies</string>
     <string name="kagari_hide_reply_failed">Could not change the reply visibility</string>
     <string name="kagari_login_prompt">Log in to see your timeline.</string>
+    <string name="kagari_about_description">An open-source client for decentralized social platforms.</string>
+    <string name="kagari_about_based_on">Based on Flare</string>
 </resources>

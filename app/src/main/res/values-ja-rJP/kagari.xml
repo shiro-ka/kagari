@@ -32,4 +32,6 @@
     <string name="kagari_hide_reply_too_many">非表示にできる返信は300件までです</string>
     <string name="kagari_hide_reply_failed">返信の表示を変えられませんでした</string>
     <string name="kagari_login_prompt">ログインすると、タイムラインが表示されます。</string>
+    <string name="kagari_about_description">分散型SNS向けのオープンソースのクライアントです。</string>
+    <string name="kagari_about_based_on">Flare をもとにしています</string>
 </resources>
