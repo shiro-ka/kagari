@@ -126,3 +126,53 @@ jobs:
           name: kagari-emulator
           path: emulator-out
           if-no-files-found: warn
+
+  release:
+    name: Publish release
+    needs: [apk, emulator]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Check app changes
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only HEAD~1 HEAD | grep -v '^\.github/' | grep -q .; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download APK
+        if: steps.changes.outputs.app == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: kagari-apk
+          path: apk
+
+      - name: Publish release
+        if: steps.changes.outputs.app == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls apk/*.apk | head -n 1)
+          version=$(basename "$apk" .apk)
+          version=${version#kagari-}
+          subject=$(git log -1 --format=%s)
+          gh release create "v$version" "$apk" --title "kagari $version" --notes "$subject" --target "$GITHUB_SHA"
+
+      - name: Remove old releases
+        if: steps.changes.outputs.app == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[10:] | .[].tagName' |
+            while read -r tag; do
+              gh release delete "$tag" --yes --cleanup-tag
+            done

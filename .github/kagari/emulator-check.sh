@@ -24,3 +24,7 @@ if [ -n "${BSKY_HANDLE:-}" ]; then
 fi
 adb logcat -d > "$out/logcat.txt"
 adb logcat -d -b crash > "$out/crash.txt" || true
+if grep -q "lab49.kagari" "$out/crash.txt" || ! grep -qx running "$out/pid.txt"; then
+  echo "app crashed or is not running" >&2
+  exit 1
+fi
