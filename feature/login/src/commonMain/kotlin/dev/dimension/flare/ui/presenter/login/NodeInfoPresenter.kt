@@ -114,6 +114,7 @@ private class LoginRecommendInstancePagingSource(
         val recommendations =
             coroutineScope {
                 loginPlatformRegistry.all
+                    .filter { it.kagariShownInLoginList() }
                     .map { provider ->
                         async {
                             tryRun {
