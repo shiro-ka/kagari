@@ -65,17 +65,14 @@ import dev.dimension.flare.compose.ui.nostr_login_qr_button
 import dev.dimension.flare.compose.ui.nostr_login_qr_hint
 import dev.dimension.flare.compose.ui.nostr_login_qr_link_label
 import dev.dimension.flare.compose.ui.nostr_login_qr_waiting
+import dev.dimension.flare.compose.ui.kagari_service_select_placeholder
 import dev.dimension.flare.compose.ui.service_select_clear
 import dev.dimension.flare.compose.ui.service_select_compatibility_warning
 import dev.dimension.flare.compose.ui.service_select_detected_platform
 import dev.dimension.flare.compose.ui.service_select_detecting_platform
 import dev.dimension.flare.compose.ui.service_select_empty_message
-import dev.dimension.flare.compose.ui.service_select_instance_input_placeholder
 import dev.dimension.flare.compose.ui.service_select_search
 import dev.dimension.flare.compose.ui.service_select_unknown_platform
-import dev.dimension.flare.compose.ui.service_select_welcome_hint
-import dev.dimension.flare.compose.ui.service_select_welcome_list_hint
-import dev.dimension.flare.compose.ui.service_select_welcome_message
 import dev.dimension.flare.compose.ui.service_select_welcome_title
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.ui.component.FAIcon
@@ -153,10 +150,6 @@ public fun ServiceSelectionScreenContent(
                     text = stringResource(Res.string.service_select_welcome_title),
                     style = PlatformTheme.typography.headline,
                 )
-                PlatformText(
-                    text = stringResource(Res.string.service_select_welcome_message),
-                    textAlign = TextAlign.Center,
-                )
                 PlatformTextField(
                     state = state.instanceInputState,
                     keyboardOptions =
@@ -166,7 +159,7 @@ public fun ServiceSelectionScreenContent(
                             keyboardType = KeyboardType.Uri,
                         ),
                     placeholder = {
-                        PlatformText(text = stringResource(Res.string.service_select_instance_input_placeholder))
+                        PlatformText(text = stringResource(Res.string.kagari_service_select_placeholder))
                     },
                     trailingIcon = {
                         PlatformIconButton(onClick = {
@@ -215,11 +208,6 @@ public fun ServiceSelectionScreenContent(
                     enabled = !state.loading,
                     lineLimits = TextFieldLineLimits.SingleLine,
                 )
-                PlatformText(
-                    stringResource(Res.string.service_select_welcome_hint),
-                    textAlign = TextAlign.Center,
-                    style = PlatformTheme.typography.caption,
-                )
                 AnimatedVisibility(state.canNext && state.detectedPlatformId.isSuccess && state.instanceInputState.text.isNotEmpty()) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -264,18 +252,11 @@ public fun ServiceSelectionScreenContent(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            item(span = StaggeredGridItemSpan.FullLine) {
-                PlatformText(
-                    text = stringResource(Res.string.service_select_welcome_list_hint),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             state.instances
                 .onSuccess {
                     items(count = itemCount) {
                         val instance = get(it)
-                        ServiceSelectItem(
+                        KagariServiceSelectItem(
                             instance = instance,
                             index = it,
                             totalCount = itemCount,
@@ -288,7 +269,7 @@ public fun ServiceSelectionScreenContent(
                     }
                 }.onLoading {
                     items(10) {
-                        ServiceSelectItem(
+                        KagariServiceSelectItem(
                             index = it,
                             totalCount = 10,
                             instance = null,

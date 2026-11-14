@@ -111,34 +111,7 @@ private class LoginRecommendInstancePagingSource(
     override fun getRefreshKey(state: androidx.paging.PagingState<Int, UiInstance>): Int? = null
 
     override suspend fun doLoad(params: LoadParams<Int>): LoadResult<Int, UiInstance> {
-        val recommendations =
-            coroutineScope {
-                loginPlatformRegistry.all
-                    .filter { it.kagariShownInLoginList() }
-                    .map { provider ->
-                        async {
-                            tryRun {
-                                provider.recommendInstances().map { recommendation ->
-                                    recommendation.copy(
-                                        instance =
-                                            recommendation.instance.copy(
-                                                platformDisplayName = provider.metadata.displayName,
-                                                platformIcon = provider.metadata.icon,
-                                            ),
-                                    )
-                                }
-                            }.getOrDefault(emptyList())
-                        }
-                    }.awaitAll()
-                    .flatten()
-            }
-        val instances =
-            recommendations
-                .sortedWith(
-                    compareByDescending<RecommendedInstance> { it.priority }
-                        .thenByDescending { it.instance.usersCount },
-                ).distinctBy { it.instance.platformId to it.instance.domain }
-                .map { it.instance }
+        val instances = loginPlatformRegistry.kagariLoginInstances()
         return LoadResult.Page(
             data = instances,
             prevKey = null,
