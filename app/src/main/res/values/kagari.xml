@@ -32,4 +32,5 @@
     <string name="kagari_hide_reply_shown">Reply is shown again</string>
     <string name="kagari_hide_reply_too_many">You can hide up to 300 replies</string>
     <string name="kagari_hide_reply_failed">Could not change the reply visibility</string>
+    <string name="kagari_login_prompt">Log in to see your timeline.</string>
 </resources>

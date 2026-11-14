@@ -437,6 +437,10 @@ internal fun HomeTimelineScreen(
         ) { contentPadding ->
             state.pagerState.onSuccess { pagerState ->
                 state.tabState.onSuccess tabs@{ tabState ->
+                    if (state.isLoggedIn.takeSuccess() == false) {
+                        KagariLoginPrompt(toLogin, Modifier.fillMaxSize().padding(contentPadding))
+                        return@tabs
+                    }
                     if (tabState.isEmpty()) {
                         HomeTabsEmpty(toTabSettings, Modifier.fillMaxSize().padding(contentPadding))
                         return@tabs

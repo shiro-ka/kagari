@@ -17,12 +17,12 @@ import org.koin.compose.koinInject
 internal fun changeLogPresenter(context: Context = koinInject()): ChangeLogState {
     val state =
         remember {
-            ChangeLogPresenter(currentVersion = BuildConfig.VERSION_NAME)
+            ChangeLogPresenter(currentVersion = kagariUpstreamVersion)
         }.invoke()
     val changeLog =
-        remember(BuildConfig.VERSION_NAME) {
+        remember(kagariUpstreamVersion) {
             runCatching {
-                context.getString(R.string.changelog_current, BuildConfig.VERSION_NAME)
+                context.getString(R.string.changelog_current, kagariUpstreamVersion)
             }.getOrNull()
                 ?.takeIf {
                     it.isNotBlank() && it.isNotEmpty()
