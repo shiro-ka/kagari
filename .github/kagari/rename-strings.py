@@ -7,7 +7,7 @@ patterns = [
     "app/src/main/res/values*/strings.xml",
     "compose-ui/src/commonMain/composeResources/values*/strings.xml",
 ]
-word = re.compile(r"\bFlare\b")
+word = re.compile(r"(?<![A-Za-z0-9_])Flare")
 total = 0
 for pattern in patterns:
     for path in sorted(root.glob(pattern)):
