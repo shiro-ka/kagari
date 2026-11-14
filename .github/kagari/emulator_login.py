@@ -183,8 +183,13 @@ def main():
         return 1
     disable_ime()
     shot("start")
-    if not tap("Log in"):
-        return 1
+    for attempt in range(3):
+        time.sleep(3)
+        if not tap("Log in", last=attempt == 2):
+            return 1
+        if find("Server URL", timeout=8) is not None:
+            break
+        shot(f"login-retry-{attempt}")
     shot("service-select")
     if not type_into("Server URL", "bsky.social"):
         return 1
