@@ -14,6 +14,7 @@ import app.bsky.feed.ThreadgateFollowerRule
 import app.bsky.feed.ThreadgateFollowingRule
 import app.bsky.feed.ThreadgateListRule
 import app.bsky.feed.ThreadgateMentionRule
+import app.bsky.feed.GetPostsQueryParams
 import app.bsky.graph.GetListsQueryParams
 import com.atproto.repo.ApplyWritesCreate
 import com.atproto.repo.ApplyWritesRequest
@@ -26,8 +27,12 @@ import dev.dimension.flare.data.datasource.microblog.InteractionGateConfig
 import dev.dimension.flare.data.datasource.microblog.InteractionGateList
 import dev.dimension.flare.data.network.bluesky.BlueskyService
 import dev.dimension.flare.model.MicroBlogKey
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.api.AtUri
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.api.Nsid
@@ -247,6 +252,95 @@ internal suspend fun saveBlueskyInteractionGate(
             ).requireResponse()
     }
 }
+
+internal class KagariTooManyHiddenRepliesException : IllegalStateException("too many hidden replies")
+
+internal data class BlueskyReplyVisibility(
+    val rootUri: String,
+    val hidden: Boolean,
+)
+
+internal suspend fun loadBlueskyReplyVisibility(
+    service: BlueskyService,
+    accountKey: MicroBlogKey,
+    replyUri: String,
+): BlueskyReplyVisibility {
+    val reply =
+        service
+            .getPosts(GetPostsQueryParams(persistentListOf(AtUri(replyUri))))
+            .requireResponse()
+            .posts
+            .first()
+    val rootUri =
+        reply.record
+            .decodeAs<JsonObject>()["reply"]
+            ?.jsonObject
+            ?.get("root")
+            ?.jsonObject
+            ?.get("uri")
+            ?.jsonPrimitive
+            ?.contentOrNull
+            ?: error("not a reply")
+    val threadgate = loadThreadgate(service, accountKey, rootUri)
+    return BlueskyReplyVisibility(
+        rootUri = rootUri,
+        hidden = threadgate?.hiddenReplies.orEmpty().any { it.atUri == replyUri },
+    )
+}
+
+internal suspend fun setBlueskyReplyHidden(
+    service: BlueskyService,
+    accountKey: MicroBlogKey,
+    replyUri: String,
+    hide: Boolean,
+) {
+    val visibility = loadBlueskyReplyVisibility(service, accountKey, replyUri)
+    val rootUri = visibility.rootUri
+    val current = loadThreadgate(service, accountKey, rootUri)
+    val hidden = current?.hiddenReplies.orEmpty().filterNot { it.atUri == replyUri }
+    val next = if (hide) hidden + AtUri(replyUri) else hidden
+    if (next.size > MAX_HIDDEN_REPLIES) throw KagariTooManyHiddenRepliesException()
+    val repo = Did(did = accountKey.id)
+    val rkey = RKey(rootUri.substringAfterLast('/'))
+    if (current?.allow == null && next.isEmpty()) {
+        service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.threadgate"), rkey = rkey))
+        return
+    }
+    service
+        .putRecord(
+            PutRecordRequest(
+                repo = repo,
+                collection = Nsid("app.bsky.feed.threadgate"),
+                rkey = rkey,
+                record =
+                    Threadgate(
+                        post = AtUri(rootUri),
+                        allow = current?.allow,
+                        createdAt = current?.createdAt ?: Clock.System.now(),
+                        hiddenReplies = next.ifEmpty { null },
+                    ).bskyJson(),
+            ),
+        ).requireResponse()
+}
+
+private const val MAX_HIDDEN_REPLIES = 300
+
+private suspend fun loadThreadgate(
+    service: BlueskyService,
+    accountKey: MicroBlogKey,
+    rootUri: String,
+): Threadgate? =
+    service
+        .getRecord(
+            params =
+                GetRecordQueryParams(
+                    repo = Did(did = accountKey.id),
+                    collection = Nsid("app.bsky.feed.threadgate"),
+                    rkey = RKey(rootUri.substringAfterLast('/')),
+                ),
+        ).maybeResponse()
+        ?.value
+        ?.let { runCatching { it.decodeAs<Threadgate>() }.getOrNull() }
 
 private fun create(
     collection: String,

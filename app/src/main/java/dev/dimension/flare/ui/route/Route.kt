@@ -694,6 +694,13 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariHideReplyRoute -> {
+                    KagariHideReplyDialogRoute(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                    )
+                }
+
                 is KagariInteractionGateRoute -> {
                     KagariInteractionGateDialogRoute(
                         statusKey = deeplinkRoute.statusKey,

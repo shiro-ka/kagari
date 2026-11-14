@@ -6,6 +6,7 @@ import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
+import dev.dimension.flare.ui.route.KagariHideReplyRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateRoute
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.JsonObject
@@ -58,4 +59,36 @@ private fun PostView.threadgateTokens(): List<String> {
         val lists = types.count { it.endsWith("#listRule") }
         if (lists > 0) add("lists:$lists")
     }.ifEmpty { listOf("anyone") }
+}
+
+internal fun PostView.kagariHideReplyMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+): List<ActionMenu> {
+    val rootUri =
+        runCatching {
+            record
+                .decodeAs<JsonObject>()["reply"]
+                ?.jsonObject
+                ?.get("root")
+                ?.jsonObject
+                ?.get("uri")
+                ?.jsonPrimitive
+                ?.contentOrNull
+        }.getOrNull() ?: return emptyList()
+    val rootAuthor = rootUri.removePrefix("at://").substringBefore('/')
+    if (rootAuthor != accountKey.id) return emptyList()
+    return listOf(
+        ActionMenu.Item(
+            icon = UiIcon.KagariHideReply,
+            text = ActionMenu.Item.Text.Localized(type = ActionMenu.Item.Text.Localized.Type.KagariHideReply),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariHideReplyRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                    ),
+                ),
+        ),
+    )
 }

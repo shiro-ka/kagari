@@ -21,4 +21,14 @@
     <string name="kagari_gate_edit_title">返信と引用の設定</string>
     <string name="kagari_gate_quote_allow">引用を許可する</string>
     <string name="kagari_gate_edit_failed">設定を変えられませんでした</string>
+    <string name="kagari_hide_reply_title">この返信を非表示にしますか？</string>
+    <string name="kagari_hide_reply_message">この返信はスレッドの一番下の「非表示の返信」に移ります。この返信に続く返信の通知も、あなたとほかの人の両方で届かなくなります。</string>
+    <string name="kagari_hide_reply_confirm">非表示にする</string>
+    <string name="kagari_hide_reply_show_title">この返信を表示に戻しますか？</string>
+    <string name="kagari_hide_reply_show_message">この返信は非表示になっています。表示に戻すと、スレッドの返信の中にまた並びます。</string>
+    <string name="kagari_hide_reply_show_confirm">表示に戻す</string>
+    <string name="kagari_hide_reply_hidden">返信を非表示にしました</string>
+    <string name="kagari_hide_reply_shown">返信を表示に戻しました</string>
+    <string name="kagari_hide_reply_too_many">非表示にできる返信は300件までです</string>
+    <string name="kagari_hide_reply_failed">返信の表示を変えられませんでした</string>
 </resources>

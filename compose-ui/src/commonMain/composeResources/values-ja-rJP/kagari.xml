@@ -9,4 +9,5 @@
     <string name="kagari_menu_gate_mentioned">メンション</string>
     <string name="kagari_menu_gate_lists">リスト%1$s件</string>
     <string name="kagari_menu_gate_separator">・</string>
+    <string name="kagari_menu_hide_reply">返信を非表示にする</string>
 </resources>

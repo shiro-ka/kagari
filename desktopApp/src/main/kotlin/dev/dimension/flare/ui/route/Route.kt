@@ -492,7 +492,9 @@ internal sealed interface Route : NavKey {
                     AltText(text = deeplinkRoute.text)
                 }
 
-                is KagariInteractionGateRoute -> {
+                is KagariInteractionGateRoute,
+                is KagariHideReplyRoute,
+                -> {
                     null
                 }
 

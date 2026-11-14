@@ -67,6 +67,7 @@ public enum class UiIcon {
     Fanbox,
     Eye,
     KagariGateSettings,
+    KagariHideReply,
 }
 
 /**

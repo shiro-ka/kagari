@@ -9,3 +9,9 @@ internal data class KagariInteractionGateDialogRoute(
     val statusKey: MicroBlogKey,
     val accountType: AccountType,
 ) : Route.Status
+
+@Serializable
+internal data class KagariHideReplyDialogRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+) : Route.Status

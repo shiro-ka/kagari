@@ -9,4 +9,5 @@
     <string name="kagari_menu_gate_mentioned">Mentioned</string>
     <string name="kagari_menu_gate_lists">%1$s lists</string>
     <string name="kagari_menu_gate_separator">, </string>
+    <string name="kagari_menu_hide_reply">Hide reply for everyone</string>
 </resources>

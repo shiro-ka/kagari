@@ -22,4 +22,14 @@
     <string name="kagari_gate_edit_title">Reply and quote settings</string>
     <string name="kagari_gate_quote_allow">Allow quote posts</string>
     <string name="kagari_gate_edit_failed">Could not change the settings</string>
+    <string name="kagari_hide_reply_title">Hide this reply?</string>
+    <string name="kagari_hide_reply_message">This reply will be sorted into a hidden section at the bottom of your thread and will mute notifications for subsequent replies, both for yourself and others.</string>
+    <string name="kagari_hide_reply_confirm">Yes, hide</string>
+    <string name="kagari_hide_reply_show_title">Show this reply again?</string>
+    <string name="kagari_hide_reply_show_message">This reply is hidden. If you show it again, it will be listed with the other replies in your thread.</string>
+    <string name="kagari_hide_reply_show_confirm">Show reply</string>
+    <string name="kagari_hide_reply_hidden">Reply was hidden</string>
+    <string name="kagari_hide_reply_shown">Reply is shown again</string>
+    <string name="kagari_hide_reply_too_many">You can hide up to 300 replies</string>
+    <string name="kagari_hide_reply_failed">Could not change the reply visibility</string>
 </resources>
