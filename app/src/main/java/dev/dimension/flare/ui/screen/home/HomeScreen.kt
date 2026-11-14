@@ -138,10 +138,11 @@ internal fun HomeScreen(afterInit: () -> Unit) {
             LaunchedEffect(Unit) {
                 afterInit.invoke()
             }
+            val kagariLoggedOut = state.loggedInState.takeSuccess() == false
             val layoutType =
                 NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(
                     currentWindowAdaptiveInfoV2(),
-                )
+                ).kagariLayoutType(kagariLoggedOut)
             Box {
                 NavigationSuiteScaffold2(
                     wideNavigationRailState = state.wideNavigationRailState,
@@ -243,7 +244,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             }
                         }
                     },
-                    navigationSuiteItems = {
+                    navigationSuiteItems = kagariNavItems(kagariLoggedOut) {
                         tabs.forEach { tab ->
                             item(
                                 selected = currentRoute == tab.route,
@@ -291,7 +292,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             )
                         }
                     },
-                    secondaryItems = {
+                    secondaryItems = kagariNavItems(kagariLoggedOut) {
                         if (layoutType != NavigationSuiteType.NavigationBar) {
                             item(
                                 selected = currentRoute is Route.DraftBox,
@@ -420,7 +421,7 @@ internal fun HomeScreen(afterInit: () -> Unit) {
                             }
                         }
                     },
-                    footerItems = {
+                    footerItems = kagariNavItems(kagariLoggedOut) {
                         if (layoutType == NavigationSuiteType.NavigationBar) {
                             item(
                                 selected = currentRoute is Route.DraftBox,

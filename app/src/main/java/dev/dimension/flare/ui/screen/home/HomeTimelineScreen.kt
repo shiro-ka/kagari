@@ -145,11 +145,16 @@ internal fun HomeTimelineScreen(
     toLogin: () -> Unit,
     toTabSettings: () -> Unit,
     uriHandler: UriHandler,
+    toSettings: () -> Unit = {},
 ) {
     val state by producePresenter(key = "home_timeline") {
         timelinePresenter()
     }
     val scope = rememberCoroutineScope()
+    if (state.isLoggedIn.takeSuccess() == false) {
+        KagariLoginScreen(toLogin, toSettings)
+        return
+    }
 
     if (LocalGlobalAppearance.current.deckMode && isBigScreen()) {
         LazyRow(
@@ -437,10 +442,6 @@ internal fun HomeTimelineScreen(
         ) { contentPadding ->
             state.pagerState.onSuccess { pagerState ->
                 state.tabState.onSuccess tabs@{ tabState ->
-                    if (state.isLoggedIn.takeSuccess() == false) {
-                        KagariLoginPrompt(toLogin, Modifier.fillMaxSize().padding(contentPadding))
-                        return@tabs
-                    }
                     if (tabState.isEmpty()) {
                         HomeTabsEmpty(toTabSettings, Modifier.fillMaxSize().padding(contentPadding))
                         return@tabs

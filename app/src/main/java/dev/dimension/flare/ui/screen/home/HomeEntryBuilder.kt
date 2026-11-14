@@ -39,6 +39,9 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
                 navigate(Route.TabSettings)
             },
             uriHandler = uriHandler,
+            toSettings = {
+                navigate(Route.Settings.Main)
+            },
         )
     }
     entry<Route.Timeline> { args ->
