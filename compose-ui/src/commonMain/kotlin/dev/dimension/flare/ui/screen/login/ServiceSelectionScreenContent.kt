@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.solid.CircleQuestion
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.common.onEmpty
@@ -72,7 +71,6 @@ import dev.dimension.flare.compose.ui.service_select_detected_platform
 import dev.dimension.flare.compose.ui.service_select_detecting_platform
 import dev.dimension.flare.compose.ui.service_select_empty_message
 import dev.dimension.flare.compose.ui.service_select_search
-import dev.dimension.flare.compose.ui.service_select_unknown_platform
 import dev.dimension.flare.compose.ui.service_select_welcome_title
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.ui.component.FAIcon
@@ -166,20 +164,13 @@ public fun ServiceSelectionScreenContent(
                         )
                     },
                     trailingIcon = {
-                        PlatformIconButton(onClick = {
-                            if (state.instanceInputState.text.any()) {
+                        if (state.instanceInputState.text.any()) {
+                            PlatformIconButton(onClick = {
                                 state.clearInstance()
-                            }
-                        }) {
-                            if (state.instanceInputState.text.any()) {
+                            }) {
                                 FAIcon(
                                     imageVector = FontAwesomeIcons.Solid.Xmark,
                                     contentDescription = stringResource(Res.string.service_select_clear),
-                                )
-                            } else {
-                                FAIcon(
-                                    imageVector = FontAwesomeIcons.Solid.MagnifyingGlass,
-                                    contentDescription = stringResource(Res.string.service_select_search),
                                 )
                             }
                         }
@@ -195,8 +186,8 @@ public fun ServiceSelectionScreenContent(
                                 )
                             }.onError {
                                 FAIcon(
-                                    imageVector = FontAwesomeIcons.Solid.CircleQuestion,
-                                    contentDescription = stringResource(Res.string.service_select_unknown_platform),
+                                    imageVector = FontAwesomeIcons.Solid.MagnifyingGlass,
+                                    contentDescription = stringResource(Res.string.service_select_search),
                                 )
                             }.onLoading {
                                 val detectingPlatformDescription =
