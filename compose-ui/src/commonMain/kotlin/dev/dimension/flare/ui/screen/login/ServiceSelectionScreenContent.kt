@@ -159,7 +159,11 @@ public fun ServiceSelectionScreenContent(
                             keyboardType = KeyboardType.Uri,
                         ),
                     placeholder = {
-                        PlatformText(text = stringResource(Res.string.kagari_service_select_placeholder))
+                        PlatformText(
+                            text = stringResource(Res.string.kagari_service_select_placeholder),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
                     },
                     trailingIcon = {
                         PlatformIconButton(onClick = {
@@ -180,7 +184,7 @@ public fun ServiceSelectionScreenContent(
                             }
                         }
                     },
-                    modifier = Modifier.width(300.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     leadingIcon = {
                         state.detectedPlatformId
                             .onSuccess {
