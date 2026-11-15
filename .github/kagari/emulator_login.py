@@ -187,11 +187,11 @@ def main():
         time.sleep(3)
         if not tap("Log in", last=attempt == 2):
             return 1
-        if find("Enter a URL to find other servers", timeout=8) is not None:
+        if find("Find a server by URL", timeout=8) is not None:
             break
         shot(f"login-retry-{attempt}")
     shot("service-select")
-    if not type_into("Enter a URL to find other servers", "bsky.social"):
+    if not type_into("Find a server by URL", "bsky.social"):
         return 1
     time.sleep(5)
     shot("server")
