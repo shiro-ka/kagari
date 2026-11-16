@@ -17,7 +17,7 @@ import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_login_app_password
 import dev.dimension.flare.compose.ui.kagari_login_oauth
 import dev.dimension.flare.compose.ui.mastodon_login_verify_message
-import dev.dimension.flare.ui.component.platform.PlatformButton
+import dev.dimension.flare.ui.component.platform.KagariPrimaryButton
 import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
 import dev.dimension.flare.ui.component.platform.PlatformLinearProgressIndicator
 import dev.dimension.flare.ui.component.platform.PlatformText
@@ -92,7 +92,7 @@ internal fun KagariStackedLoginContent(
         oauthFlow.actions.fastForEach { action ->
             val enabled = action.enabled && !oauthFlow.loading
             if (action.id == KAGARI_LOGIN_ACTION) {
-                PlatformButton(
+                KagariPrimaryButton(
                     onClick = { oauthState.perform(action.id) },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     enabled = enabled,
