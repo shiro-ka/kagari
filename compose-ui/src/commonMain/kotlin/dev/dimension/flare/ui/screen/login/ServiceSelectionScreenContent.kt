@@ -138,9 +138,7 @@ public fun ServiceSelectionScreenContent(
     ) {
         item(span = StaggeredGridItemSpan.FullLine) {
             Column(
-                modifier =
-                    Modifier
-                        .padding(horizontal = screenHorizontalPadding),
+                modifier = Modifier,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
