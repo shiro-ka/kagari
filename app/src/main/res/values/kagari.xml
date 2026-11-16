@@ -49,4 +49,6 @@
     <string name="kagari_cw_graphic">Graphic Media</string>
     <string name="kagari_cw_graphic_description">Media that may be disturbing or inappropriate for some audiences.</string>
     <string name="kagari_cw_done">Done</string>
+    <string name="kagari_cw_porn_short">Adult</string>
+    <string name="kagari_cw_graphic_short">Graphic Media</string>
 </resources>

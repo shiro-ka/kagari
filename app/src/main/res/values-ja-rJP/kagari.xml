@@ -48,4 +48,6 @@
     <string name="kagari_cw_graphic">生々しいメディア（グロ・事故・戦争・災害等）</string>
     <string name="kagari_cw_graphic_description">一部の閲覧者にとっては困惑する、あるいは不適切なメディアです。</string>
     <string name="kagari_cw_done">完了</string>
+    <string name="kagari_cw_porn_short">成人向け</string>
+    <string name="kagari_cw_graphic_short">生々しいメディア</string>
 </resources>

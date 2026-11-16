@@ -76,6 +76,14 @@ private fun kagariLabelName(label: String): String =
     }
 
 @Composable
+private fun kagariLabelShortName(label: String): String =
+    when (label) {
+        "porn" -> stringResource(R.string.kagari_cw_porn_short)
+        KAGARI_GRAPHIC_LABEL -> stringResource(R.string.kagari_cw_graphic_short)
+        else -> kagariLabelName(label)
+    }
+
+@Composable
 private fun kagariLabelDescription(label: String): String =
     when (label) {
         "sexual" -> stringResource(R.string.kagari_cw_sexual_description)
@@ -93,7 +101,10 @@ internal fun KagariContentWarningRow(
     val separator = stringResource(R.string.kagari_gate_summary_separator)
     val summary =
         if (selected) {
-            state.labels.map { kagariLabelName(it) }.joinToString(separator)
+            state.labels
+                .sortedBy { (kagariAdultLabels + KAGARI_GRAPHIC_LABEL).indexOf(it) }
+                .map { kagariLabelShortName(it) }
+                .joinToString(separator)
         } else {
             stringResource(R.string.kagari_cw_none)
         }
