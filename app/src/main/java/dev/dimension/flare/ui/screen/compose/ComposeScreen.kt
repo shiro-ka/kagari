@@ -782,6 +782,9 @@ internal fun ComposeScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        if (state.kagariLinkCardWarning) {
+            KagariContentWarningRow(state.selfLabels)
+        }
         KagariReplyGateRow(state.interactionGate)
         Surface(
             modifier =
@@ -1344,7 +1347,11 @@ private fun composePresenter(
                 },
             language = languageState.takeSuccess()?.selectedLanguage.orEmpty(),
             interactionGate = interactionGate.composeValue(),
-            selfLabels = selfLabels.composeValue(state.composeConfig.takeSuccess()?.selfLabels == true),
+            selfLabels =
+                selfLabels.composeValue(
+                    state.composeConfig.takeSuccess()?.selfLabels == true &&
+                        (media.medias.isNotEmpty() || kagariHasLinkCard(textFieldState.text, false, state.composeStatus)),
+                ),
         )
     }
     val currentState by rememberUpdatedState(state)
@@ -1368,6 +1375,8 @@ private fun composePresenter(
         val interactionGate = interactionGate
         val selfLabels = selfLabels
         val kagariSelfLabelsEnabled = state.composeConfig.takeSuccess()?.selfLabels == true
+        val kagariLinkCardWarning =
+            kagariSelfLabelsEnabled && kagariHasLinkCard(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
         val hasTextContent = textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports
 
         fun selectEmoji(emoji: UiEmoji) {

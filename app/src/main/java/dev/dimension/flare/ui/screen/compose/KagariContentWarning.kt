@@ -30,9 +30,17 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Shield
 import dev.dimension.flare.R
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 
 private val kagariAdultLabels = listOf("sexual", "nudity", "porn")
 private const val KAGARI_GRAPHIC_LABEL = "graphic-media"
+private val kagariLinkPattern = Regex("https?://\\S")
+
+internal fun kagariHasLinkCard(
+    text: CharSequence,
+    hasMedia: Boolean,
+    status: ComposeStatus?,
+): Boolean = !hasMedia && status !is ComposeStatus.Quote && kagariLinkPattern.containsMatchIn(text)
 
 internal class KagariSelfLabelState {
     var labels by mutableStateOf(emptyList<String>())
