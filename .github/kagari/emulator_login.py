@@ -205,7 +205,7 @@ def main():
     if not type_into("Password", APP_PASSWORD):
         return 1
     shot("filled")
-    if not tap("Log in", last=True, exact=True):
+    if not tap("Log in with app password", last=True, exact=True):
         return 1
     time.sleep(20)
     shot("after-login")
