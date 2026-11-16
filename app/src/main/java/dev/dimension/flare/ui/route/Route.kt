@@ -701,6 +701,14 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariPinPostRoute -> {
+                    KagariPinPostDialogRoute(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                        pin = deeplinkRoute.pin,
+                    )
+                }
+
                 is KagariInteractionGateRoute -> {
                     KagariInteractionGateDialogRoute(
                         statusKey = deeplinkRoute.statusKey,

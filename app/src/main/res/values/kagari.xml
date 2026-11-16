@@ -51,4 +51,7 @@
     <string name="kagari_cw_done">Done</string>
     <string name="kagari_cw_porn_short">Adult</string>
     <string name="kagari_cw_graphic_short">Graphic Media</string>
+    <string name="kagari_pinned">Post pinned</string>
+    <string name="kagari_unpinned">Post unpinned</string>
+    <string name="kagari_pin_failed">Failed to pin post</string>
 </resources>

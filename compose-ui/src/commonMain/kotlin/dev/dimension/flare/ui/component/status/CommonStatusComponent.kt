@@ -1291,6 +1291,8 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
                     ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
                     ActionMenu.Item.Text.Localized.Type.KagariHideReply,
+                    ActionMenu.Item.Text.Localized.Type.KagariPinPost,
+                    ActionMenu.Item.Text.Localized.Type.KagariUnpinPost,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)

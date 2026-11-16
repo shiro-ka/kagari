@@ -27,6 +27,7 @@ import compose.icons.fontawesomeicons.solid.Eye
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.EyeSlash
+import compose.icons.fontawesomeicons.solid.Thumbtack
 import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.Heart
 import compose.icons.fontawesomeicons.solid.House
@@ -114,4 +115,5 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.Translate -> FontAwesomeIcons.Solid.Language
         UiIcon.KagariGateSettings -> FontAwesomeIcons.Solid.Sliders
         UiIcon.KagariHideReply -> FontAwesomeIcons.Solid.EyeSlash
+        UiIcon.KagariPin -> FontAwesomeIcons.Solid.Thumbtack
     }

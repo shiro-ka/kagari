@@ -15,3 +15,10 @@ public data class KagariHideReplyRoute(
     val statusKey: MicroBlogKey,
     val accountType: AccountType,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariPinPostRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val pin: Boolean,
+) : DeeplinkRoute.Status()

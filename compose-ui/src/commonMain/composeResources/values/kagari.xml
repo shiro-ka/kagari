@@ -13,4 +13,6 @@
     <string name="kagari_service_select_placeholder">Find a server by URL</string>
     <string name="kagari_login_oauth">Log in with OAuth</string>
     <string name="kagari_login_app_password">Log in with app password</string>
+    <string name="kagari_menu_pin_post">Pin to your profile</string>
+    <string name="kagari_menu_unpin_post">Unpin from profile</string>
 </resources>

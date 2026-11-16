@@ -15,3 +15,10 @@ internal data class KagariHideReplyDialogRoute(
     val statusKey: MicroBlogKey,
     val accountType: AccountType,
 ) : Route.Status
+
+@Serializable
+internal data class KagariPinPostDialogRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val pin: Boolean,
+) : Route.Status

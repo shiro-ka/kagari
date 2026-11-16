@@ -8,6 +8,7 @@ import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateRoute
+import dev.dimension.flare.ui.route.KagariPinPostRoute
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -87,6 +88,35 @@ internal fun PostView.kagariHideReplyMenu(
                     KagariHideReplyRoute(
                         statusKey = statusKey,
                         accountType = AccountType.Specific(accountKey),
+                    ),
+                ),
+        ),
+    )
+}
+
+internal fun PostView.kagariPinMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+): List<ActionMenu> {
+    val pinned = viewer?.pinned == true
+    return listOf(
+        ActionMenu.Item(
+            icon = UiIcon.KagariPin,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type =
+                        if (pinned) {
+                            ActionMenu.Item.Text.Localized.Type.KagariUnpinPost
+                        } else {
+                            ActionMenu.Item.Text.Localized.Type.KagariPinPost
+                        },
+                ),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariPinPostRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        pin = !pinned,
                     ),
                 ),
         ),

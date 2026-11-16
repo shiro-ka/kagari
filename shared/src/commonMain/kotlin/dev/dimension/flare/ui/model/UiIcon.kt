@@ -68,6 +68,7 @@ public enum class UiIcon {
     Eye,
     KagariGateSettings,
     KagariHideReply,
+    KagariPin,
 }
 
 /**

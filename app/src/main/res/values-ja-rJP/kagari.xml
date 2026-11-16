@@ -50,4 +50,7 @@
     <string name="kagari_cw_done">完了</string>
     <string name="kagari_cw_porn_short">成人向け</string>
     <string name="kagari_cw_graphic_short">生々しいメディア</string>
+    <string name="kagari_pinned">投稿を固定しました</string>
+    <string name="kagari_unpinned">投稿の固定を解除しました</string>
+    <string name="kagari_pin_failed">投稿の固定に失敗しました</string>
 </resources>
