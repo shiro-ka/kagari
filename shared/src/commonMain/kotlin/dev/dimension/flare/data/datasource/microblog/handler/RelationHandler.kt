@@ -146,21 +146,12 @@ public class RelationHandler(
     public fun unblock(userKey: MicroBlogKey): Job =
         coroutineScope.launch {
             tryRun {
+                dataSource.unblock(userKey)
                 updateRelation(
                     userKey = userKey,
                     update = { relation ->
                         relation.copy(
                             blocking = false,
-                        )
-                    },
-                )
-                dataSource.unblock(userKey)
-            }.onFailure {
-                updateRelation(
-                    userKey = userKey,
-                    update = { relation ->
-                        relation.copy(
-                            blocking = true,
                         )
                     },
                 )
