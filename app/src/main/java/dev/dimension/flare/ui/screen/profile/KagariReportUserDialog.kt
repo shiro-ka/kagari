@@ -25,6 +25,19 @@ import moe.tlaster.precompose.molecule.producePresenter
 
 @Composable
 internal fun KagariReportUserDialog(
+    accountType: AccountType?,
+    userKey: MicroBlogKey,
+    onBack: () -> Unit,
+) {
+    if (accountType == null) {
+        ReportUserDialog(accountType = null, userKey = userKey, onBack = onBack)
+        return
+    }
+    KagariBlueskyReportUserDialog(accountType, userKey, onBack)
+}
+
+@Composable
+private fun KagariBlueskyReportUserDialog(
     accountType: AccountType,
     userKey: MicroBlogKey,
     onBack: () -> Unit,
