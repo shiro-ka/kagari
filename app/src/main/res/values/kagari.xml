@@ -54,4 +54,7 @@
     <string name="kagari_pinned">Post pinned</string>
     <string name="kagari_unpinned">Post unpinned</string>
     <string name="kagari_pin_failed">Failed to pin post</string>
+    <string name="kagari_thread_muted">You will no longer receive notifications for this thread</string>
+    <string name="kagari_thread_unmuted">You will now receive notifications for this thread</string>
+    <string name="kagari_thread_mute_failed">Failed to toggle thread mute, please try again</string>
 </resources>

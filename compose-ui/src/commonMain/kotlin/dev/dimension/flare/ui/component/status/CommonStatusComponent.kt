@@ -1293,6 +1293,8 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.KagariHideReply,
                     ActionMenu.Item.Text.Localized.Type.KagariPinPost,
                     ActionMenu.Item.Text.Localized.Type.KagariUnpinPost,
+                    ActionMenu.Item.Text.Localized.Type.KagariMuteThread,
+                    ActionMenu.Item.Text.Localized.Type.KagariUnmuteThread,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)

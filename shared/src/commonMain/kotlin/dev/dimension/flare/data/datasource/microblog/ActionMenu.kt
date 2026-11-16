@@ -179,6 +179,8 @@ public sealed class ActionMenu {
                     KagariHideReply,
                     KagariPinPost,
                     KagariUnpinPost,
+                    KagariMuteThread,
+                    KagariUnmuteThread,
                 }
             }
         }

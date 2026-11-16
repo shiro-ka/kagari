@@ -22,3 +22,11 @@ public data class KagariPinPostRoute(
     val accountType: AccountType,
     val pin: Boolean,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariMuteThreadRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val rootUri: String,
+    val mute: Boolean,
+) : DeeplinkRoute.Status()

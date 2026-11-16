@@ -8,6 +8,7 @@ import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateRoute
+import dev.dimension.flare.ui.route.KagariMuteThreadRoute
 import dev.dimension.flare.ui.route.KagariPinPostRoute
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.JsonObject
@@ -117,6 +118,47 @@ internal fun PostView.kagariPinMenu(
                         statusKey = statusKey,
                         accountType = AccountType.Specific(accountKey),
                         pin = !pinned,
+                    ),
+                ),
+        ),
+    )
+}
+
+internal fun PostView.kagariMuteThreadMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+): List<ActionMenu> {
+    val rootUri =
+        runCatching {
+            record
+                .decodeAs<JsonObject>()["reply"]
+                ?.jsonObject
+                ?.get("root")
+                ?.jsonObject
+                ?.get("uri")
+                ?.jsonPrimitive
+                ?.contentOrNull
+        }.getOrNull() ?: uri.atUri
+    val muted = viewer?.threadMuted == true
+    return listOf(
+        ActionMenu.Item(
+            icon = if (muted) UiIcon.KagariUnmuteThread else UiIcon.KagariMuteThread,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type =
+                        if (muted) {
+                            ActionMenu.Item.Text.Localized.Type.KagariUnmuteThread
+                        } else {
+                            ActionMenu.Item.Text.Localized.Type.KagariMuteThread
+                        },
+                ),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariMuteThreadRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        rootUri = rootUri,
+                        mute = !muted,
                     ),
                 ),
         ),

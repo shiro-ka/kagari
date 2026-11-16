@@ -53,4 +53,7 @@
     <string name="kagari_pinned">投稿を固定しました</string>
     <string name="kagari_unpinned">投稿の固定を解除しました</string>
     <string name="kagari_pin_failed">投稿の固定に失敗しました</string>
+    <string name="kagari_thread_muted">これ以降、このスレッドに関する通知を受け取ることはできなくなります</string>
+    <string name="kagari_thread_unmuted">これ以降、このスレッドに関する通知を受け取ることができます</string>
+    <string name="kagari_thread_mute_failed">スレッドのミュートの切り替えに失敗しました。もう一度お試しください</string>
 </resources>

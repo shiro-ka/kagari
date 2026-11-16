@@ -28,6 +28,7 @@ import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.EyeSlash
 import compose.icons.fontawesomeicons.solid.Thumbtack
+import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.Heart
 import compose.icons.fontawesomeicons.solid.House
@@ -46,6 +47,7 @@ import compose.icons.fontawesomeicons.solid.SquarePollHorizontal
 import compose.icons.fontawesomeicons.solid.SquareRss
 import compose.icons.fontawesomeicons.solid.Star
 import compose.icons.fontawesomeicons.solid.Thumbtack
+import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.Trash
 import compose.icons.fontawesomeicons.solid.Tv
 import compose.icons.fontawesomeicons.solid.UserPlus
@@ -116,4 +118,6 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.KagariGateSettings -> FontAwesomeIcons.Solid.Sliders
         UiIcon.KagariHideReply -> FontAwesomeIcons.Solid.EyeSlash
         UiIcon.KagariPin -> FontAwesomeIcons.Solid.Thumbtack
+        UiIcon.KagariMuteThread -> FontAwesomeIcons.Solid.BellSlash
+        UiIcon.KagariUnmuteThread -> FontAwesomeIcons.Solid.Bell
     }

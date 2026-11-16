@@ -15,4 +15,6 @@
     <string name="kagari_login_app_password">Log in with app password</string>
     <string name="kagari_menu_pin_post">Pin to your profile</string>
     <string name="kagari_menu_unpin_post">Unpin from profile</string>
+    <string name="kagari_menu_mute_thread">Mute thread</string>
+    <string name="kagari_menu_unmute_thread">Unmute thread</string>
 </resources>

@@ -709,6 +709,15 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariMuteThreadRoute -> {
+                    KagariMuteThreadDialogRoute(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                        rootUri = deeplinkRoute.rootUri,
+                        mute = deeplinkRoute.mute,
+                    )
+                }
+
                 is KagariInteractionGateRoute -> {
                     KagariInteractionGateDialogRoute(
                         statusKey = deeplinkRoute.statusKey,

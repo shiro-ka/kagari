@@ -4,9 +4,11 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.ui.route.KagariHideReplyDialogRoute
+import dev.dimension.flare.ui.route.KagariMuteThreadDialogRoute
 import dev.dimension.flare.ui.route.KagariPinPostDialogRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateDialogRoute
 import dev.dimension.flare.ui.screen.status.action.KagariHideReplyDialog
+import dev.dimension.flare.ui.screen.status.action.KagariMuteThreadAction
 import dev.dimension.flare.ui.screen.status.action.KagariPinPostAction
 import dev.dimension.flare.ui.screen.status.action.KagariInteractionGateDialog
 
@@ -36,6 +38,17 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
             statusKey = args.statusKey,
             accountType = args.accountType,
             pin = args.pin,
+            onBack = onBack,
+        )
+    }
+    entry<KagariMuteThreadDialogRoute>(
+        metadata = DialogSceneStrategy.dialog(),
+    ) { args ->
+        KagariMuteThreadAction(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            rootUri = args.rootUri,
+            mute = args.mute,
             onBack = onBack,
         )
     }

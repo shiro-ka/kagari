@@ -15,4 +15,6 @@
     <string name="kagari_login_app_password">アプリパスワードでログイン</string>
     <string name="kagari_menu_pin_post">プロフィールに固定</string>
     <string name="kagari_menu_unpin_post">プロフィールから固定を解除</string>
+    <string name="kagari_menu_mute_thread">スレッドをミュート</string>
+    <string name="kagari_menu_unmute_thread">スレッドのミュートを解除</string>
 </resources>

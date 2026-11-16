@@ -16,7 +16,9 @@ import dev.dimension.flare.compose.ui.kagari_menu_gate_reply
 import dev.dimension.flare.compose.ui.kagari_menu_gate_separator
 import dev.dimension.flare.compose.ui.kagari_menu_gate_title
 import dev.dimension.flare.compose.ui.kagari_menu_hide_reply
+import dev.dimension.flare.compose.ui.kagari_menu_mute_thread
 import dev.dimension.flare.compose.ui.kagari_menu_pin_post
+import dev.dimension.flare.compose.ui.kagari_menu_unmute_thread
 import dev.dimension.flare.compose.ui.kagari_menu_unpin_post
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.ui.component.platform.PlatformText
@@ -60,6 +62,12 @@ internal fun kagariGateMenuText(
     }
     if (type == ActionMenu.Item.Text.Localized.Type.KagariUnpinPost) {
         return stringResource(Res.string.kagari_menu_unpin_post)
+    }
+    if (type == ActionMenu.Item.Text.Localized.Type.KagariMuteThread) {
+        return stringResource(Res.string.kagari_menu_mute_thread)
+    }
+    if (type == ActionMenu.Item.Text.Localized.Type.KagariUnmuteThread) {
+        return stringResource(Res.string.kagari_menu_unmute_thread)
     }
     val title = stringResource(Res.string.kagari_menu_gate_title)
     val summary = kagariReplySummary(parameters)
