@@ -19,6 +19,15 @@ if adb shell pidof "$package" > "$out/pid.txt"; then
 else
   echo "not running" > "$out/pid.txt"
 fi
+python3 .github/kagari/emulator_xqt.py "$out/xqt" || echo "xqt script failed" > "$out/xqt-failed.txt"
+mkdir -p "$out/xqt"
+adb logcat -d -b crash > "$out/xqt/crash.txt" || true
+adb logcat -d > "$out/xqt/logcat.txt"
+adb logcat -c
+adb logcat -b crash -c || true
+adb shell am force-stop "$package"
+adb shell am start -W -n "$package/$activity" > /dev/null
+sleep 15
 if [ -n "${BSKY_HANDLE:-}" ]; then
   python3 .github/kagari/emulator_login.py "$out/login" || echo "login script failed" > "$out/login-failed.txt"
 fi
