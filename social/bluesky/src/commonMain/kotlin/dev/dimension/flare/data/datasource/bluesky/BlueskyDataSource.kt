@@ -452,6 +452,7 @@ internal class BlueskyDataSource(
                     data.language.map {
                         Language(it)
                     },
+                labels = kagariSelfLabels(data.selfLabels),
             )
         val gate = data.interactionGate
         if (post.reply == null && gate != null && gate.needsBlueskyRecords()) {
@@ -730,6 +731,7 @@ internal class BlueskyDataSource(
             language = ComposeConfig.Language(3),
             interactionGate =
                 if (type == ComposeType.Reply) null else blueskyInteractionGateConfig(accountKey, this::pdsService),
+            selfLabels = true,
         )
 
     private val myFeedsKey = "my_feeds_$accountKey"

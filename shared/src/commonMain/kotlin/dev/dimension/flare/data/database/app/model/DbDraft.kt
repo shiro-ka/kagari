@@ -26,6 +26,7 @@ internal data class DraftContent(
     val poll: DraftPoll? = null,
     val reference: DraftReference? = null,
     val interactionGate: dev.dimension.flare.data.datasource.microblog.InteractionGate? = null,
+    val selfLabels: List<String> = emptyList(),
 ) {
     @Serializable
     data class DraftPoll(

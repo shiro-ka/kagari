@@ -620,7 +620,9 @@ internal fun ComposeScreen(
                                 }
                             }
                         }
-                        if (mediaState.canSensitive) {
+                        if (state.kagariSelfLabelsEnabled) {
+                            KagariContentWarningRow(state.selfLabels)
+                        } else if (mediaState.canSensitive) {
                             val sensitiveInteractionSource = remember { MutableInteractionSource() }
                             Row(
                                 modifier =
@@ -1258,6 +1260,7 @@ private fun composePresenter(
     LaunchedEffect(spoilerText) { state.setSpoilerText(spoilerText) }
 
     val interactionGate = rememberKagariInteractionGateState(state.composeConfig.takeSuccess()?.interactionGate)
+    val selfLabels = rememberKagariSelfLabelState()
     val languageState =
         state.composeConfig
             .mapNotNull {
@@ -1294,6 +1297,7 @@ private fun composePresenter(
             }
             media.replaceMedias(draft.medias)
             media.setMediaSensitive(draft.data.sensitive)
+            selfLabels.labels = draft.data.selfLabels
             pollState.takeSuccess()?.setPoll(draft.data.poll)
             contentWarningState.takeSuccess()?.setText(draft.data.spoilerText)
             languageState.takeSuccess()?.setSelectedLanguages(draft.data.language)
@@ -1340,6 +1344,7 @@ private fun composePresenter(
                 },
             language = languageState.takeSuccess()?.selectedLanguage.orEmpty(),
             interactionGate = interactionGate.composeValue(),
+            selfLabels = selfLabels.composeValue(state.composeConfig.takeSuccess()?.selfLabels == true),
         )
     }
     val currentState by rememberUpdatedState(state)
@@ -1361,6 +1366,8 @@ private fun composePresenter(
         val showAccountSelectMenu = showAccountSelectMenu
         val languageState = languageState
         val interactionGate = interactionGate
+        val selfLabels = selfLabels
+        val kagariSelfLabelsEnabled = state.composeConfig.takeSuccess()?.selfLabels == true
         val hasTextContent = textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports
 
         fun selectEmoji(emoji: UiEmoji) {

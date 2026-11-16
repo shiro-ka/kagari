@@ -33,4 +33,19 @@
     <string name="kagari_hide_reply_failed">返信の表示を変えられませんでした</string>
     <string name="kagari_about_description">分散型SNS向けのオープンソースのクライアントです。</string>
     <string name="kagari_about_based_on">Flare をもとにしています</string>
+    <string name="kagari_cw_title">コンテンツの警告</string>
+    <string name="kagari_cw_none">なし</string>
+    <string name="kagari_cw_dialog_title">コンテンツの警告を追加</string>
+    <string name="kagari_cw_dialog_description">投稿するメディアに該当するコンテンツ警告ラベルを追加してください。</string>
+    <string name="kagari_cw_adult">成人向けコンテンツ</string>
+    <string name="kagari_cw_sexual">きわどい</string>
+    <string name="kagari_cw_nudity">ヌード</string>
+    <string name="kagari_cw_porn">成人向け（ポルノ等）</string>
+    <string name="kagari_cw_sexual_description">成人向けの画像です。</string>
+    <string name="kagari_cw_nudity_description">芸術的または性的ではないヌード。</string>
+    <string name="kagari_cw_porn_description">性的行為または性的なヌード。</string>
+    <string name="kagari_cw_other">その他</string>
+    <string name="kagari_cw_graphic">生々しいメディア（グロ・事故・戦争・災害等）</string>
+    <string name="kagari_cw_graphic_description">一部の閲覧者にとっては困惑する、あるいは不適切なメディアです。</string>
+    <string name="kagari_cw_done">完了</string>
 </resources>

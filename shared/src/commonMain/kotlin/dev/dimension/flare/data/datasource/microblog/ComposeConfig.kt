@@ -25,6 +25,7 @@ public data class ComposeConfig public constructor(
     val visibility: Visibility? = null,
     val language: Language? = null,
     val interactionGate: InteractionGateConfig? = null,
+    val selfLabels: Boolean = false,
 ) {
     @Immutable
     public class Text private constructor(

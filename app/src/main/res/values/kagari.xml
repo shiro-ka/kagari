@@ -34,4 +34,19 @@
     <string name="kagari_hide_reply_failed">Could not change the reply visibility</string>
     <string name="kagari_about_description">An open-source client for decentralized social platforms.</string>
     <string name="kagari_about_based_on">Based on Flare</string>
+    <string name="kagari_cw_title">Content warnings</string>
+    <string name="kagari_cw_none">None</string>
+    <string name="kagari_cw_dialog_title">Add a content warning</string>
+    <string name="kagari_cw_dialog_description">Please add any content warning labels that are applicable for the media you are posting.</string>
+    <string name="kagari_cw_adult">Adult Content</string>
+    <string name="kagari_cw_sexual">Suggestive</string>
+    <string name="kagari_cw_nudity">Nudity</string>
+    <string name="kagari_cw_porn">Adult</string>
+    <string name="kagari_cw_sexual_description">Pictures meant for adults.</string>
+    <string name="kagari_cw_nudity_description">Artistic or non-erotic nudity.</string>
+    <string name="kagari_cw_porn_description">Sexual activity or erotic nudity.</string>
+    <string name="kagari_cw_other">Other</string>
+    <string name="kagari_cw_graphic">Graphic Media</string>
+    <string name="kagari_cw_graphic_description">Media that may be disturbing or inappropriate for some audiences.</string>
+    <string name="kagari_cw_done">Done</string>
 </resources>
