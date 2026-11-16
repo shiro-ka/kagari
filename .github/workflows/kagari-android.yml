@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 permissions:
   contents: read
@@ -134,6 +135,7 @@ jobs:
   release:
     name: Publish release
     needs: [apk, emulator]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
