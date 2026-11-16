@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -1722,25 +1723,17 @@ private fun ExpandedCard(
     card: UiCard,
     modifier: Modifier = Modifier,
 ) {
-    val appearanceSettings = LocalTimelineAppearance.current
     Column(
         modifier = modifier,
     ) {
         card.media?.let { media ->
-            AdaptiveGrid(
-                itemCount = 1,
-                itemContent = {
-                    MediaItem(
-                        media = media,
-                        keepAspectRatio = appearanceSettings.expandMediaSize,
-                        modifier =
-                            Modifier
-                                .clipToBounds(),
-                    )
-                },
-                expandedSize = appearanceSettings.expandMediaSize,
+            MediaItem(
+                media = media,
+                keepAspectRatio = false,
                 modifier =
                     Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(KAGARI_LINK_CARD_ASPECT_RATIO)
                         .clipToBounds(),
             )
         }
