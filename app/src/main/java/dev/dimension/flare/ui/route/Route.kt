@@ -227,7 +227,9 @@ internal sealed interface Route : NavKey {
         data class WebCookieLogin(
             val request: LoginEffect.OpenWebCookieLogin,
             val callback: suspend (LoginCookieSnapshot) -> Boolean,
-        ) : ServiceSelect
+        ) : ServiceSelect {
+            override fun toString(): String = "WebCookieLogin(request=$request)"
+        }
     }
 
     @Serializable
