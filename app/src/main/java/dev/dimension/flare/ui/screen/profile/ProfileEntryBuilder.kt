@@ -292,7 +292,7 @@ internal fun EntryProviderScope<NavKey>.profileEntryBuilder(
     entry<Route.ReportUser>(
         metadata = DialogSceneStrategy.dialog()
     ) {
-        ReportUserDialog(
+        KagariReportUserDialog(
             accountType = it.accountType,
             userKey = it.userKey,
             onBack = onBack,
