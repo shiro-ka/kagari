@@ -63,7 +63,8 @@ internal class BlueskyLoader(
         return UiRelation(
             following = user.viewer?.following?.atUri != null,
             isFans = user.viewer?.followedBy?.atUri != null,
-            blocking = user.viewer?.blockedBy ?: false,
+            blocking = user.viewer?.blocking?.atUri != null,
+            blockedBy = user.viewer?.blockedBy ?: false,
             muted = user.viewer?.muted ?: false,
         )
     }
