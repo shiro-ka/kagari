@@ -63,6 +63,7 @@ public data object BlueskyLoginProvider : LoginPlatformProvider {
             LoginMethodSpec(
                 type = LoginMethodType.OAuth,
                 title = UiStrings.OAuthLogin,
+                priority = 20,
             ),
         )
 
@@ -418,17 +419,8 @@ private class BlueskyOAuthLoginHandler(
         loading: Boolean = false,
         error: String? = null,
     ): LoginFlowState {
-        val username = values[USERNAME_FIELD].orEmpty()
         return LoginFlowState(
-            fields =
-                listOf(
-                    LoginField(
-                        id = USERNAME_FIELD,
-                        type = LoginFieldType.TextInput,
-                        label = UiStrings.Username,
-                        value = username,
-                    ),
-                ),
+            fields = emptyList(),
             actions =
                 buildList {
                     if (pendingRepair != null) {
@@ -444,7 +436,7 @@ private class BlueskyOAuthLoginHandler(
                         LoginAction(
                             id = LOGIN_ACTION,
                             label = UiStrings.Login,
-                            enabled = !loading && username.isNotBlank(),
+                            enabled = !loading,
                         ),
                     )
                 },
