@@ -418,6 +418,10 @@ private fun GenericLoginContent(
     registerDeeplinkCallback: @Composable ((url: String) -> Boolean) -> Unit,
 ) {
     if (methods.isEmpty()) return
+    if (kagariUsesStackedLogin(platformId, methods)) {
+        KagariStackedLoginContent(state, platformId, host, openUri, onWebViewLogin, registerDeeplinkCallback)
+        return
+    }
     var selectedMethod by remember(platformId, host) { mutableStateOf(methods.first().type) }
     val selectedSpec = methods.firstOrNull { it.type == selectedMethod } ?: methods.first()
     val handler =
@@ -563,11 +567,12 @@ internal fun LoginFlowContent(
 }
 
 @Composable
-private fun LoginFieldInput(
+internal fun LoginFieldInput(
     field: LoginField,
     enabled: Boolean,
     onUpdate: (String, String) -> Unit,
     onSubmit: () -> Unit,
+    modifier: Modifier = Modifier.width(300.dp),
 ) {
     val textState = rememberTextFieldState(field.value)
     val currentOnUpdate by rememberUpdatedState(onUpdate)
@@ -618,7 +623,7 @@ private fun LoginFieldInput(
                 label = label,
                 placeholder = placeholder,
                 enabled = enabled,
-                modifier = Modifier.width(300.dp),
+                modifier = modifier,
                 keyboardOptions = keyboardOptions,
                 onKeyboardAction = {
                     onSubmit()
@@ -634,7 +639,7 @@ private fun LoginFieldInput(
                 label = label,
                 placeholder = placeholder,
                 enabled = enabled,
-                modifier = Modifier.width(300.dp),
+                modifier = modifier,
                 lineLimits = TextFieldLineLimits.SingleLine,
                 keyboardOptions = keyboardOptions,
                 onKeyboardAction = {
@@ -647,7 +652,7 @@ private fun LoginFieldInput(
             PlatformText(
                 text = field.value,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(300.dp),
+                modifier = modifier,
             )
         }
     }
