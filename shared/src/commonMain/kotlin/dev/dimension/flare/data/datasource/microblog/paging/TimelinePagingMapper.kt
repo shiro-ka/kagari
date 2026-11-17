@@ -72,7 +72,7 @@ internal object TimelinePagingMapper {
                 pagingKey,
                 presentation?.notificationKey?.let {
                     "notification:${DbStatus.createId(root.accountType as DbAccountType, it)}"
-                } ?: rootStatus.data.id,
+                } ?: (rootStatus.data.id + presentation?.message.kagariRowSuffix()),
             )
         val semanticReferences =
             when (root) {
@@ -235,7 +235,10 @@ internal object TimelinePagingMapper {
             items.forEachIndexed { index, item ->
                 val root = contentByStatusId.getValue(item.statusData.id)
                 val resolvedRoot = root.resolveSemanticReferences(item.references, contentByStatusId)
-                val itemKey = item.timeline.notificationKey?.let { item.timeline._id } ?: "${pagingKey}_${item.statusData.id}"
+                val itemKey =
+                    item.timeline.notificationKey?.let { item.timeline._id }
+                        ?: item.timeline._id.takeIf { item.timeline.message.kagariIsPinned() }
+                        ?: "${pagingKey}_${item.statusData.id}"
                 val baseItem =
                     if (resolvedRoot is UiTimelineV2.Post) {
                         UiTimelineV2.TimelinePostItem(
