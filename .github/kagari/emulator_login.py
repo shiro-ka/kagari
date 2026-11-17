@@ -180,10 +180,7 @@ def open_post_detail():
     root = dump()
     if root is None:
         return
-    posts = [
-        n for n in root.iter("node")
-        if len(n.get("text") or "") > 30 and not (n.get("text") or "").startswith("http")
-    ]
+    posts = [n for n in root.iter("node") if (n.get("text") or "").endswith(" ago")]
     if not posts:
         shot("detail-missing")
         return
