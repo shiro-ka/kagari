@@ -218,17 +218,17 @@ internal class AccountRepository internal constructor(
             }
             restoreAccountsLocked(listOf(account.accountKey)) {
                 val credentialJson = credential.encodeJson(serializer)
+                val maxSortId = appDatabase.accountDao().getMaxSortId()
                 val dbAccount =
                     existingAccount?.copy(
                         platformId = account.platformId,
                         credential_json = credentialJson,
-                        last_active = Clock.System.now().toEpochMilliseconds(),
                     ) ?: DbAccount(
                         account_key = account.accountKey,
                         platformId = account.platformId,
                         credential_json = credentialJson,
-                        last_active = Clock.System.now().toEpochMilliseconds(),
-                        sort_id = appDatabase.accountDao().getMaxSortId()?.plus(1) ?: 0L,
+                        last_active = if (maxSortId == null) Clock.System.now().toEpochMilliseconds() else 0L,
+                        sort_id = maxSortId?.plus(1) ?: 0L,
                     )
                 appDatabase.accountDao().insert(dbAccount)
             }
