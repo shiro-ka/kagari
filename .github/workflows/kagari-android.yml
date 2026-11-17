@@ -15,8 +15,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    name: Compile check
+    if: ${{ !(github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: 25
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Compile
+        run: ./gradlew :app:compileDebugKotlin :app:mergeDebugResources --stacktrace
+
   apk:
     name: Signed APK
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
