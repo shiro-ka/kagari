@@ -346,8 +346,9 @@ public class RelationHandler(
     }
 
     private fun DbPagingTimelineWithStatus.containsUser(userKey: MicroBlogKey): Boolean =
-        status.status.data.content
-            .containsUser(userKey) ||
+        timeline.message?.user?.key == userKey ||
+            status.status.data.content
+                .containsUser(userKey) ||
             status.references.any { reference ->
                 reference.status
                     ?.data

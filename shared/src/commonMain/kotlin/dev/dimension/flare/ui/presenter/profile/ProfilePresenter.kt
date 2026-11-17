@@ -146,6 +146,10 @@ public class ProfilePresenter(
                                 val tabId = "${accountType}_${actualUserKey}_${tab.id}"
                                 val timelinePresenter =
                                     object : TimelinePresenter() {
+                                        init {
+                                            sourceActive = kagariProfileSourceActive(relationStateFlow)
+                                        }
+
                                         override val loader: Flow<RemoteLoader<UiTimelineV2>>
                                             get() = flowOf(tab.loader)
                                     }

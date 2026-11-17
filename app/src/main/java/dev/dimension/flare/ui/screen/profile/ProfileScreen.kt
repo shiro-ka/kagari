@@ -268,15 +268,10 @@ internal fun ProfileScreen(
             .relationState
             .takeSuccessOr(UiRelation())
             .blocking
-    var kagariWasBlocked by remember(accountType, userKey) { mutableStateOf(false) }
     LaunchedEffect(isBlockedProfile) {
         if (!isBlockedProfile) {
             showBlockedProfileContent = false
-            if (kagariWasBlocked) {
-                state.state.retryTabs()
-            }
         }
-        kagariWasBlocked = isBlockedProfile
     }
     val windowSize =
         with(LocalDensity.current) {
