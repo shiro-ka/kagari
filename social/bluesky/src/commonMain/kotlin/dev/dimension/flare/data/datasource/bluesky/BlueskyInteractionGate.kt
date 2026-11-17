@@ -253,6 +253,47 @@ internal suspend fun saveBlueskyInteractionGate(
     }
 }
 
+internal suspend fun setBlueskyQuoteDetached(
+    service: BlueskyService,
+    accountKey: MicroBlogKey,
+    quotedPostUri: String,
+    quotingPostUri: String,
+    detach: Boolean,
+) {
+    val rkey = RKey(quotedPostUri.substringAfterLast('/'))
+    val repo = Did(did = accountKey.id)
+    val existing =
+        service
+            .getRecord(
+                params = GetRecordQueryParams(repo = repo, collection = Nsid("app.bsky.feed.postgate"), rkey = rkey),
+            ).maybeResponse()
+            ?.value
+            ?.let { runCatching { it.decodeAs<Postgate>() }.getOrNull() }
+    val target = AtUri(quotingPostUri)
+    val others = existing?.detachedEmbeddingUris.orEmpty().filterNot { it == target }
+    val detached = if (detach) others + target else others
+    val rules = existing?.embeddingRules
+    if (detached.isEmpty() && rules.isNullOrEmpty()) {
+        service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.postgate"), rkey = rkey))
+    } else {
+        service
+            .putRecord(
+                PutRecordRequest(
+                    repo = repo,
+                    collection = Nsid("app.bsky.feed.postgate"),
+                    rkey = rkey,
+                    record =
+                        Postgate(
+                            createdAt = existing?.createdAt ?: Clock.System.now(),
+                            post = AtUri(quotedPostUri),
+                            detachedEmbeddingUris = detached.ifEmpty { null },
+                            embeddingRules = rules,
+                        ).bskyJson(),
+                ),
+            ).requireResponse()
+    }
+}
+
 internal class KagariTooManyHiddenRepliesException : IllegalStateException("too many hidden replies")
 
 internal data class BlueskyReplyVisibility(

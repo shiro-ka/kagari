@@ -757,6 +757,15 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariDetachQuoteRoute -> {
+                    KagariDetachQuoteDialogRoute(
+                        statusKey = deeplinkRoute.statusKey,
+                        accountType = deeplinkRoute.accountType,
+                        quotedUri = deeplinkRoute.quotedUri,
+                        detach = deeplinkRoute.detach,
+                    )
+                }
+
                 is KagariVerificationRoute -> {
                     KagariVerificationDialogRoute(
                         accountType = AccountType.Specific(deeplinkRoute.accountKey),

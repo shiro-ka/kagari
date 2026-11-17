@@ -1055,6 +1055,7 @@ internal fun PostView.render(
                             } else {
                                 add(ActionMenu.Divider)
                                 addAll(kagariHideReplyMenu(accountKey, statusKey))
+                                addAll(kagariDetachQuoteMenu(accountKey, statusKey))
                                 addAll(
                                     userActionsMenu(
                                         accountKey = accountKey,

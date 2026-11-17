@@ -74,4 +74,13 @@
     <string name="kagari_moderation_released">解除しました</string>
     <string name="kagari_settings_show_hidden_replies">隠された返信を表示する</string>
     <string name="kagari_settings_show_hidden_replies_description">Bluesky のスレッドの一番下に、投稿者が非表示にした返信を出します</string>
+    <string name="kagari_detach_quote_title">引用を外しますか？</string>
+    <string name="kagari_detach_quote_message">この投稿の中に、あなたの投稿が表示されなくなります。この投稿そのものは消えません。</string>
+    <string name="kagari_detach_quote_confirm">外す</string>
+    <string name="kagari_detach_quote_done">引用を外しました</string>
+    <string name="kagari_reattach_quote_title">引用を戻しますか？</string>
+    <string name="kagari_reattach_quote_message">この投稿の中に、あなたの投稿がまた表示されるようになります。</string>
+    <string name="kagari_reattach_quote_confirm">戻す</string>
+    <string name="kagari_reattach_quote_done">引用を戻しました</string>
+    <string name="kagari_detach_quote_failed">引用の変更に失敗しました。もう一度お試しください</string>
 </resources>

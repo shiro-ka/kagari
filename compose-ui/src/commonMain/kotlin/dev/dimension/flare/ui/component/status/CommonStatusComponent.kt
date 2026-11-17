@@ -1406,6 +1406,8 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.KagariUnpinPost,
                     ActionMenu.Item.Text.Localized.Type.KagariMuteThread,
                     ActionMenu.Item.Text.Localized.Type.KagariUnmuteThread,
+                    ActionMenu.Item.Text.Localized.Type.KagariDetachQuote,
+                    ActionMenu.Item.Text.Localized.Type.KagariReattachQuote,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)

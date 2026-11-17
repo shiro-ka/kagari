@@ -43,3 +43,11 @@ internal data class KagariModerationListRoute(
     val accountKey: MicroBlogKey,
     val kind: KagariModerationListKind,
 ) : Route.Settings
+
+@Serializable
+internal data class KagariDetachQuoteDialogRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val quotedUri: String,
+    val detach: Boolean,
+) : Route.Status

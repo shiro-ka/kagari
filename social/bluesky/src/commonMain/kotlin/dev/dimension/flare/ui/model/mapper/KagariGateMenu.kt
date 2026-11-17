@@ -1,11 +1,14 @@
 package dev.dimension.flare.ui.model.mapper
 
+import app.bsky.embed.RecordViewRecordUnion
 import app.bsky.feed.PostView
+import app.bsky.feed.PostViewEmbedUnion
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
+import dev.dimension.flare.ui.route.KagariDetachQuoteRoute
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateRoute
 import dev.dimension.flare.ui.route.KagariMuteThreadRoute
@@ -159,6 +162,49 @@ internal fun PostView.kagariMuteThreadMenu(
                         accountType = AccountType.Specific(accountKey),
                         rootUri = rootUri,
                         mute = !muted,
+                    ),
+                ),
+        ),
+    )
+}
+
+internal fun PostView.kagariDetachQuoteMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+): List<ActionMenu> {
+    val embed = runCatching { record.decodeAs<JsonObject>()["embed"]?.jsonObject }.getOrNull() ?: return emptyList()
+    val inner = embed["record"]?.jsonObject ?: return emptyList()
+    val quotedUri =
+        inner["uri"]?.jsonPrimitive?.contentOrNull
+            ?: inner["record"]?.jsonObject?.get("uri")?.jsonPrimitive?.contentOrNull
+            ?: return emptyList()
+    if (quotedUri.removePrefix("at://").substringBefore('/') != accountKey.id) return emptyList()
+    val quoted =
+        when (val view = this.embed) {
+            is PostViewEmbedUnion.RecordView -> view.value.record
+            is PostViewEmbedUnion.RecordWithMediaView -> view.value.record.record
+            else -> null
+        }
+    val detached = quoted is RecordViewRecordUnion.ViewDetached
+    return listOf(
+        ActionMenu.Item(
+            icon = UiIcon.KagariHideReply,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type =
+                        if (detached) {
+                            ActionMenu.Item.Text.Localized.Type.KagariReattachQuote
+                        } else {
+                            ActionMenu.Item.Text.Localized.Type.KagariDetachQuote
+                        },
+                ),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariDetachQuoteRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        quotedUri = quotedUri,
+                        detach = !detached,
                     ),
                 ),
         ),

@@ -75,4 +75,13 @@
     <string name="kagari_moderation_released">Undone</string>
     <string name="kagari_settings_show_hidden_replies">Show hidden replies</string>
     <string name="kagari_settings_show_hidden_replies_description">Show replies hidden by the author at the bottom of Bluesky threads</string>
+    <string name="kagari_detach_quote_title">Detach quote?</string>
+    <string name="kagari_detach_quote_message">Your post will no longer be shown inside this post. The post itself stays.</string>
+    <string name="kagari_detach_quote_confirm">Detach</string>
+    <string name="kagari_detach_quote_done">Quote detached</string>
+    <string name="kagari_reattach_quote_title">Reattach quote?</string>
+    <string name="kagari_reattach_quote_message">Your post will be shown inside this post again.</string>
+    <string name="kagari_reattach_quote_confirm">Reattach</string>
+    <string name="kagari_reattach_quote_done">Quote reattached</string>
+    <string name="kagari_detach_quote_failed">Failed to change the quote, please try again</string>
 </resources>

@@ -181,6 +181,8 @@ public sealed class ActionMenu {
                     KagariUnpinPost,
                     KagariMuteThread,
                     KagariUnmuteThread,
+                    KagariDetachQuote,
+                    KagariReattachQuote,
                 }
             }
         }
