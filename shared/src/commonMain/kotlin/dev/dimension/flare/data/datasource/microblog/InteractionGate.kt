@@ -45,4 +45,5 @@ public class InteractionGateConfig(
     public val loadDefault: suspend () -> InteractionGate,
     public val saveDefault: suspend (InteractionGate) -> Unit,
     public val loadLists: suspend () -> List<InteractionGateList>,
+    public val cachedDefault: () -> InteractionGate? = { null },
 )

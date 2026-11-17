@@ -61,7 +61,11 @@ internal class KagariInteractionGateState(
     var showDialog by mutableStateOf(false)
         private set
     var defaultLoadFailed by mutableStateOf(false)
+    var defaultLoading by mutableStateOf(false)
     var userChanged = false
+
+    val blocksSend: Boolean
+        get() = enabled && defaultLoading && !userChanged
 
     val enabled: Boolean
         get() = configProvider() != null
@@ -94,6 +98,7 @@ internal class KagariInteractionGateState(
         userChanged = true
         gate = gate.copy(reply = reply)
         defaultLoadFailed = false
+        defaultLoading = false
         showDialog = false
         if (saveAsDefault) {
             val config = configProvider() ?: return
@@ -114,16 +119,26 @@ internal fun rememberKagariInteractionGateState(config: InteractionGateConfig?):
     LaunchedEffect(hasConfig) {
         val value = currentConfig ?: return@LaunchedEffect
         state.defaultLoadFailed = false
+        val cached = value.cachedDefault()
+        if (cached != null && !state.userChanged) {
+            state.gate = cached
+        }
+        state.defaultLoading = cached == null
         for (attempt in 0 until 3) {
             val loaded = runCatching { value.loadDefault() }.getOrNull()
-            if (state.userChanged) return@LaunchedEffect
+            if (state.userChanged) {
+                state.defaultLoading = false
+                return@LaunchedEffect
+            }
             if (loaded != null) {
                 state.gate = loaded
+                state.defaultLoading = false
                 return@LaunchedEffect
             }
             delay(1500L * (attempt + 1))
         }
-        state.defaultLoadFailed = true
+        state.defaultLoading = false
+        if (cached == null) state.defaultLoadFailed = true
     }
     return state
 }
@@ -164,7 +179,9 @@ internal fun KagariReplyGateRow(
         )
         Text(
             text =
-                if (state.defaultLoadFailed) {
+                if (state.defaultLoading && !state.userChanged) {
+                    stringResource(R.string.kagari_gate_default_loading)
+                } else if (state.defaultLoadFailed) {
                     stringResource(R.string.kagari_gate_default_load_failed, replySummary(reply))
                 } else {
                     stringResource(R.string.kagari_gate_reply_label, replySummary(reply))

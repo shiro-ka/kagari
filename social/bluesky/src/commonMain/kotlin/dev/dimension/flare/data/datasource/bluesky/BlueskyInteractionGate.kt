@@ -38,8 +38,19 @@ import sh.christian.ozone.api.Did
 import sh.christian.ozone.api.Nsid
 import sh.christian.ozone.api.RKey
 import sh.christian.ozone.api.model.JsonContent
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlin.random.Random
 import kotlin.time.Clock
+
+private val kagariGateDefaults = MutableStateFlow<Map<MicroBlogKey, InteractionGate>>(emptyMap())
+
+private fun rememberKagariGateDefault(
+    accountKey: MicroBlogKey,
+    gate: InteractionGate,
+) {
+    kagariGateDefaults.update { it + (accountKey to gate) }
+}
 
 internal fun blueskyInteractionGateConfig(
     accountKey: MicroBlogKey,
@@ -47,16 +58,19 @@ internal fun blueskyInteractionGateConfig(
 ): InteractionGateConfig =
     InteractionGateConfig(
         loadDefault = {
-            getService()
-                .getPreferences()
-                .requireResponse()
-                .preferences
-                .filterIsInstance<PreferencesUnion.PostInteractionSettingsPref>()
-                .firstOrNull()
-                ?.value
-                ?.toInteractionGate()
-                ?: InteractionGate()
+            (
+                getService()
+                    .getPreferences()
+                    .requireResponse()
+                    .preferences
+                    .filterIsInstance<PreferencesUnion.PostInteractionSettingsPref>()
+                    .firstOrNull()
+                    ?.value
+                    ?.toInteractionGate()
+                    ?: InteractionGate()
+            ).also { rememberKagariGateDefault(accountKey, it) }
         },
+        cachedDefault = { kagariGateDefaults.value[accountKey] },
         saveDefault = { gate ->
             val service = getService()
             val current =
@@ -73,6 +87,7 @@ internal fun blueskyInteractionGateConfig(
                                 .toImmutableList(),
                     ),
             )
+            rememberKagariGateDefault(accountKey, gate)
         },
         loadLists = {
             getService()

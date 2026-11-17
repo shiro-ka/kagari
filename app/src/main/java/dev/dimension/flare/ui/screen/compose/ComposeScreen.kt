@@ -1384,7 +1384,7 @@ private fun composePresenter(
                 it.toString()
             }
         val textFieldState = textFieldState
-        val canSend = state.canSend && pollState.canSend && !hasPollMediaConflict
+        val canSend = state.canSend && pollState.canSend && !hasPollMediaConflict && !interactionGate.blocksSend
         val canPoll = canPoll
         val canMedia = canMedia
         val pollState = pollState

@@ -111,6 +111,7 @@ import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -157,6 +158,7 @@ internal class BlueskyDataSource(
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
     private val kagariSettingsRepository: SettingsRepository by koinInject()
+
     private val linkCardResolver = BlueskyLinkCardResolver(ProxyRef.forAccount(accountKey))
     private var cachedPdsService: BlueskyService? = null
 
@@ -1123,6 +1125,12 @@ internal class BlueskyDataSource(
             getService = this::pdsService,
             accountKey = accountKey,
         )
+
+    init {
+        coroutineScope.launch {
+            runCatching { blueskyInteractionGateConfig(accountKey, this@BlueskyDataSource::pdsService).loadDefault() }
+        }
+    }
 }
 
 internal inline fun <reified T : Any> T.bskyJson(): JsonContent = bskyJson.encodeAsJsonContent(this)
