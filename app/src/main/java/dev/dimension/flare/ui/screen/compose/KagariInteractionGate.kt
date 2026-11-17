@@ -48,6 +48,7 @@ import dev.dimension.flare.data.datasource.microblog.InteractionGateConfig
 import dev.dimension.flare.data.datasource.microblog.InteractionGateList
 import dev.dimension.flare.ui.component.FAIcon
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 internal class KagariInteractionGateState(
@@ -59,6 +60,8 @@ internal class KagariInteractionGateState(
         private set
     var showDialog by mutableStateOf(false)
         private set
+    var defaultLoadFailed by mutableStateOf(false)
+    var userChanged = false
 
     val enabled: Boolean
         get() = configProvider() != null
@@ -66,6 +69,7 @@ internal class KagariInteractionGateState(
     fun composeValue(): InteractionGate? = if (enabled) gate else null
 
     fun toggleQuote() {
+        userChanged = true
         gate = gate.copy(allowQuote = !gate.allowQuote)
     }
 
@@ -87,7 +91,9 @@ internal class KagariInteractionGateState(
         reply: InteractionGate.Reply,
         saveAsDefault: Boolean,
     ) {
+        userChanged = true
         gate = gate.copy(reply = reply)
+        defaultLoadFailed = false
         showDialog = false
         if (saveAsDefault) {
             val config = configProvider() ?: return
@@ -107,7 +113,17 @@ internal fun rememberKagariInteractionGateState(config: InteractionGateConfig?):
     val hasConfig = config != null
     LaunchedEffect(hasConfig) {
         val value = currentConfig ?: return@LaunchedEffect
-        runCatching { value.loadDefault() }.onSuccess { state.gate = it }
+        state.defaultLoadFailed = false
+        for (attempt in 0 until 3) {
+            val loaded = runCatching { value.loadDefault() }.getOrNull()
+            if (state.userChanged) return@LaunchedEffect
+            if (loaded != null) {
+                state.gate = loaded
+                return@LaunchedEffect
+            }
+            delay(1500L * (attempt + 1))
+        }
+        state.defaultLoadFailed = true
     }
     return state
 }
@@ -121,10 +137,10 @@ internal fun KagariReplyGateRow(
     val reply = state.gate.reply
     val restricted = reply !is InteractionGate.Reply.Anyone && !(reply is InteractionGate.Reply.Some && reply.isEmpty)
     val color =
-        if (restricted) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+        when {
+            state.defaultLoadFailed -> MaterialTheme.colorScheme.error
+            restricted -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
         }
     Row(
         modifier =
@@ -147,7 +163,12 @@ internal fun KagariReplyGateRow(
             tint = color,
         )
         Text(
-            text = stringResource(R.string.kagari_gate_reply_label, replySummary(reply)),
+            text =
+                if (state.defaultLoadFailed) {
+                    stringResource(R.string.kagari_gate_default_load_failed, replySummary(reply))
+                } else {
+                    stringResource(R.string.kagari_gate_reply_label, replySummary(reply))
+                },
             style = MaterialTheme.typography.labelMedium,
             color = color,
         )

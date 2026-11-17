@@ -83,4 +83,5 @@
     <string name="kagari_reattach_quote_confirm">戻す</string>
     <string name="kagari_reattach_quote_done">引用を戻しました</string>
     <string name="kagari_detach_quote_failed">引用の変更に失敗しました。もう一度お試しください</string>
+    <string name="kagari_gate_default_load_failed">既定を読み込めませんでした。返信: %1$s</string>
 </resources>
