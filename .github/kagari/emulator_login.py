@@ -200,8 +200,8 @@ def open_post_detail():
     adb("shell", "input", "keyevent", "KEYCODE_BACK")
     time.sleep(3)
     if find("Compose", timeout=5) is None:
-        adb("shell", "monkey", "-p", "lab49.kagari", "1")
-        time.sleep(8)
+        adb("shell", "input", "swipe", "540", "900", "540", "1500", "300")
+        time.sleep(3)
 
 
 def main():
