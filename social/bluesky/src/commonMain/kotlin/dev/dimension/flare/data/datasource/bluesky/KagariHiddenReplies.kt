@@ -26,7 +26,7 @@ internal suspend fun BlueskyService.kagariHiddenReplies(
         ).requireResponse()
     val posts =
         response.thread.mapNotNull {
-            (it.value as? GetPostThreadOtherV2ThreadItemValueUnion.Post)?.value?.post
+            (it.value as? GetPostThreadOtherV2ThreadItemValueUnion.ThreadItemPost)?.value?.post
         }
     val downloadUrls = resolveBlueskyVideoDownloadUrls(posts, accountKey)
     return posts.mapNotNull { post ->
