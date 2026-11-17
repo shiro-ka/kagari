@@ -23,10 +23,12 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
+import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.status.StatusItem
 import dev.dimension.flare.ui.model.isSuccess
@@ -36,6 +38,7 @@ import dev.dimension.flare.ui.theme.first
 import dev.dimension.flare.ui.theme.item
 import dev.dimension.flare.ui.theme.last
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import kotlinx.collections.immutable.persistentMapOf
 import moe.tlaster.precompose.molecule.producePresenter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -126,6 +129,21 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
                         },
                     )
                 },
+            )
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.kagari_settings_verified_badge)) },
+                supporting = { Text(text = stringResource(id = R.string.kagari_settings_verified_badge_description)) },
+                items =
+                    persistentMapOf(
+                        KagariVerifiedBadge.Off to stringResource(id = R.string.kagari_settings_verified_badge_off),
+                        KagariVerifiedBadge.Simple to stringResource(id = R.string.kagari_settings_verified_badge_simple),
+                        KagariVerifiedBadge.On to stringResource(id = R.string.kagari_settings_verified_badge_on),
+                    ),
+                selected = LocalGlobalAppearance.current.kagariVerifiedBadge,
+                onSelected = {
+                    state.update(AppearanceKeys.KagariVerifiedBadge, it)
+                },
+                shapes = ListItemDefaults.item(),
             )
             SegmentedListItem(
                 onClick = {

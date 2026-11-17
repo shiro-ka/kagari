@@ -56,4 +56,9 @@
     <string name="kagari_thread_muted">これ以降、このスレッドに関する通知を受け取ることはできなくなります</string>
     <string name="kagari_thread_unmuted">これ以降、このスレッドに関する通知を受け取ることができます</string>
     <string name="kagari_thread_mute_failed">スレッドのミュートの切り替えに失敗しました。もう一度お試しください</string>
+    <string name="kagari_settings_verified_badge">認証のチェック</string>
+    <string name="kagari_settings_verified_badge_description">サービスが本人と確認したアカウントの名前の横にチェックを付けます</string>
+    <string name="kagari_settings_verified_badge_off">オフ</string>
+    <string name="kagari_settings_verified_badge_simple">シンプル</string>
+    <string name="kagari_settings_verified_badge_on">オン</string>
 </resources>

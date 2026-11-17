@@ -5,6 +5,7 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig
 import dev.dimension.flare.data.model.AvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
+import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.data.model.Theme
 import dev.dimension.flare.data.model.TimelineDisplayMode
@@ -26,6 +27,7 @@ public data class GlobalAppearance(
     val showBottomBarLabels: Boolean = AppearanceKeys.ShowBottomBarLabels.default,
     val deckMode: Boolean = AppearanceKeys.DeckMode.default,
     val showPostInMediaViewer: Boolean = AppearanceKeys.ShowPostInMediaViewer.default,
+    val kagariVerifiedBadge: KagariVerifiedBadge = AppearanceKeys.KagariVerifiedBadge.default,
 ) {
     public companion object {
         public val Default: GlobalAppearance = GlobalAppearance()
@@ -85,6 +87,7 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         showBottomBarLabels = get(AppearanceKeys.ShowBottomBarLabels),
         deckMode = get(AppearanceKeys.DeckMode),
         showPostInMediaViewer = get(AppearanceKeys.ShowPostInMediaViewer),
+        kagariVerifiedBadge = get(AppearanceKeys.KagariVerifiedBadge),
     )
 
 public fun AppearancePatch.toTimelineAppearance(): TimelineAppearance = toTimelineAppearance(override = null)

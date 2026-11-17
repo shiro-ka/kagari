@@ -19,6 +19,7 @@ import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.AvatarComponentDefaults
+import dev.dimension.flare.ui.component.KagariVerifiedCheck
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
@@ -72,14 +73,21 @@ public fun UserCompat(
                         },
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                RichText(
-                    text = name,
-                    color = profileNameColor(isPost),
-                    textStyle = profileNameTextStyle(isPost),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.alignByBaseline().then(nameModifier),
-                )
+                Row(
+                    modifier = Modifier.alignByBaseline(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RichText(
+                        text = name,
+                        color = profileNameColor(isPost),
+                        textStyle = profileNameTextStyle(isPost),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false).then(nameModifier),
+                    )
+                    KagariVerifiedCheck(user = user, size = 14.dp)
+                }
                 PlatformText(
                     text = subtitle,
                     style = if (isPost) PlatformTheme.typography.postBody else PlatformTheme.typography.caption,

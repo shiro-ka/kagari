@@ -27,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
@@ -54,7 +53,6 @@ import dev.dimension.flare.compose.ui.profile_header_button_requested
 import dev.dimension.flare.compose.ui.profile_mark_bot
 import dev.dimension.flare.compose.ui.profile_mark_cat
 import dev.dimension.flare.compose.ui.profile_mark_locked
-import dev.dimension.flare.compose.ui.profile_mark_verified
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.platform.PlatformErrorButton
 import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
@@ -301,19 +299,13 @@ private fun ProfileHeaderSuccess(
                 )
             }
         },
+        nameTrailing = {
+            KagariVerifiedCheck(user = user, size = 20.dp)
+        },
         handleTrailing = {
             user.mark.fastForEach {
                 when (it) {
-                    UiProfile.Mark.Verified -> {
-                        FAIcon(
-                            imageVector = FontAwesomeIcons.Solid.CircleCheck,
-                            contentDescription = stringResource(Res.string.profile_mark_verified),
-                            modifier =
-                                Modifier
-                                    .size(12.dp),
-                            tint = Color.Blue,
-                        )
-                    }
+                    UiProfile.Mark.Verified -> Unit
 
                     UiProfile.Mark.Cat -> {
                         FAIcon(

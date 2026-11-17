@@ -57,4 +57,9 @@
     <string name="kagari_thread_muted">You will no longer receive notifications for this thread</string>
     <string name="kagari_thread_unmuted">You will now receive notifications for this thread</string>
     <string name="kagari_thread_mute_failed">Failed to toggle thread mute, please try again</string>
+    <string name="kagari_settings_verified_badge">Verification checks</string>
+    <string name="kagari_settings_verified_badge_description">Show a check next to the names of accounts verified by their service</string>
+    <string name="kagari_settings_verified_badge_off">Off</string>
+    <string name="kagari_settings_verified_badge_simple">Simple</string>
+    <string name="kagari_settings_verified_badge_on">On</string>
 </resources>

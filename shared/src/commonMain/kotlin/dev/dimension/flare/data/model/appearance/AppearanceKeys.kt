@@ -8,6 +8,7 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig as A
 import dev.dimension.flare.data.model.AvatarShape as AppearanceAvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior as AppearanceBottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle as AppearanceBottomBarStyle
+import dev.dimension.flare.data.model.KagariVerifiedBadge as AppearanceKagariVerifiedBadge
 import dev.dimension.flare.data.model.PostActionStyle as AppearancePostActionStyle
 import dev.dimension.flare.data.model.Theme as AppearanceTheme
 import dev.dimension.flare.data.model.TimelineDisplayMode as AppearanceTimelineDisplayMode
@@ -57,6 +58,12 @@ public object AppearanceKeys {
     public object ShowMedia : PerTimeline<Boolean>("timeline.show_media", true, Boolean.serializer())
 
     public object ShowPostInMediaViewer : Global<Boolean>("app.show_post_in_media_viewer", true, Boolean.serializer())
+
+    public object KagariVerifiedBadge : Global<AppearanceKagariVerifiedBadge>(
+        "app.kagari_verified_badge",
+        AppearanceKagariVerifiedBadge.Off,
+        AppearanceKagariVerifiedBadge.serializer(),
+    )
 
     public object ShowSensitiveContent : PerTimeline<Boolean>("timeline.show_sensitive_content", false, Boolean.serializer())
 
@@ -139,6 +146,7 @@ public object AppearanceKeys {
             DeckMode,
             ShowMedia,
             ShowPostInMediaViewer,
+            KagariVerifiedBadge,
             ShowSensitiveContent,
             ExpandContentWarning,
             ExpandMediaSize,

@@ -50,6 +50,7 @@ internal fun CommonProfileHeader(
     onBannerClick: (() -> Unit)? = null,
     headerTrailing: @Composable RowScope.() -> Unit = {},
     handleTrailing: @Composable RowScope.() -> Unit = {},
+    nameTrailing: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     val profileName = displayName.raw.ifBlank { handle.display }
@@ -186,16 +187,17 @@ internal fun CommonProfileHeader(
             ) {
                 SelectionContainer {
                     Column {
-                        RichText(
-                            text = displayName,
-                            textStyle = PlatformTheme.typography.profileName,
-//                        modifier =
-//                            Modifier
-//                                .sharedElement(
-//                                    rememberSharedContentState(key = "profile-display-name-$userKey"),
-//                                    animatedVisibilityScope = this@AnimatedVisibilityScope,
-//                                ),
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RichText(
+                                text = displayName,
+                                textStyle = PlatformTheme.typography.profileName,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                            nameTrailing.invoke(this)
+                        }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
