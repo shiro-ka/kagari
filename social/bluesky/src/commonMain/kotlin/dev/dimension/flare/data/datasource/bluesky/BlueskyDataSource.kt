@@ -272,13 +272,22 @@ internal class BlueskyDataSource(
                 )
             }
 
+            NotificationFilter.Mention -> {
+                NotificationRemoteMediator(
+                    getService = this::pdsService,
+                    accountKey,
+                    onClearMarker = {},
+                    reasons = listOf("mention", "reply", "quote"),
+                )
+            }
+
             else -> {
                 notSupported()
             }
         }
 
     override val supportedNotificationFilter: List<NotificationFilter>
-        get() = listOf(NotificationFilter.All)
+        get() = listOf(NotificationFilter.All, NotificationFilter.Mention)
 
     override fun userTimeline(
         userKey: MicroBlogKey,

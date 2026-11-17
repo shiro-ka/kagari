@@ -24,11 +24,16 @@ internal class NotificationRemoteMediator(
     private val getService: suspend () -> BlueskyService,
     private val accountKey: MicroBlogKey,
     private val onClearMarker: () -> Unit,
+    private val reasons: List<String> = emptyList(),
 ) : NotificationTimelineLoader {
     override val pagingKey: String =
         buildString {
             append("notification_")
             append(accountKey.toString())
+            if (reasons.isNotEmpty()) {
+                append("_")
+                append(reasons.joinToString("_"))
+            }
         }
 
     override suspend fun load(
@@ -42,17 +47,20 @@ internal class NotificationRemoteMediator(
                     service
                         .listNotifications(
                             ListNotificationsQueryParams(
+                                reasons = reasons,
                                 limit = pageSize.toLong(),
                             ),
                         ).maybeResponse()
                         .also {
-                            service.updateSeen(
-                                request =
-                                    UpdateSeenRequest(
-                                        seenAt = Clock.System.now(),
-                                    ),
-                            )
-                            onClearMarker.invoke()
+                            if (reasons.isEmpty()) {
+                                service.updateSeen(
+                                    request =
+                                        UpdateSeenRequest(
+                                            seenAt = Clock.System.now(),
+                                        ),
+                                )
+                                onClearMarker.invoke()
+                            }
                         }
                 }
 
@@ -60,6 +68,7 @@ internal class NotificationRemoteMediator(
                     service
                         .listNotifications(
                             ListNotificationsQueryParams(
+                                reasons = reasons,
                                 limit = pageSize.toLong(),
                                 cursor = request.nextKey,
                             ),
