@@ -62,8 +62,9 @@ jobs:
       - name: Set version
         run: |
           base=$(grep '^versionName=' fdroid.properties | cut -d= -f2)
-          echo "BUILD_NUMBER=${{ github.run_number }}" >> "$GITHUB_ENV"
-          echo "BUILD_VERSION=${base}-kagari.${{ github.run_number }}" >> "$GITHUB_ENV"
+          number=$(( ${{ github.run_number }} + 100 ))
+          echo "BUILD_NUMBER=${number}" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=${base}-kagari.${number}" >> "$GITHUB_ENV"
 
       - name: Rename app in strings
         run: python3 .github/kagari/rename-strings.py
