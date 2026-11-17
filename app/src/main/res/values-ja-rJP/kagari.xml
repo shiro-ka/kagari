@@ -61,4 +61,9 @@
     <string name="kagari_settings_verified_badge_off">オフ</string>
     <string name="kagari_settings_verified_badge_simple">シンプル</string>
     <string name="kagari_settings_verified_badge_on">オン</string>
+    <string name="kagari_verification_title">認証済みのアカウント</string>
+    <string name="kagari_verification_message">このアカウントは、次のアカウントに本人と確認されています。</string>
+    <string name="kagari_verification_message_simple">このアカウントは、サービスに本人と確認されています。</string>
+    <string name="kagari_verification_verified_on">%1$s に認証</string>
+    <string name="kagari_verification_close">閉じる</string>
 </resources>

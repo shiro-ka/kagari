@@ -8,8 +8,8 @@ internal fun kagariBlueskyVerifiedMarks(
     verifiedStatus: String?,
     trustedVerifierStatus: String?,
 ): PersistentList<UiProfile.Mark> =
-    if (verifiedStatus == "valid" || trustedVerifierStatus == "valid") {
-        persistentListOf(UiProfile.Mark.Verified)
-    } else {
-        persistentListOf()
+    when {
+        trustedVerifierStatus == "valid" -> persistentListOf(UiProfile.Mark.Verified, UiProfile.Mark.KagariTrustedVerifier)
+        verifiedStatus == "valid" -> persistentListOf(UiProfile.Mark.Verified)
+        else -> persistentListOf()
     }

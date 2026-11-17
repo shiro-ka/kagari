@@ -7,6 +7,8 @@ import dev.dimension.flare.ui.route.KagariHideReplyDialogRoute
 import dev.dimension.flare.ui.route.KagariMuteThreadDialogRoute
 import dev.dimension.flare.ui.route.KagariPinPostDialogRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateDialogRoute
+import dev.dimension.flare.ui.route.KagariVerificationDialogRoute
+import dev.dimension.flare.ui.screen.profile.KagariVerificationDialog
 import dev.dimension.flare.ui.screen.status.action.KagariHideReplyDialog
 import dev.dimension.flare.ui.screen.status.action.KagariMuteThreadAction
 import dev.dimension.flare.ui.screen.status.action.KagariPinPostAction
@@ -49,6 +51,15 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
             accountType = args.accountType,
             rootUri = args.rootUri,
             mute = args.mute,
+            onBack = onBack,
+        )
+    }
+    entry<KagariVerificationDialogRoute>(
+        metadata = DialogSceneStrategy.dialog(),
+    ) { args ->
+        KagariVerificationDialog(
+            accountType = args.accountType,
+            userKey = args.userKey,
             onBack = onBack,
         )
     }

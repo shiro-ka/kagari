@@ -69,6 +69,7 @@ import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.profile.FollowButtonState
 import dev.dimension.flare.ui.presenter.profile.ProfileState
 import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.KagariVerificationRoute
 import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.PlatformTheme
 import dev.dimension.flare.ui.theme.profileName
@@ -300,12 +301,26 @@ private fun ProfileHeaderSuccess(
             }
         },
         nameTrailing = {
-            KagariVerifiedCheck(user = user, size = 20.dp)
+            KagariVerifiedCheck(
+                user = user,
+                size = 20.dp,
+                onClick =
+                    myAccountKey.takeSuccess()?.let { accountKey ->
+                        {
+                            uriLauncher.openUri(
+                                KagariVerificationRoute(
+                                    accountKey = accountKey,
+                                    userKey = user.key,
+                                ).toUri(),
+                            )
+                        }
+                    },
+            )
         },
         handleTrailing = {
             user.mark.fastForEach {
                 when (it) {
-                    UiProfile.Mark.Verified -> Unit
+                    UiProfile.Mark.Verified, UiProfile.Mark.KagariTrustedVerifier -> Unit
 
                     UiProfile.Mark.Cat -> {
                         FAIcon(

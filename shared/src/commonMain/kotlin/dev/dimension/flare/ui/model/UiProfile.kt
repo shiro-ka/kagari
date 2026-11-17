@@ -157,6 +157,7 @@ public data class UiProfile public constructor(
         Cat,
         Bot,
         Locked,
+        KagariTrustedVerifier,
     }
 }
 

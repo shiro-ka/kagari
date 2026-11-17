@@ -30,3 +30,9 @@ internal data class KagariMuteThreadDialogRoute(
     val rootUri: String,
     val mute: Boolean,
 ) : Route.Status
+
+@Serializable
+internal data class KagariVerificationDialogRoute(
+    val accountType: AccountType,
+    val userKey: MicroBlogKey,
+) : Route.Status

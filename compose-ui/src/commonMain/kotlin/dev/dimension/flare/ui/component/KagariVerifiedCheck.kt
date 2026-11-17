@@ -1,5 +1,6 @@
 package dev.dimension.flare.ui.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,10 +19,11 @@ import org.jetbrains.compose.resources.stringResource
 private val kagariVerifiedBlue = Color(0xFF1083FE)
 
 @Composable
-internal fun KagariVerifiedCheck(
+public fun KagariVerifiedCheck(
     user: UiProfile,
     size: Dp,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     if (UiProfile.Mark.Verified !in user.mark) return
     val tint =
@@ -31,9 +33,17 @@ internal fun KagariVerifiedCheck(
             KagariVerifiedBadge.On -> kagariVerifiedBlue
         }
     FAIcon(
-        imageVector = FontAwesomeIcons.Solid.CircleCheck,
+        imageVector =
+            if (UiProfile.Mark.KagariTrustedVerifier in user.mark) {
+                KagariTrustedVerifierIcon
+            } else {
+                FontAwesomeIcons.Solid.CircleCheck
+            },
         contentDescription = stringResource(Res.string.profile_mark_verified),
-        modifier = modifier.size(size),
+        modifier =
+            modifier
+                .size(size)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         tint = tint,
     )
 }

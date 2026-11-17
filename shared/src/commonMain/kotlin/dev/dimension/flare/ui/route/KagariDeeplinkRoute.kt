@@ -30,3 +30,9 @@ public data class KagariMuteThreadRoute(
     val rootUri: String,
     val mute: Boolean,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariVerificationRoute(
+    val accountKey: MicroBlogKey,
+    val userKey: MicroBlogKey,
+) : DeeplinkRoute.Status()
