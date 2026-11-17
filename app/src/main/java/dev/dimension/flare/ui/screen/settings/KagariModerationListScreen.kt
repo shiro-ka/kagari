@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import dev.dimension.flare.R
+import dev.dimension.flare.common.isRefreshing
 import dev.dimension.flare.data.datasource.bluesky.kagariBlockedAccounts
 import dev.dimension.flare.data.datasource.bluesky.kagariMutedAccounts
 import dev.dimension.flare.model.AccountType
