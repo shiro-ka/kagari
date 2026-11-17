@@ -27,6 +27,7 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.compose.ui.Res
+import dev.dimension.flare.compose.ui.kagari_hidden_reply
 import dev.dimension.flare.compose.ui.bluesky_notification_item_starterpack_joined
 import dev.dimension.flare.compose.ui.mastodon_item_pinned
 import dev.dimension.flare.compose.ui.mastodon_notification_item_favourited_your_status
@@ -753,6 +754,10 @@ private fun TopMessageComponent(
 
                     UiTimelineV2.Message.Type.Localized.MessageId.Like -> {
                         stringResource(resource = Res.string.vvo_notification_like)
+                    }
+
+                    UiTimelineV2.Message.Type.Localized.MessageId.KagariHiddenReply -> {
+                        stringResource(resource = Res.string.kagari_hidden_reply)
                     }
                 }
             }

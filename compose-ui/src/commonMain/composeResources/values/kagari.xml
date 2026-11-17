@@ -17,4 +17,5 @@
     <string name="kagari_menu_unpin_post">Unpin from profile</string>
     <string name="kagari_menu_mute_thread">Mute thread</string>
     <string name="kagari_menu_unmute_thread">Unmute thread</string>
+    <string name="kagari_hidden_reply">Hidden reply</string>
 </resources>

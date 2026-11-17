@@ -17,4 +17,5 @@
     <string name="kagari_menu_unpin_post">プロフィールから固定を解除</string>
     <string name="kagari_menu_mute_thread">スレッドをミュート</string>
     <string name="kagari_menu_unmute_thread">スレッドのミュートを解除</string>
+    <string name="kagari_hidden_reply">非表示にされた返信</string>
 </resources>

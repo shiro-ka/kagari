@@ -80,6 +80,7 @@ import dev.dimension.flare.data.platform.BlueskyCredential
 import dev.dimension.flare.data.platform.BlueskyPlatformSpec
 import dev.dimension.flare.data.platform.CommonTimelineSpecs
 import dev.dimension.flare.data.platform.toTimelineCandidate
+import dev.dimension.flare.data.repository.SettingsRepository
 import dev.dimension.flare.data.repository.tryRun
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
@@ -108,6 +109,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -151,6 +153,7 @@ internal class BlueskyDataSource(
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
+    private val kagariSettingsRepository: SettingsRepository by koinInject()
     private val linkCardResolver = BlueskyLinkCardResolver(ProxyRef.forAccount(accountKey))
     private var cachedPdsService: BlueskyService? = null
 
@@ -310,6 +313,7 @@ internal class BlueskyDataSource(
         accountKey,
         statusOnly = false,
         sort = sort,
+        showHiddenReplies = { kagariSettingsRepository.globalAppearance.first().kagariShowHiddenReplies },
     )
 
     override suspend fun postDetailTabs(statusKey: MicroBlogKey): PostDetailTabs {

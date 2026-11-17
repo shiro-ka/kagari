@@ -47,6 +47,7 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val state by producePresenter { appearancePresenter() }
     val timelineAppearance = LocalTimelineAppearance.current
+    val globalAppearance = LocalGlobalAppearance.current
     FlareScaffold(
         topBar = {
             FlareLargeFlexibleTopAppBar(
@@ -139,11 +140,31 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
                         KagariVerifiedBadge.Simple to stringResource(id = R.string.kagari_settings_verified_badge_simple),
                         KagariVerifiedBadge.On to stringResource(id = R.string.kagari_settings_verified_badge_on),
                     ),
-                selected = LocalGlobalAppearance.current.kagariVerifiedBadge,
+                selected = globalAppearance.kagariVerifiedBadge,
                 onSelected = {
                     state.update(AppearanceKeys.KagariVerifiedBadge, it)
                 },
                 shapes = ListItemDefaults.item(),
+            )
+            SegmentedListItem(
+                onClick = {
+                    state.update(AppearanceKeys.KagariShowHiddenReplies, !globalAppearance.kagariShowHiddenReplies)
+                },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.kagari_settings_show_hidden_replies))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.kagari_settings_show_hidden_replies_description))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = globalAppearance.kagariShowHiddenReplies,
+                        onCheckedChange = {
+                            state.update(AppearanceKeys.KagariShowHiddenReplies, it)
+                        },
+                    )
+                },
             )
             SegmentedListItem(
                 onClick = {

@@ -73,4 +73,6 @@
     <string name="kagari_moderation_blocked_empty">You have not blocked any accounts</string>
     <string name="kagari_moderation_release">Undo</string>
     <string name="kagari_moderation_released">Undone</string>
+    <string name="kagari_settings_show_hidden_replies">Show hidden replies</string>
+    <string name="kagari_settings_show_hidden_replies_description">Show replies hidden by the author at the bottom of Bluesky threads</string>
 </resources>

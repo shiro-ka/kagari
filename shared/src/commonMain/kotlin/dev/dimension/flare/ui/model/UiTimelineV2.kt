@@ -172,6 +172,7 @@ public sealed class UiTimelineV2 {
                     StarterpackJoined,
                     Pinned,
                     Like,
+                    KagariHiddenReply,
                 }
             }
         }

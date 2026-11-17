@@ -27,6 +27,7 @@ internal class StatusDetailRemoteMediator(
     override val accountKey: MicroBlogKey,
     private val statusOnly: Boolean,
     private val sort: GetPostThreadV2Sort,
+    private val showHiddenReplies: suspend () -> Boolean = { false },
 ) : PostContextLoader {
     override val pagingKey: String =
         buildString {
@@ -60,12 +61,18 @@ internal class StatusDetailRemoteMediator(
         request: PagingRequest,
     ): PagingResult<UiTimelineV2> {
         val service = getService()
+        var kagariHasHiddenReplies = false
         val result: List<UiTimelineV2> =
             when (request) {
                 is PagingRequest.Append -> {
                     if (statusOnly) {
                         return PagingResult(
                             endOfPaginationReached = true,
+                        )
+                    } else if (request.nextKey == KAGARI_HIDDEN_REPLIES_KEY) {
+                        return PagingResult(
+                            endOfPaginationReached = true,
+                            data = service.kagariHiddenReplies(statusKey, accountKey),
                         )
                     } else {
                         val context =
@@ -78,6 +85,7 @@ internal class StatusDetailRemoteMediator(
                                         sort = sort,
                                     ),
                                 ).requireResponse()
+                        kagariHasHiddenReplies = context.hasOtherReplies == true && showHiddenReplies()
                         context.thread.renderThread(
                             accountKey,
                             resolveBlueskyVideoDownloadUrls(
@@ -108,6 +116,13 @@ internal class StatusDetailRemoteMediator(
                 }
             }
 
+        if (kagariHasHiddenReplies) {
+            return PagingResult(
+                endOfPaginationReached = false,
+                data = result,
+                nextKey = KAGARI_HIDDEN_REPLIES_KEY,
+            )
+        }
         val shouldLoadMore = !(request is PagingRequest.Append || statusOnly)
         return PagingResult(
             endOfPaginationReached = !shouldLoadMore,

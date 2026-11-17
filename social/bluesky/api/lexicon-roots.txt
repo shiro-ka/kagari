@@ -54,6 +54,7 @@ app.bsky.notification.updateSeen
 app.bsky.richtext.facet
 app.bsky.unspecced.defs
 app.bsky.unspecced.getPopularFeedGenerators
+app.bsky.unspecced.getPostThreadOtherV2
 app.bsky.unspecced.getPostThreadV2
 chat.bsky.actor.defs
 chat.bsky.convo.defs

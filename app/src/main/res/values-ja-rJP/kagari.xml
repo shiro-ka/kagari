@@ -72,4 +72,6 @@
     <string name="kagari_moderation_blocked_empty">ブロックしたアカウントはありません</string>
     <string name="kagari_moderation_release">解除</string>
     <string name="kagari_moderation_released">解除しました</string>
+    <string name="kagari_settings_show_hidden_replies">隠された返信を表示する</string>
+    <string name="kagari_settings_show_hidden_replies_description">Bluesky のスレッドの一番下に、投稿者が非表示にした返信を出します</string>
 </resources>

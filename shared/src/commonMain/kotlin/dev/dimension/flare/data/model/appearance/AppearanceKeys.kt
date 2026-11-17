@@ -65,6 +65,8 @@ public object AppearanceKeys {
         AppearanceKagariVerifiedBadge.serializer(),
     )
 
+    public object KagariShowHiddenReplies : Global<Boolean>("app.kagari_show_hidden_replies", false, Boolean.serializer())
+
     public object ShowSensitiveContent : PerTimeline<Boolean>("timeline.show_sensitive_content", false, Boolean.serializer())
 
     public object ExpandContentWarning : PerTimeline<Boolean>("timeline.expand_content_warning", false, Boolean.serializer())
@@ -147,6 +149,7 @@ public object AppearanceKeys {
             ShowMedia,
             ShowPostInMediaViewer,
             KagariVerifiedBadge,
+            KagariShowHiddenReplies,
             ShowSensitiveContent,
             ExpandContentWarning,
             ExpandMediaSize,
