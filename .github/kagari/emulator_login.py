@@ -189,6 +189,10 @@ def open_post_detail():
     time.sleep(8)
     shot("detail")
     dump("detail")
+    adb("shell", "input", "swipe", "540", "1900", "540", "700", "600")
+    time.sleep(4)
+    shot("detail-scrolled")
+    dump("detail-scrolled")
     for label, name in (("Quotes", "detail-quotes"), ("Liked by", "detail-liked-by")):
         if tap(label, timeout=5, exact=True):
             time.sleep(5)
