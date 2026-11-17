@@ -489,6 +489,10 @@ internal fun ComposeScreen(
                     )
                 }
             }
+            KagariMentionSuggestions(
+                textFieldState = state.textFieldState,
+                search = state.state.composeConfig.takeSuccess()?.kagariMentionSearch,
+            )
             state.mediaState.onSuccess { mediaState ->
                 AnimatedVisibility(mediaState.medias.isNotEmpty()) {
                     Column(

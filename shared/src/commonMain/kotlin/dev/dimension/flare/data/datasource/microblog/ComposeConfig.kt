@@ -27,6 +27,7 @@ public data class ComposeConfig public constructor(
     val language: Language? = null,
     val interactionGate: InteractionGateConfig? = null,
     val selfLabels: Boolean = false,
+    val kagariMentionSearch: KagariMentionSearch? = null,
     val supportedTypes: Set<ComposeType> = ComposeType.entries.toSet(),
     val canRestrictReplies: Boolean = false,
 ) {

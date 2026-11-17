@@ -1,5 +1,7 @@
 package dev.dimension.flare.data.datasource.bluesky
 
+import app.bsky.actor.SearchActorsTypeaheadQueryParams
+
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
 import androidx.paging.PagingData
@@ -31,6 +33,7 @@ import dev.dimension.flare.common.graphemeCount
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.ComposeConfig
+import dev.dimension.flare.data.datasource.microblog.KagariMentionSearch
 import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
 import dev.dimension.flare.data.datasource.microblog.ComposeType
@@ -820,6 +823,14 @@ internal class BlueskyDataSource(
             interactionGate =
                 if (type == ComposeType.Reply) null else blueskyInteractionGateConfig(accountKey, this::pdsService),
             selfLabels = true,
+            kagariMentionSearch =
+                KagariMentionSearch { query ->
+                    pdsService()
+                        .searchActorsTypeahead(SearchActorsTypeaheadQueryParams(q = query, limit = 5))
+                        .requireResponse()
+                        .actors
+                        .map { it.render(accountKey) }
+                },
         )
 
     private val myFeedsKey = "my_feeds_$accountKey"

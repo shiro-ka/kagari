@@ -6,6 +6,7 @@ app.bsky.actor.getProfile
 app.bsky.actor.getSuggestions
 app.bsky.actor.putPreferences
 app.bsky.actor.searchActors
+app.bsky.actor.searchActorsTypeahead
 app.bsky.bookmark.createBookmark
 app.bsky.bookmark.defs
 app.bsky.bookmark.deleteBookmark
