@@ -387,7 +387,8 @@ private struct RssTimelineItemRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+        .listRowInsets(EdgeInsets(top: 4, leading: TimelineHorizontalInsets.content, bottom: 4,
+                                 trailing: TimelineHorizontalInsets.content))
         .onAppear {
             onDisplay(row.index)
         }
@@ -479,10 +480,8 @@ struct RssDetailScreen: View {
     private let fallbackTitle: String?
 
     @State private var presenter: KotlinPresenter<RssDetailPresenterState>
-    @Environment(\.translateConfig) private var translateConfig
     @Environment(\.openURL) private var openURL
     @State private var showTLDR = false
-    @State private var showTranslate = false
 
     init(url: String, descriptionHtml: String? = nil, descriptionTitle: String? = nil, fallbackHtml: String? = nil) {
         self.url = url
@@ -497,10 +496,6 @@ struct RssDetailScreen: View {
                 )
             )
         )
-    }
-
-    private var shouldTranslate: Bool {
-        translateConfig.preTranslate || showTranslate
     }
 
     private var navigationTitle: String {
@@ -518,41 +513,26 @@ struct RssDetailScreen: View {
 
     var body: some View {
         StateView(state: presenter.state.data) { document in
-            if shouldTranslate {
-                RssTranslateProvider(document: document) { translatedTitle, translatedHtml, isTranslating in
-                    RssArticleContentView(
-                        document: document,
-                        url: url,
-                        showTLDR: $showTLDR,
-                        showTranslate: $showTranslate,
-                        translatedTitle: translatedTitle,
-                        translatedHtml: translatedHtml,
-                        isTranslating: isTranslating,
-                        showTranslateButton: false
-                    )
-                }
-            } else {
+            RssTranslateProvider(document: document) { translation in
                 RssArticleContentView(
                     document: document,
                     url: url,
                     showTLDR: $showTLDR,
-                    showTranslate: $showTranslate,
-                    translatedTitle: nil,
-                    translatedHtml: nil,
-                    isTranslating: false,
-                    showTranslateButton: true
+                    translation: translation
                 )
             }
+            .id(document)
         } errorContent: { _ in
             ContentUnavailableView {
                 Label("rss_detail_title", systemImage: "exclamationmark.triangle")
             } description: {
                 Text("rss_detail_unavailable")
             }
+            .navigationTitle(navigationTitle)
         } loadingContent: {
             RssArticleLoadingView()
+                .navigationTitle(navigationTitle)
         }
-        .navigationTitle(navigationTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let url = URL(string: url) {
@@ -573,56 +553,25 @@ struct RssDetailScreen: View {
 }
 
 private struct RssTranslateProvider<Content: View>: View {
-    @State private var translatePresenter: KotlinPresenter<RssDetailTranslatePresenterState>
-    let document: DocumentData
-    let content: (_ translatedTitle: String?, _ translatedHtml: String?, _ isTranslating: Bool) -> Content
+    @State private var presenter: KotlinPresenter<RssDetailTranslatePresenterState>
+    let content: (RssDetailTranslatePresenterState) -> Content
 
     init(
         document: DocumentData,
-        @ViewBuilder content: @escaping (_ translatedTitle: String?, _ translatedHtml: String?, _ isTranslating: Bool) -> Content
+        @ViewBuilder content: @escaping (RssDetailTranslatePresenterState) -> Content
     ) {
-        self.document = document
         self.content = content
-        _translatePresenter = State(
-            wrappedValue: KotlinPresenter(
-                presenter: RssDetailTranslatePresenter(
-                    htmlContent: document.content,
-                    title: document.title,
-                    targetLanguage: Locale.current.language.languageCode?.identifier ?? "en"
-                )
+        self._presenter = .init(wrappedValue: .init(
+            presenter: RssDetailTranslatePresenter(
+                htmlContent: document.content,
+                title: document.title,
+                sourceLanguage: document.lang
             )
-        )
-    }
-
-    private var translatedTitle: String? {
-        switch onEnum(of: translatePresenter.state.translatedTitle) {
-        case .success(let data):
-            return String(data.data)
-        case .loading, .error:
-            return nil
-        }
-    }
-
-    private var translatedHtml: String? {
-        switch onEnum(of: translatePresenter.state.translatedHtml) {
-        case .success(let data):
-            return String(data.data)
-        case .loading, .error:
-            return nil
-        }
-    }
-
-    private var isTranslating: Bool {
-        switch onEnum(of: translatePresenter.state.translatedHtml) {
-        case .loading:
-            return true
-        case .success, .error:
-            return false
-        }
+        ))
     }
 
     var body: some View {
-        content(translatedTitle, translatedHtml, isTranslating)
+        content(presenter.state)
     }
 }
 
@@ -630,18 +579,14 @@ private struct RssArticleContentView: View {
     let document: DocumentData
     let url: String
     @Binding var showTLDR: Bool
-    @Binding var showTranslate: Bool
-    let translatedTitle: String?
-    let translatedHtml: String?
-    let isTranslating: Bool
-    let showTranslateButton: Bool
+    let translation: RssDetailTranslatePresenterState
 
     @Environment(\.openURL) private var openURL
 
     var body: some View {
         ProxyWebContent { route in
             MacRssHtmlWebView(
-                htmlString: translatedHtml ?? document.content,
+                htmlString: translation.displayHtml,
                 baseURL: URL(string: url),
                 onOpenURL: { url in openURL(url) },
                 route: route
@@ -651,11 +596,16 @@ private struct RssArticleContentView: View {
         .ignoresSafeArea(.container, edges: .top)
         .background(Color(nsColor: .textBackgroundColor))
         .overlay(alignment: .top) {
-            if isTranslating {
+            if translation.isTranslating {
                 ProgressView()
                     .progressViewStyle(.linear)
+            } else if translation.error != nil {
+                Button("Retry translation") { translation.retry() }
+                    .padding(8)
+                    .accessibilityIdentifier("rss-translation-retry")
             }
         }
+        .navigationTitle(translation.translatedTitle ?? document.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let url = URL(string: url) {
@@ -673,15 +623,14 @@ private struct RssArticleContentView: View {
             }
 
             ToolbarItem(placement: .primaryAction) {
-                if showTranslateButton {
-                    Button {
-                        showTranslate = true
-                    } label: {
-                        Image(fontAwesome: .language)
-                    }
-                    .help("Translate")
-                    .accessibilityLabel(Text("status_translate"))
+                Button {
+                    translation.toggleTranslation()
+                } label: {
+                    Image(fontAwesome: .language)
                 }
+                .accessibilityLabel(Text(translation.showTranslation ? "Show original" : "Translate"))
+                .help(Text(translation.showTranslation ? "Show original" : "Translate"))
+                .accessibilityIdentifier("rss-translation-toggle")
             }
 
             ToolbarItem(placement: .primaryAction) {

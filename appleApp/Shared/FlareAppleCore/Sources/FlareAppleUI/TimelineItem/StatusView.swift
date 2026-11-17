@@ -3,6 +3,10 @@ import KotlinSharedUI
 import SwiftUIBackports
 import FlareAppleCore
 
+#if os(macOS)
+import AppKit
+#endif
+
 public typealias TimelineMediaOpenAction = (UiTimelineV2.Post, any UiMedia, Int) -> Void
 public enum TimelineMediaMenuAction {
     case download
@@ -28,9 +32,16 @@ public struct StatusView: View {
     @Environment(\.timelineAppearance.lineLimit) private var appearanceLineLimit
     @Environment(\.timelineAppearance.mediaLayout) private var mediaLayout
     @Environment(\.timelineAppearance.aiConfig.agent) private var agentEnabled
+    @Environment(\.timelineGalleryFallback) private var isGalleryFallback
     @Environment(\.translateConfig) private var translateConfig
     @Environment(\.openURL) private var openURL
     @Environment(\.timelineMediaOpenAction) private var timelineMediaOpenAction
+    #if os(macOS)
+    @ScaledMetric(relativeTo: .body) private var topEndIconSize = NSFont.preferredFont(forTextStyle: .body).pointSize
+    #else
+    @ScaledMetric(relativeTo: .body) private var topEndIconSize: CGFloat = 17
+    #endif
+    @ScaledMetric(relativeTo: .body) private var sideAvatarTopInset: CGFloat = 4
     private let data: UiTimelineV2.Post
     private let isDetail: Bool
     private let isQuote: Bool
@@ -87,15 +98,16 @@ public struct StatusView: View {
         self.carouselOuterHorizontalPadding = carouselOuterHorizontalPadding
     }
 
-    private var showAsFullWidth: Bool {
+    private var usesSideAvatar: Bool {
         (!fullWidthPost || withLeadingPadding) && !isQuote && !isDetail
     }
     public var body: some View {
         let parents = inlineParents
         let user = data.user
-        let carouselEdgePadding: CGFloat = isQuote ? 8 : carouselOuterHorizontalPadding
-        let carouselLeadingPadding = carouselEdgePadding + (showAsFullWidth && user != nil ? 52 : 0)
-        let replyToHandle = data.replyToHandle
+        let hasFullWidthHeader = !usesSideAvatar && !isQuote && user != nil
+        let carouselEdgePadding: CGFloat = isQuote ? 12 : carouselOuterHorizontalPadding
+        let carouselLeadingPadding = carouselEdgePadding + (usesSideAvatar && user != nil ? 56 : 0)
+        let replyToHandle = withLeadingPadding || (showParents && !parents.isEmpty) ? nil : data.replyToHandle
         let translationDisplayed = data.translationDisplayState == .translated
         let contentWarnings: [UiRichText] = if let warning = data.contentWarning {
             if translationDisplayed, let translation = warning.translation {
@@ -115,8 +127,9 @@ public struct StatusView: View {
         let poll = data.poll
         let images = Array(data.images)
         let hasImages = !images.isEmpty
+        let showsImages = hasImages && showMedia && showAttachments
         let usesSideAvatarCarousel =
-            showAsFullWidth &&
+            usesSideAvatar &&
             user != nil &&
             showMedia &&
             showAttachments &&
@@ -127,9 +140,13 @@ public struct StatusView: View {
         let card = data.card
         let quoteItems = self.quotes
         let hasQuotes = !quoteItems.isEmpty
+        let showsQuotes = hasQuotes && !isQuote
+        let showsCard = card != nil && showMedia && !hasImages && !hasQuotes && showLinkPreview
+        let showsAttachments = showsImages || showsCard || showsQuotes
         let sourceChannelName = data.sourceChannel?.name
         let emojiReactions = Array(data.emojiReactions)
         let hasEmojiReactions = showEmojiReactions && !emojiReactions.isEmpty
+        let showsReactions = showMedia && !isQuote && (sourceChannelName != nil || hasEmojiReactions)
         let visibility = data.visibility
         let translationDisplayState = data.translationDisplayState
         let createdAt = data.createdAt
@@ -140,12 +157,43 @@ public struct StatusView: View {
         let contentLineLimit: Int? = isDetail || textExpanded || effectiveLineLimit == Int(Int32.max) ? nil : effectiveLineLimit
         let collapseThreshold = maxLine == nil ? max(15, effectiveLineLimit) : effectiveLineLimit
         let canExpandLineLimitedContent = contentLineLimit != nil && !isDetail && !textExpanded && showExpandTextButton
-        let hasPreMediaBody =
-            replyToHandle != nil ||
-            !contentWarningIsEmpty ||
-            contents.contains { !$0.isEmpty } ||
-            (isDetail && showTranslate) ||
-            (poll != nil && showMedia)
+        let showsDetailTranslation = isDetail && showTranslate && !data.content.original.isEmpty
+        let hasBodyText = contents.contains { !$0.isEmpty }
+        let showsPoll = poll != nil && showMedia
+        let hasPreMediaText = !contentWarningIsEmpty || hasBodyText ||
+            (showsDetailTranslation && !showsPoll)
+        let hasBodyAfterReply = !contentWarningIsEmpty || hasBodyText || showsDetailTranslation || showsPoll
+        let hasPreMediaBody = replyToHandle != nil || hasBodyAfterReply
+        let replyBeforeAttachments = replyToHandle != nil && !isGalleryFallback && !hasBodyAfterReply
+        let replyBeforeFooter = replyBeforeAttachments && !showsAttachments
+        let replyBeforeTimestampOrActions = replyBeforeFooter && !showsReactions
+        let firstAttachmentSpacing: CGFloat = if replyBeforeAttachments {
+            0
+        } else {
+            hasFullWidthHeader && !hasPreMediaBody ? 8 : 10
+        }
+        let replyTopSpacing: CGFloat = if !isGalleryFallback {
+            4
+        } else if user == nil {
+            0
+        } else {
+            !hasBodyAfterReply && showsAttachments ? firstAttachmentSpacing : 8
+        }
+        let replyBottomSpacing: CGFloat = isGalleryFallback ? (hasBodyAfterReply ? 8 : 0) : 4
+        let showsActions = (postActionStyle != .hidden || isDetail) && !forceHideActions
+        let actionsFollowHeader = hasFullWidthHeader && !isDetail && !hasPreMediaBody && !showsAttachments && !showsReactions
+        let actionSpacing: CGFloat = if replyBeforeTimestampOrActions && !isDetail {
+            0
+        } else {
+            actionsFollowHeader ? 8 : 2
+        }
+        let bodyTopSpacing: CGFloat = if user == nil || replyToHandle != nil {
+            0
+        } else if hasFullWidthHeader || !hasPreMediaText {
+            8
+        } else {
+            isQuote && !isGalleryFallback ? 4 : 2
+        }
 
         VStack(
             alignment: .leading,
@@ -164,14 +212,14 @@ public struct StatusView: View {
                             carouselOuterHorizontalPadding: carouselOuterHorizontalPadding
                         )
                         Spacer()
-                            .frame(height: 18)
+                            .frame(height: timelinePostBottomPadding + 14)
                     }
                     .overlay(alignment: .leading) {
                         Rectangle()
                             .fill(Color.flareSeparator)
                             .frame(minWidth: 1, maxWidth: 1, alignment: .leading)
-                            .padding(.leading, 22)
-                            .padding(.top, 44)
+                            .padding(.leading, 24)
+                            .padding(.top, 48 + sideAvatarTopInset)
                     }
                 }
             }
@@ -179,9 +227,9 @@ public struct StatusView: View {
                 alignment: .top,
                 spacing: 8,
             ) {
-                if showAsFullWidth, let user {
+                if usesSideAvatar, let user {
                     AvatarView(data: user.avatar)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 48, height: 48)
                         .accessibilityLabel(
                             Text(
                                 verbatim: openProfileAccessibilityLabel(handle: user.handle.display)
@@ -190,6 +238,7 @@ public struct StatusView: View {
                         .onTapGesture {
                             user.onClicked(ClickContext(launcher: AppleUriLauncher(openUrl: openURL)))
                         }
+                        .padding(.top, sideAvatarTopInset)
                 }
                 VStack(
                     alignment: .leading,
@@ -201,7 +250,7 @@ public struct StatusView: View {
                             spacing: 0,
                         ) {
                             if let user {
-                                if showAsFullWidth {
+                                if usesSideAvatar {
                                     UserOnelineView(data: user, showAvatar: false, subtitle: data.authorSubtitle) {
                                         topEndContent(
                                             visibility: visibility,
@@ -243,26 +292,24 @@ public struct StatusView: View {
                                     } onClicked: {
                                         user.onClicked(ClickContext(launcher: AppleUriLauncher(openUrl: openURL)))
                                     }
-                                    Spacer()
-                                        .frame(height: 4)
                                 }
                             }
-                            if hasPreMediaBody {
+                            if let replyToHandle {
+                                HStack(spacing: 4) {
+                                    Image(fontAwesome: .reply)
+                                    Text("Reply to \(replyToHandle)", bundle: FlareAppleUILocalization.bundle)
+                                }
+                                .flareSecondaryText()
+                                .padding(.top, replyTopSpacing)
+                                .padding(.bottom, replyBottomSpacing)
+                            }
+                            if hasBodyAfterReply {
                                 VStack(
                                     alignment: .leading,
-                                    spacing: 0,
+                                    spacing: 8,
                                 ) {
-                                    if let replyToHandle {
-                                        HStack(spacing: 4) {
-                                            Image(fontAwesome: .reply)
-                                            Text("Reply to \(replyToHandle)", bundle: FlareAppleUILocalization.bundle)
-                                        }
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .padding(.top, 4)
-                                    }
                                     if !contentWarningIsEmpty {
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        VStack(alignment: .leading, spacing: 8) {
                                             ForEach(Array(contentWarnings.enumerated()), id: \.offset) { _, contentWarning in
                                                 if !contentWarning.isEmpty {
                                                     RichText(text: contentWarning)
@@ -293,11 +340,10 @@ public struct StatusView: View {
                                                 .glassProminentButtonStyle()
                                             }
                                         }
-                                        .padding(.vertical, 4)
                                     }
 
-                                    if contentWarningExpanded || expandContentWarning || contentWarningIsEmpty {
-                                        VStack(alignment: .leading, spacing: 4) {
+                                    if (hasBodyText || showsPoll) && (contentWarningExpanded || expandContentWarning || contentWarningIsEmpty) {
+                                        VStack(alignment: .leading, spacing: 8) {
                                             ForEach(Array(contents.enumerated()), id: \.offset) { index, content in
                                                 if !content.isEmpty {
                                                     CollapsibleRichText(
@@ -327,24 +373,23 @@ public struct StatusView: View {
                                             }
 
                                             if let poll, showMedia {
-                                                Spacer()
-                                                    .frame(height: 8)
                                                 StatusPollView(data: poll)
                                             }
                                         }
                                     }
 
-                                    if isDetail, showTranslate {
+                                    if showsDetailTranslation {
                                         StatusTranslateView(
                                             content: data.content.original,
                                             contentWarning: data.contentWarning?.original
                                         )
                                     }
                                 }
+                                .padding(.top, bodyTopSpacing)
                             }
                         }
                         .frame(
-                            minHeight: usesSideAvatarCarousel ? 44 : nil,
+                            minHeight: usesSideAvatarCarousel ? 48 + sideAvatarTopInset - firstAttachmentSpacing : nil,
                             alignment: .topLeading
                         )
                     }
@@ -352,7 +397,7 @@ public struct StatusView: View {
                         alignment: .leading,
                         spacing: 0,
                     ) {
-                        if hasImages, showMedia, showAttachments {
+                        if showsImages {
                             StatusMediaContent(
                                 post: data,
                                 data: images,
@@ -362,7 +407,9 @@ public struct StatusView: View {
                                 carouselLeadingPadding: carouselLeadingPadding,
                                 carouselTrailingPadding: carouselEdgePadding
                             ) { media, index in
-                                if let timelineMediaOpenAction {
+                                if data.pluginId != nil, data.mediaClickPolicy == .openPostClickEvent {
+                                    data.onClicked(ClickContext(launcher: AppleUriLauncher(openUrl: openURL)))
+                                } else if let timelineMediaOpenAction {
                                     timelineMediaOpenAction(data, media, index)
                                 } else {
                                     let preview: String? = switch onEnum(of: media) {
@@ -396,20 +443,20 @@ public struct StatusView: View {
                                     }
                                 }
                             }
-                            .padding(.top, 8)
+                            .padding(.top, firstAttachmentSpacing)
                         }
 
-                        if let card, showMedia, !hasImages, !hasQuotes, showLinkPreview {
+                        if let card, showsCard {
                             if compatLinkPreview {
                                 StatusCompatCardView(data: card, cornerRadius: isQuote ? 12 : 16)
-                                    .padding(.top, 8)
+                                    .padding(.top, firstAttachmentSpacing)
                             } else {
                                 StatusCardView(data: card, cornerRadius: isQuote ? 12 : 16)
-                                    .padding(.top, 8)
+                                    .padding(.top, firstAttachmentSpacing)
                             }
                         }
 
-                        if hasQuotes, !isQuote {
+                        if showsQuotes {
                             VStack(alignment: .leading, spacing: 8) {
                                 ForEach(Array(quoteItems.enumerated()), id: \.offset) { index, quote in
                                     StatusView(
@@ -423,48 +470,42 @@ public struct StatusView: View {
                                     }
                                 }
                             }
-                            .padding(8)
+                            .padding(12)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(Color.flareSeparator, lineWidth: 1)
                             )
-                            .padding(.top, 4)
+                            .padding(.top, showsImages ? 8 : firstAttachmentSpacing)
                         }
 
                         if showMedia, !isQuote {
                             if sourceChannelName != nil || hasEmojiReactions {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 8) {
                                     if let sourceChannelName {
                                         HStack(spacing: 4) {
                                             Image(fontAwesome: .tv)
                                             Text(sourceChannelName)
                                         }
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                                        .flareSecondaryText()
                                     }
                                     if hasEmojiReactions {
                                         StatusReactionView(data: emojiReactions, isDetail: isDetail)
                                     }
                                 }
-                                .padding(.top, 4)
+                                .padding(.top, replyBeforeFooter ? 0 : 8)
                             }
                         }
 
                         if isDetail {
                             DateTimeText(data: createdAt, fullTime: true)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 8)
+                                .flareSecondaryText()
+                                .padding(.top, replyBeforeTimestampOrActions ? 0 : 8)
                         }
 
-                        if (postActionStyle != .hidden || isDetail) && !forceHideActions {
-                            StatusActionsView(data: actions, useText: false, topPadding: 8, isDetail: isDetail, postKey: String(describing: data.statusKey))
-                            #if os(macOS)
-                                .font(isDetail ? .body : .callout)
-                            #else
-                                .font(isDetail ? .body : .footnote)
-                            #endif
-                                .foregroundStyle(isDetail ? .primary : .secondary)
+                        if showsActions {
+                            StatusActionsView(data: actions, useText: false, topPadding: actionSpacing,
+                                              isDetail: isDetail, postKey: String(describing: data.statusKey))
+                                .padding(.horizontal, -4)
                         }
                     }
                 }
@@ -481,6 +522,9 @@ public struct StatusView: View {
 //                }
             }
         }
+        .font(.body)
+        .lineSpacing(1)
+        .environment(\.isPostContent, true)
         .contentShape(.rect)
         .if(isClickable) { view in
             view.onTapGesture {
@@ -514,18 +558,21 @@ public struct StatusView: View {
         HStack(spacing: 4) {
             if let visibility {
                 StatusVisibilityView(data: visibility)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 20))
+                    .frame(width: 20, height: 20)
+                    .scaleEffect(topEndIconSize / 20)
+                    .frame(width: topEndIconSize, height: topEndIconSize)
+                    .flareSecondaryText()
             }
             if translationDisplayState != .hidden {
-                TranslateStatusComponent(data: translationDisplayState)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                TranslateStatusComponent(data: translationDisplayState, iconSize: topEndIconSize)
+                    .font(.system(size: topEndIconSize))
+                    .flareSecondaryText()
             }
             if showPlatformLogo {
-                TabIcon(icon: platformIcon, size: 14)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                TabIcon(icon: platformIcon, size: topEndIconSize)
+                    .font(.system(size: topEndIconSize))
+                    .flareSecondaryText()
                     .accessibilityLabel(
                         Text(
                             verbatim: String(
@@ -540,8 +587,7 @@ public struct StatusView: View {
             }
             if !isDetail {
                 DateTimeText(data: createdAt)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .flareSecondaryText()
             }
             if agentEnabled, !isQuote {
                 Button {
@@ -554,8 +600,11 @@ public struct StatusView: View {
                     }
                 } label: {
                     Image(fontAwesome: .robot)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: topEndIconSize, height: topEndIconSize)
+                        .frame(width: max(24, topEndIconSize + 4), height: max(24, topEndIconSize + 4))
+                        .flareSecondaryText()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("status_insight_title", bundle: FlareAppleUILocalization.bundle))

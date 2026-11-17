@@ -6,6 +6,7 @@ import dev.dimension.flare.feature.plugin.host.accountHost
 import dev.dimension.flare.feature.plugin.lifecycle.RunningPluginV1
 import dev.dimension.flare.feature.plugin.manifest.LoginInteractionV1
 import dev.dimension.flare.feature.plugin.manifest.LoginMethodManifestV1
+import dev.dimension.flare.feature.plugin.manifest.socialPlatform
 import dev.dimension.flare.feature.plugin.wire.LoginSuccessV1
 import dev.dimension.flare.feature.plugin.wire.requireValid
 import io.ktor.http.Url
@@ -14,9 +15,12 @@ internal fun RunningPluginV1.requireLoginMethod(
     methodId: String,
     interaction: LoginInteractionV1,
 ): LoginMethodManifestV1 =
-    installed.manifest.platform.loginMethods
+    installed.manifest.socialPlatform.loginMethods
         .singleOrNull { it.id == methodId && it.interaction == interaction }
         ?: throw PluginLoginException("login.method", "Login method is not declared")
+
+internal fun RunningPluginV1.approvedLoginOrigins(origin: String): Set<String> =
+    setOf(PluginUrlPolicy.requireOrigin(origin)) + installed.manifest.permissions.authOrigins
 
 internal fun RunningPluginV1.requireLoginSuccess(
     value: LoginSuccessV1,
@@ -32,7 +36,7 @@ internal fun RunningPluginV1.requireLoginSuccess(
             .equals(Url(origin).accountHost(), ignoreCase = true),
     ) { "Login profile host does not match the selected instance" }
     require(expectedAccountId == null || value.accountId == expectedAccountId) { "Relogin account does not match" }
-    val declared = installed.manifest.platform.capabilities
+    val declared = installed.manifest.socialPlatform.capabilities
     val capabilities = PluginAbiV1.knownCapabilities(value.capabilities)
     require(
         capabilities.all { (capability, operations) ->

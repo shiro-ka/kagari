@@ -29,7 +29,10 @@ import dev.dimension.flare.data.database.cache.model.DbUserRelation
 import dev.dimension.flare.data.database.cache.model.TranslationEntityType
 import dev.dimension.flare.data.database.cache.model.TranslationStatus
 import dev.dimension.flare.data.database.createDatabaseDriver
+import dev.dimension.flare.data.datasource.microblog.ComposeConfig
 import dev.dimension.flare.data.datasource.microblog.ComposeData
+import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
+import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.UnavailableMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.TimelineTabConfigurationDataSource
@@ -66,6 +69,7 @@ import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.createSampleStatus
 import dev.dimension.flare.ui.model.createSampleUser
 import dev.dimension.flare.ui.model.toUi
+import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.presenter.compose.SaveDraftUseCase
 import dev.dimension.flare.ui.presenter.home.RememberedAccountSelection
 import dev.dimension.flare.ui.render.toUiPlainText
@@ -77,6 +81,8 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
@@ -95,6 +101,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.builtins.serializer
 import okio.Path.Companion.toPath
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -105,11 +112,219 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class AccountRepositoryTest : RobolectricTest() {
+    @Test
+    fun publishingAWeiboCommentReplyInvalidatesTheRootPost() =
+        runTest {
+            val registry = testPlatformRegistry()
+            val account = UiAccount(accountKey, "WeiboDetailTest")
+            registry.replaceExternal(
+                account.platformId,
+                object : PlatformSpec by registry.defaultGuest {
+                    override val platformId = account.platformId
+                    override val isDefaultGuest = false
+
+                    override fun createDataSource(context: PlatformDataSourceContext): MicroblogDataSource =
+                        object : ComposeDataSource, MicroblogDataSource by UnavailableMicroblogDataSource {
+                            override val accountKey = account.accountKey
+
+                            override fun composeConfig(type: ComposeType) = ComposeConfig()
+
+                            override suspend fun publish(
+                                data: ComposeData,
+                                progress: () -> Unit,
+                            ) = Unit
+                        }
+                },
+            )
+            val repository = createRepository(backgroundScope, registry = registry)
+            repository.addAccount(account, "{}")
+            val comment = MicroBlogKey("comment", accountKey.host)
+            val refresh = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { repository.publishedReplies.first() } }
+
+            repository.publish(
+                account,
+                ComposeData("reply", referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.VVOComment(comment, "root"))),
+            ) {}
+
+            assertEquals(accountKey to comment.copy(id = "root"), refresh.await())
+        }
+
+    @Test
+    fun failedCommitValidationKeepsTheExistingAccountAndCredential() =
+        runTest {
+            val repository = createRepository(backgroundScope)
+            val account = UiAccount(accountKey, "Mastodon")
+            repository.addAccount(account, "existing")
+            val before = appDatabase.accountDao().getAccount(accountKey)
+            var validated = false
+            assertFailsWith<kotlinx.coroutines.CancellationException> {
+                repository.addAccount(account, "closed-flow", String.serializer(), beforeCommit = {
+                    validated = true
+                    throw kotlinx.coroutines.CancellationException("Login flow closed")
+                })
+            }
+            assertTrue(validated)
+            assertEquals(before, appDatabase.accountDao().getAccount(accountKey))
+        }
+
+    @Test
+    fun platformCredentialUpdatesUseOneAtomicTransactionAndDoNotBlockRetirement() =
+        runTest {
+            val registry = testPlatformRegistry()
+            lateinit var capturedContext: PlatformDataSourceContext
+            registry.replaceExternal(
+                "PluginTest",
+                object : PlatformSpec by registry.defaultGuest {
+                    override val platformId = "PluginTest"
+                    override val isDefaultGuest = false
+
+                    override fun createDataSource(context: PlatformDataSourceContext): MicroblogDataSource {
+                        capturedContext = context
+                        return UnavailableMicroblogDataSource
+                    }
+                },
+            )
+            val repository = createRepository(backgroundScope, registry = registry)
+            val account = UiAccount(accountKey, "PluginTest")
+            repository.addAccount(account, 0)
+            repository.getOrCreateDataSource(account)
+            val results =
+                List(12) {
+                    async(Dispatchers.Default) {
+                        capturedContext.mutateCredential(Int.serializer()) { current ->
+                            when (current) {
+                                0 -> 1
+                                else -> null
+                            }
+                        }
+                    }
+                }.awaitAll()
+            assertEquals(1, results.count { it == 1 })
+            assertEquals(1, repository.credentialFlow<Int>(accountKey).first())
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000) {
+                    repository.deleteAccounts("PluginTest", ownsCredential = { true }, beforeDelete = {
+                        capturedContext.mutateCredential(Int.serializer()) { it + 1 }
+                    })
+                }
+            }
+            assertFailsWith<kotlinx.coroutines.CancellationException> { capturedContext.mutateCredential(Int.serializer()) { 9 } }
+        }
+
+    @Test
+    fun credentialPreparationIsAtomicAndVisibleBeforeDatasourceCreation() =
+        runTest {
+            val registry = testPlatformRegistry()
+            var migrations = 0
+            registry.replaceExternal(
+                "PluginTest",
+                object : PlatformSpec by registry.defaultGuest {
+                    override val platformId = "PluginTest"
+                    override val isDefaultGuest = false
+
+                    override fun prepareCredential(credentialJson: String): String {
+                        if (credentialJson != "\"legacy\"") return credentialJson
+                        migrations++
+                        return "\"prepared\""
+                    }
+
+                    override fun createDataSource(context: PlatformDataSourceContext): MicroblogDataSource {
+                        assertEquals("prepared", context.credential(String.serializer()))
+                        return UnavailableMicroblogDataSource
+                    }
+                },
+            )
+            val repository = createRepository(backgroundScope, registry = registry)
+            val account = UiAccount(accountKey, "PluginTest")
+            repository.addAccount(account, "legacy")
+            val session = appDatabase.accountDao().getAccount(accountKey)!!.session_id
+            List(12) { async(Dispatchers.Default) { repository.getOrCreateDataSource(account) } }.awaitAll()
+            assertEquals(1, migrations)
+            assertEquals("prepared", repository.credentialFlow<String>(accountKey).first())
+            assertEquals(session, appDatabase.accountDao().getAccount(accountKey)!!.session_id)
+        }
+
+    @Test
+    fun capabilityRefreshRebindsObserversWithoutReplacingTheLoginSession() =
+        runTest {
+            val registry = testPlatformRegistry()
+            lateinit var currentContext: PlatformDataSourceContext
+            registry.replaceExternal(
+                "PluginTest",
+                object : PlatformSpec by registry.defaultGuest {
+                    override val platformId = "PluginTest"
+                    override val isDefaultGuest = false
+
+                    override fun createDataSource(context: PlatformDataSourceContext): MicroblogDataSource {
+                        currentContext = context
+                        return object : MicroblogDataSource by UnavailableMicroblogDataSource {}
+                    }
+                },
+            )
+            val repository = createRepository(backgroundScope, registry = registry)
+            val account = UiAccount(accountKey, "PluginTest")
+            repository.addAccount(account, "old capabilities")
+            val sessionId = appDatabase.accountDao().getAccount(accountKey)!!.session_id
+            val single = Channel<MicroblogDataSource>(Channel.UNLIMITED)
+            val all = Channel<List<AccountMicroblogDataSource>>(Channel.UNLIMITED)
+            backgroundScope.launch { accountServiceFlow(AccountType.Specific(accountKey), repository).collect(single::send) }
+            backgroundScope.launch { RepositoryAccountService(repository).allAccountServicesFlow().collect(all::send) }
+            val first = single.receive()
+            assertSame(first, all.receive().single().dataSource)
+            val oldContext = currentContext
+            oldContext.mutateCredential(String.serializer()) { "new capabilities" }
+            oldContext.invalidateDataSource()
+            val second = withTimeout(5_000) { single.receive() }
+            assertNotSame(first, second)
+            assertSame(second, withTimeout(5_000) { all.receive() }.single().dataSource)
+            assertEquals("new capabilities", currentContext.credential(String.serializer()))
+            assertEquals(sessionId, appDatabase.accountDao().getAccount(accountKey)!!.session_id)
+            oldContext.invalidateDataSource()
+            assertSame(second, repository.getOrCreateDataSource(account))
+
+            repository.addAccount(account, "replacement session")
+            val replacement = withTimeout(5_000) { single.receive() }
+            assertFailsWith<kotlinx.coroutines.CancellationException> { oldContext.invalidateDataSource() }
+            assertSame(replacement, repository.getOrCreateDataSource(account))
+        }
+
+    @Test
+    fun accountRestoreRotatesPlatformCredentialsAndRecreatesTheDataSource() =
+        runTest {
+            val registry = testPlatformRegistry()
+            var restores = 0
+            registry.replaceExternal(
+                "PluginTest",
+                object : PlatformSpec by registry.defaultGuest {
+                    override val platformId = "PluginTest"
+                    override val isDefaultGuest = false
+
+                    override fun restoreCredential(credentialJson: String): String {
+                        assertEquals("\"backup\"", credentialJson)
+                        restores++
+                        return "\"restored\""
+                    }
+
+                    override fun createDataSource(context: PlatformDataSourceContext) =
+                        object : MicroblogDataSource by UnavailableMicroblogDataSource {}
+                },
+            )
+            val repository = createRepository(backgroundScope, registry = registry)
+            val account = UiAccount(accountKey, "PluginTest")
+            repository.addAccount(account, "original")
+            val first = repository.getOrCreateDataSource(account)
+            repository.restoreAccounts(listOf(accountKey)) { appDatabase.accountDao().setCredential(accountKey, "\"backup\"") }
+            assertEquals(1, restores)
+            assertEquals("restored", repository.credentialFlow<String>(accountKey).first())
+            assertFalse(first === repository.getOrCreateDataSource(account))
+        }
+
     @Test
     fun platformDeletionRemovesOnlyOwnedAccountsAndTheirDraftTargets() =
         runTest {

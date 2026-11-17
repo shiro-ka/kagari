@@ -21,10 +21,8 @@ public struct StatusActionsView: View {
     @Environment(\.timelineAppearance.postActionFixedWidth) private var postActionFixedWidth
     @Environment(\.openURL) private var openURL
     #if os(macOS)
-    @ScaledMetric(relativeTo: .callout) private var fontSize = NSFont.preferredFont(forTextStyle: .callout).pointSize
     @ScaledMetric(relativeTo: .body) private var bodyFontSize = NSFont.preferredFont(forTextStyle: .body).pointSize
     #else
-    @ScaledMetric(relativeTo: .footnote) private var fontSize = 13
     @ScaledMetric(relativeTo: .body) private var bodyFontSize = 17
     #endif
     private let data: [ActionMenu]
@@ -32,7 +30,6 @@ public struct StatusActionsView: View {
     private let allowSpacer: Bool
     private let applyPostActionLayout: Bool
     private let topPadding: CGFloat
-    private let isDetail: Bool
     private let postKey: String?
     @Environment(\.displayScale) private var displayScale
 
@@ -50,35 +47,40 @@ public struct StatusActionsView: View {
         self.allowSpacer = allowSpacer
         self.applyPostActionLayout = applyPostActionLayout
         self.topPadding = topPadding
-        self.isDetail = isDetail
         self.postKey = postKey
     }
 
     public var body: some View {
-        let metrics = StatusActionLayoutMetrics(fontSize: isDetail || useText ? bodyFontSize : fontSize, scale: displayScale)
-        let actions = resolvedData.filter { action in
-            if case .divider = onEnum(of: action) { return useText }
-            return true
-        }
-        if useText {
-            ForEach(0..<actions.count, id: \.self) { index in
-                StatusActionView(data: actions[index], useText: true, isFixedWidth: false,
-                                 metrics: metrics, showNumbers: showNumbers, openURL: openURL)
+        Group {
+            let metrics = StatusActionLayoutMetrics(fontSize: bodyFontSize, scale: displayScale, isPostAction: !useText)
+            let actions = resolvedData.filter { action in
+                if case .divider = onEnum(of: action) { return useText }
+                return true
             }
-        } else if !actions.isEmpty {
-            let isStretched = postActionStyle == .stretch && allowSpacer
-            StatusActionRowLayout(metrics: metrics, style: postActionStyle, allowSpacer: allowSpacer,
-                                  lastHasNumber: hasTrailingCount(actions)) {
+            if useText {
                 ForEach(0..<actions.count, id: \.self) { index in
-                    StatusActionView(data: actions[index], useText: false,
-                                     isFixedWidth: !isStretched && postActionFixedWidth && index != actions.count - 1,
-                                     metrics: metrics, showNumbers: showNumbers, openURL: openURL,
-                                     animationIdentity: animationIdentity(for: actions[index], position: index))
+                    StatusActionView(data: actions[index], useText: true, isFixedWidth: false,
+                                     metrics: metrics, showNumbers: showNumbers, openURL: openURL)
                 }
+            } else if !actions.isEmpty {
+                let isStretched = postActionStyle == .stretch && allowSpacer
+                StatusActionRowLayout(metrics: metrics, style: postActionStyle, allowSpacer: allowSpacer,
+                                      lastHasNumber: hasTrailingCount(actions)) {
+                    ForEach(0..<actions.count, id: \.self) { index in
+                        StatusActionView(data: actions[index], useText: false,
+                                         isFixedWidth: !isStretched && postActionFixedWidth && index != actions.count - 1,
+                                         metrics: metrics, showNumbers: showNumbers, openURL: openURL,
+                                         animationIdentity: animationIdentity(for: actions[index], position: index))
+                    }
+                }
+                .font(.system(size: metrics.fontSize))
+                .environment(\.flareTextRole, .secondary)
+                .padding(.top, topPadding)
             }
-            .font(.system(size: metrics.fontSize))
-            .padding(.top, topPadding)
         }
+        #if os(iOS)
+        .environment(\.flareTextRole, useText ? .primary : .secondary)
+        #endif
     }
 
     private func hasTrailingCount(_ actions: [ActionMenu]) -> Bool {
@@ -100,12 +102,7 @@ public struct StatusActionsView: View {
 
     private var resolvedData: [ActionMenu] {
         guard applyPostActionLayout else { return data }
-        return castActionMenus(
-            PostActionLayoutHelpers.shared.apply(
-                actions: data,
-                config: postActionLayout
-            )
-        )
+        return castActionMenus(PostActionLayoutHelpers.shared.apply(actions: data, config: postActionLayout))
     }
 }
 
@@ -302,7 +299,7 @@ public struct StatusActionItemView: View {
         if useText {
             Group {
                 if let title = resolvedTitle {
-                    Label { Text(title) } icon: { StatusActionIcon(icon: data.icon) }
+                    Label { Text(title).actionForeground(data.color?.swiftColor) } icon: { StatusActionIcon(icon: data.icon) }
                 } else {
                     StatusActionIcon(icon: data.icon)
                 }
@@ -357,18 +354,14 @@ private struct StatusActionBarLabel: View {
     let state: StatusActionAnimationState
     let metrics: StatusActionLayoutMetrics
     let reservesNumberWidth: Bool
-    #if os(iOS)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isVisible = false
     @State private var motion: StatusActionMotion?
-    #endif
 
     var body: some View {
-        #if os(iOS)
         let activeMotion = motion?.target == state ? motion : nil
         let animateIcon = activeMotion.map { $0.effects.icon != .none } ?? false
         let animateNumber = activeMotion.map { $0.effects.number != .none } ?? false
-        #endif
         StatusActionContentLayout(metrics: metrics,
                                   preferredSize: metrics.size(titleWidth: state.text.map(metrics.textWidth), reservesNumberWidth: reservesNumberWidth, expanded: false)) {
             Group {
@@ -381,27 +374,27 @@ private struct StatusActionBarLabel: View {
                 StatusActionIcon(icon: state.icon ?? .more)
                 #endif
             }
-            .optionalForegroundStyle(state.color?.swiftColor)
-            #if os(iOS)
+            .actionBarForeground(state.color?.swiftColor)
             .opacity(animateIcon ? 0 : 1)
             .transaction { $0.animation = nil; $0.disablesAnimations = true }
             .overlay {
                 if let activeMotion, animateIcon {
                     StatusActionIconMotion(motion: activeMotion)
+                        #if os(iOS)
                         .scaleEffect(metrics.iconScale(imageWidth: metrics.iconImage(state.icon ?? .more)?.size.width ?? 0))
+                        #endif
                         .transition(.identity)
                         .accessibilityHidden(true)
                         .allowsHitTesting(false)
                 }
             }
-            #endif
+            .font(.system(size: metrics.iconSize))
             .frame(width: StatusActionLayoutMetrics.iconWidth, height: metrics.iconHeight)
             if let text = state.text {
                 Text(text)
+                    .actionBarForeground(state.color?.swiftColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .optionalForegroundStyle(state.color?.swiftColor)
-                    #if os(iOS)
                     .opacity(animateNumber ? 0 : 1)
                     .transaction { $0.animation = nil; $0.disablesAnimations = true }
                     .overlay(alignment: .leading) {
@@ -412,14 +405,12 @@ private struct StatusActionBarLabel: View {
                                 .allowsHitTesting(false)
                         }
                     }
-                    #endif
             } else if reservesNumberWidth {
                 Color.clear.accessibilityHidden(true)
             }
         }
         .padding(StatusActionLayoutMetrics.padding)
         .contentShape(Rectangle())
-        #if os(iOS)
         .onAppear {
             resetAnimations()
             isVisible = true
@@ -440,17 +431,13 @@ private struct StatusActionBarLabel: View {
                 motion = StatusActionMotion(previous: previous, target: newState, effects: effects)
             }
         }
-        #endif
     }
 
-    #if os(iOS)
     private func resetAnimations() {
         if motion != nil { motion = nil }
     }
-    #endif
 }
 
-#if os(iOS)
 private struct StatusActionMotion {
     let eventID = UUID()
     let previous: StatusActionAnimationState
@@ -466,7 +453,7 @@ private struct StatusActionIconMotion: View {
         let enteringScale = motion.effects.icon == .pop ? StatusActionAnimationTiming.iconStartScale : 1
         ZStack {
             StatusActionIcon(icon: motion.previous.icon)
-                .optionalForegroundStyle(motion.previous.color?.swiftColor)
+                .actionBarForeground(motion.previous.color?.swiftColor)
                 .keyframeAnimator(initialValue: StatusActionMotionValues(progress: 1, opacity: 1), trigger: trigger) { content, value in
                     content.scaleEffect(value.progress).opacity(value.opacity)
                 } keyframes: { _ in
@@ -480,7 +467,7 @@ private struct StatusActionIconMotion: View {
                     }
                 }
             StatusActionIcon(icon: motion.target.icon)
-                .optionalForegroundStyle(motion.target.color?.swiftColor)
+                .actionBarForeground(motion.target.color?.swiftColor)
                 .keyframeAnimator(initialValue: StatusActionMotionValues(progress: enteringScale, opacity: 0), trigger: trigger) { content, value in
                     content.scaleEffect(value.progress).opacity(value.opacity)
                 } keyframes: { _ in
@@ -513,8 +500,8 @@ private struct StatusActionNumberMotion: View {
         ZStack(alignment: .leading) {
             if let previous = motion.previous.text {
                 Text(previous)
+                    .actionBarForeground(motion.previous.color?.swiftColor)
                     .lineLimit(1)
-                    .optionalForegroundStyle(motion.previous.color?.swiftColor)
                     .keyframeAnimator(initialValue: StatusActionMotionValues(progress: 0, opacity: 1), trigger: trigger) { content, value in
                         content.visualEffect { effect, geometry in
                             effect.offset(y: geometry.size.height * direction * CGFloat(value.progress))
@@ -533,8 +520,8 @@ private struct StatusActionNumberMotion: View {
             }
             if let target = motion.target.text {
                 Text(target)
+                    .actionBarForeground(motion.target.color?.swiftColor)
                     .lineLimit(1)
-                    .optionalForegroundStyle(motion.target.color?.swiftColor)
                     .keyframeAnimator(initialValue: StatusActionMotionValues(progress: 0, opacity: 0), trigger: trigger) { content, value in
                         content.visualEffect { effect, geometry in
                             effect.offset(y: -geometry.size.height * direction * CGFloat(1 - value.progress))
@@ -556,7 +543,6 @@ private struct StatusActionNumberMotion: View {
         .onChange(of: motion.eventID) { _, _ in trigger += 1 }
     }
 }
-#endif
 
 private struct StatusActionContentLayout: Layout {
     let metrics: StatusActionLayoutMetrics
@@ -629,7 +615,19 @@ private struct StatusActionHoverModifier: ViewModifier {
 }
 #endif
 
+private extension Text {
+    func actionForeground(_ color: Color?) -> Text {
+        if let color { return foregroundStyle(color) }
+        return flarePrimaryText()
+    }
+}
+
 private extension View {
+    func actionBarForeground(_ color: Color?) -> some View {
+        let style = color.map { AnyShapeStyle($0) } ?? AnyShapeStyle(FlarePrimaryTextStyle())
+        return foregroundStyle(style)
+    }
+
     @ViewBuilder
     func optionalForegroundStyle(_ color: Color?) -> some View {
         // Apply only to leaf content so animation state stays above this color branch.
@@ -824,6 +822,8 @@ public struct MacStatusShareSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.timelineAppearance) private var timelineAppearance
+    @Environment(\.translateConfig) private var translateConfig
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var presenter: KotlinPresenter<StatusSharePresenterState>
     @State private var theme: ColorScheme?
     @State private var previewStyle: MacStatusSharePreviewStyle = .card
@@ -837,7 +837,7 @@ public struct MacStatusShareSheet: View {
 
     private var previewRevision: String {
         let statusHash: Int32 = if case .success(let data) = onEnum(of: presenter.state.status) { data.data.renderHash } else { 0 }
-        return "\(statusHash)-\(Array(presenter.state.selectedReplies).map { $0.renderHash })-\(resolvedColorScheme)-\(previewStyle)-\(renderAttempt)"
+        return "\(statusHash)-\(Array(presenter.state.selectedReplies).map { $0.renderHash })-\(resolvedColorScheme)-\(previewStyle)-\(renderAttempt)-\(timelineAppearance.hash)-\(translateConfig.showOriginalWithTranslation)-\(dynamicTypeSize)"
     }
 
     private var currentScreenshotURL: URL? { renderedRevision == previewRevision ? screenshotURL : nil }
@@ -865,12 +865,9 @@ public struct MacStatusShareSheet: View {
         StateView(state: presenter.state.status) { state in
             VStack(spacing: 0) {
                 ScrollView {
-                    if let url = currentScreenshotURL, let image = NSImage(contentsOf: url) {
-                        Image(nsImage: image).resizable().scaledToFit()
-                    } else if isRenderingScreenshot {
-                        ProgressView("share_replies_preparing")
-                            .padding()
-                    }
+                    previewView(data: state)
+                        .frame(maxWidth: .infinity)
+                        .allowsHitTesting(false)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
@@ -986,6 +983,19 @@ public struct MacStatusShareSheet: View {
         }
     }
 
+    private func previewView(data: UiTimelineV2) -> MacStatusSharePreview {
+        MacStatusSharePreview(
+            data: data,
+            statusKey: statusKey,
+            replies: Array(presenter.state.selectedReplies),
+            colorScheme: resolvedColorScheme,
+            previewStyle: previewStyle,
+            timelineAppearance: timelineAppearance,
+            translateConfig: translateConfig,
+            dynamicTypeSize: dynamicTypeSize
+        )
+    }
+
     private func renderScreenshot(data: UiTimelineV2) async {
         guard !crossPostDispatched else { return }
         let requestID = UUID()
@@ -995,14 +1005,7 @@ public struct MacStatusShareSheet: View {
         isRenderingScreenshot = true
         do {
             let screenshot = try await MacStatusShareScreenshotRenderer.render(
-                view: MacStatusSharePreview(
-                    data: data,
-                    statusKey: statusKey,
-                    replies: Array(presenter.state.selectedReplies),
-                    colorScheme: resolvedColorScheme,
-                    previewStyle: previewStyle,
-                    timelineAppearance: timelineAppearance
-                ),
+                view: previewView(data: data),
                 fileName: "flare-status-\(statusKey.description()).png"
             )
             guard !Task.isCancelled, renderRequestID == requestID, revision == previewRevision else {
@@ -1033,6 +1036,8 @@ private struct MacStatusSharePreview: View {
     let colorScheme: ColorScheme
     let previewStyle: MacStatusSharePreviewStyle
     let timelineAppearance: TimelineAppearance
+    let translateConfig: AppSettings.TranslateConfig
+    let dynamicTypeSize: DynamicTypeSize
 
     var body: some View {
         StatusShareContent(data: data, statusKey: statusKey, replies: replies)
@@ -1049,6 +1054,8 @@ private struct MacStatusSharePreview: View {
         .background(Color.flareSystemGroupedBackground)
         .environment(\.colorScheme, colorScheme)
         .environment(\.timelineAppearance, timelineAppearance)
+        .environment(\.translateConfig, translateConfig)
+        .dynamicTypeSize(dynamicTypeSize)
     }
 }
 

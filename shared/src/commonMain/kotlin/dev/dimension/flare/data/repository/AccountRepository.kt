@@ -14,8 +14,10 @@ import dev.dimension.flare.data.database.app.model.DbAccount
 import dev.dimension.flare.data.database.cache.CacheDatabase
 import dev.dimension.flare.data.database.cache.clearHomeTimelinesForAccount
 import dev.dimension.flare.data.database.cache.connect
+import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.UnavailableMicroblogDataSource
+import dev.dimension.flare.data.datasource.microblog.capabilities
 import dev.dimension.flare.data.datastore.AppDataStore
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.model.AccountType
@@ -32,6 +34,7 @@ import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
@@ -39,9 +42,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -64,6 +70,7 @@ import org.koin.core.annotation.Provided
 import org.koin.core.annotation.Single
 import kotlin.native.HiddenFromObjC
 import kotlin.time.Clock
+import kotlin.uuid.Uuid
 
 internal sealed interface AccountChange {
     data class Added(
@@ -126,6 +133,9 @@ internal class AccountRepository internal constructor(
             }.distinctUntilChanged()
     }
     private val dataSourceCacheMutex = Mutex()
+    private val replyPublications =
+        MutableSharedFlow<Pair<MicroBlogKey, MicroBlogKey>>(extraBufferCapacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    internal val publishedReplies = replyPublications.asSharedFlow()
     internal val dataSourceRevisions = MutableStateFlow<Map<MicroBlogKey, Long>>(emptyMap())
     private val dataSourceCache by lazy {
         mutableMapOf<MicroBlogKey, Pair<PlatformSpec, MicroblogDataSource>>()
@@ -137,8 +147,10 @@ internal class AccountRepository internal constructor(
             accounts.filter { account -> platforms.any { it.platformId == account.platformId } }
         }.mapLatest { accounts ->
             accounts
-                .map { account ->
-                    AccountMicroblogDataSource(account.accountKey, account.platformId, getOrCreateDataSource(account))
+                .mapNotNull { account ->
+                    val record = appDatabase.accountDao().getAccount(account.accountKey) ?: return@mapNotNull null
+                    val dataSource = getOrCreateDataSource(account)
+                    AccountMicroblogDataSource(account.accountKey, account.platformId, dataSource, record.session_id)
                 }.toImmutableList()
         }.distinctUntilChanged()
     }
@@ -180,7 +192,28 @@ internal class AccountRepository internal constructor(
         block: suspend () -> T,
     ): T =
         withAccountChanges {
-            restoreAccountsLocked(keys, block)
+            restoreAccountsLocked(keys) {
+                block().also {
+                    keys.forEach { key ->
+                        appDatabase.accountDao().getAccount(key)?.let { account ->
+                            val restored = platformRegistry.get(account.platformId)?.restoreCredential(account.credential_json)
+                            appDatabase.accountDao().insert(
+                                account.copy(
+                                    credential_json = restored ?: account.credential_json,
+                                    session_id = Uuid.random().toString(),
+                                ),
+                            )
+                        }
+                    }
+                }
+            }.also {
+                dataSourceCacheMutex.withLock {
+                    keys.forEach { key ->
+                        (dataSourceCache.remove(key)?.second as? AutoCloseable)?.close()
+                        dataSourceRevisions.update { it + (key to (it[key] ?: 0) + 1) }
+                    }
+                }
+            }
         }
 
     private suspend fun <T> restoreAccountsLocked(
@@ -210,6 +243,7 @@ internal class AccountRepository internal constructor(
         account: UiAccount,
         credential: T,
         serializer: KSerializer<T>,
+        beforeCommit: () -> Unit = {},
     ) {
         withAccountChanges {
             val existingAccount = appDatabase.accountDao().getAccount(account.accountKey)
@@ -223,13 +257,16 @@ internal class AccountRepository internal constructor(
                     existingAccount?.copy(
                         platformId = account.platformId,
                         credential_json = credentialJson,
+                        session_id = Uuid.random().toString(),
                     ) ?: DbAccount(
                         account_key = account.accountKey,
                         platformId = account.platformId,
                         credential_json = credentialJson,
                         last_active = if (maxSortId == null) Clock.System.now().toEpochMilliseconds() else 0L,
                         sort_id = maxSortId?.plus(1) ?: 0L,
+                        session_id = Uuid.random().toString(),
                     )
+                beforeCommit()
                 appDatabase.accountDao().insert(dbAccount)
             }
             if (existingAccount == null) {
@@ -433,15 +470,40 @@ internal class AccountRepository internal constructor(
         }
     }
 
+    internal suspend fun publish(
+        account: UiAccount,
+        data: ComposeData,
+        progress: () -> Unit,
+    ) {
+        val compose =
+            getOrCreateDataSource(account).capabilities.compose
+                ?: error("Account does not support compose: ${account.accountKey}")
+        compose.compose(data, progress)
+        val reply = data.referenceStatus?.composeStatus as? ComposeStatus.Reply
+        if (reply != null) {
+            val post = if (reply is ComposeStatus.VVOComment) reply.statusKey.copy(id = reply.rootId) else reply.statusKey
+            replyPublications.tryEmit(account.accountKey to post)
+        }
+    }
+
     internal suspend fun getOrCreateDataSource(account: UiAccount): MicroblogDataSource {
         val spec = platformRegistry.require(account.platformId)
         val (revision, existing) =
             dataSourceCacheMutex.withLock { dataSourceRevisions.value[account.accountKey] to dataSourceCache[account.accountKey] }
         if (existing?.first === spec) return existing.second
         val dbAccount =
-            appDatabase.accountDao().getAccount(account.accountKey)
-                ?: throw NoSuchElementException("Account not found: ${account.accountKey}")
-        val created = spec.createDataSource(RepositoryPlatformDataSourceContext(account.accountKey, dbAccount.credential_json))
+            appDatabase.connect {
+                val stored =
+                    appDatabase.accountDao().getAccount(account.accountKey)
+                        ?: throw NoSuchElementException("Account not found: ${account.accountKey}")
+                val prepared = spec.prepareCredential(stored.credential_json)
+                if (prepared != stored.credential_json) appDatabase.accountDao().setCredential(account.accountKey, prepared)
+                stored.copy(credential_json = prepared)
+            }
+        val created =
+            spec.createDataSource(
+                RepositoryPlatformDataSourceContext(account.accountKey, dbAccount.credential_json, dbAccount.session_id, spec, revision),
+            )
         val cached =
             dataSourceCacheMutex.withLock {
                 if (platformRegistry.get(account.platformId) !== spec || dataSourceRevisions.value[account.accountKey] != revision) {
@@ -463,29 +525,70 @@ internal class AccountRepository internal constructor(
     private inner class RepositoryPlatformDataSourceContext(
         override val accountKey: MicroBlogKey,
         private val credentialJson: String,
+        private val sessionId: String,
+        private val spec: PlatformSpec,
+        private val revision: Long?,
     ) : PlatformDataSourceContext {
         override fun <T : Any> credential(serializer: KSerializer<T>): T = credentialJson.decodeJson(serializer)
 
         override fun <T : Any> credentialFlow(serializer: KSerializer<T>): Flow<T> =
-            this@AccountRepository.credentialFlow(
-                accountKey = accountKey,
-                serializer = serializer,
-            )
+            appDatabase.accountDao().get(accountKey).map { record ->
+                if (record == null || record.session_id != sessionId) throw CancellationException("Account session was replaced")
+                record.credential_json.decodeJson(serializer)
+            }
 
         override suspend fun <T : Any> updateCredential(
             serializer: KSerializer<T>,
             credential: T,
         ) {
-            appDatabase.accountDao().setCredential(
-                accountKey,
-                credential.encodeJson(serializer),
-            )
+            appDatabase.connect {
+                val record = appDatabase.accountDao().getAccount(accountKey)
+                if (record == null || record.session_id != sessionId) throw CancellationException("Account session was replaced")
+                appDatabase.accountDao().setCredential(accountKey, credential.encodeJson(serializer))
+            }
         }
+
+        override suspend fun <T : Any> mutateCredential(
+            serializer: KSerializer<T>,
+            update: (T) -> T?,
+        ): T? =
+            appDatabase.connect {
+                val account = appDatabase.accountDao().getAccount(accountKey) ?: throw CancellationException("Account was removed")
+                if (account.session_id != sessionId) throw CancellationException("Account session was replaced")
+                val current = account.credential_json.decodeJson(serializer)
+                val next = update(current) ?: return@connect null
+                if (next != current) appDatabase.accountDao().setCredential(accountKey, next.encodeJson(serializer))
+                next
+            }
 
         override suspend fun invalidateCachedContent() {
             this@AccountRepository.invalidateCachedContent(accountKey)
         }
+
+        override suspend fun invalidateDataSource() {
+            val previous =
+                appDatabase.connect {
+                    val record = appDatabase.accountDao().getAccount(accountKey)
+                    if (record?.session_id != sessionId) throw CancellationException("Account session was replaced")
+                    dataSourceCacheMutex.withLock {
+                        if (platformRegistry.get(spec.platformId) !== spec || dataSourceRevisions.value[accountKey] != revision) {
+                            return@withLock null
+                        }
+                        val cached = dataSourceCache.remove(accountKey)?.second
+                        dataSourceRevisions.update { it + (accountKey to ((it[accountKey] ?: 0) + 1)) }
+                        cached
+                    }
+                }
+            (previous as? AutoCloseable)?.close()
+        }
     }
+
+    internal suspend fun isSessionActive(
+        accountKey: MicroBlogKey,
+        sessionId: String,
+    ): Boolean =
+        accountKey.toString() !in proxyRepository.settings.first().removedAccounts &&
+            appDatabase.accountDao().getAccount(accountKey)?.session_id == sessionId
 }
 
 private fun DbAccount.toUi(platformRegistry: PlatformRegistry): UiAccount {

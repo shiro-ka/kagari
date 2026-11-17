@@ -32,11 +32,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -93,6 +96,7 @@ import dev.dimension.flare.ui.component.status.AdaptiveCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.ListEmptyView
 import dev.dimension.flare.ui.component.status.MediaItem
+import dev.dimension.flare.ui.component.status.StatusComponentDefaults
 import dev.dimension.flare.ui.component.status.StatusPlaceholder
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.component.status.statusLoadingPlaceholders
@@ -117,6 +121,7 @@ import dev.dimension.flare.ui.presenter.profile.ProfilePresenter
 import dev.dimension.flare.ui.presenter.profile.ProfileState
 import dev.dimension.flare.ui.presenter.profile.ProfileWithUserNameAndHostPresenter
 import dev.dimension.flare.ui.screen.home.RegisterTabCallback
+import dev.dimension.flare.ui.theme.isLightTheme
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -204,22 +209,34 @@ private fun ProfileErrorScreen(onBack: () -> Unit) {
 
 @Composable
 private fun ProfileLoadingScreen(onBack: () -> Unit) {
+    val headerBackground = profileHeaderBackground(plainProfile = !isBigScreen())
     FlareScaffold {
         LazyColumn(
             contentPadding = it,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                ProfileHeaderLoading(withStatusBarHeight = false)
+                ProfileHeaderLoading(
+                    withStatusBarHeight = false,
+                    modifier = Modifier.background(headerBackground),
+                )
             }
             items(5) {
                 StatusPlaceholder(
-                    modifier = Modifier.padding(horizontal = screenHorizontalPadding),
+                    modifier = Modifier.padding(horizontal = StatusComponentDefaults.horizontalPadding),
                 )
             }
         }
     }
 }
+
+@Composable
+private fun profileHeaderBackground(plainProfile: Boolean): Color =
+    if (plainProfile && isLightTheme()) {
+        MaterialTheme.colorScheme.surface
+    } else {
+        Color.Transparent
+    }
 
 @Composable
 private fun profileWithUserNameAndHostPresenter(
@@ -279,12 +296,17 @@ internal fun ProfileScreen(
                 .toSize()
                 .toDpSize()
         }
+    val bigScreen = isBigScreen()
+    val plainProfile = !bigScreen
+    val headerBackground = profileHeaderBackground(plainProfile)
+    val tabSpacing = if (plainProfile) 0.dp else 8.dp
     val profileTabHeight =
         with(LocalDensity.current) {
-            MaterialTheme.typography.bodyLarge.lineHeight
-                .toDp()
-        } + 16.dp
-    val bigScreen = isBigScreen()
+            val height =
+                MaterialTheme.typography.bodyLarge.lineHeight
+                    .toDp() + 16.dp
+            if (plainProfile) height.coerceAtLeast(48.dp) else height
+        }
     val scrollBehavior =
         if (bigScreen) {
             TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -463,9 +485,10 @@ internal fun ProfileScreen(
                         } else {
                             state.tabs.onLoading {
                                 Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(tabSpacing),
                                 ) {
                                     ProfileTabsLoadingPlaceholder(
+                                        modifier = Modifier.background(headerBackground),
                                         tabHeight = profileTabHeight,
                                         verticalPadding = 0.dp,
                                     )
@@ -491,31 +514,47 @@ internal fun ProfileScreen(
                             state.pagerState.onSuccess { pagerState ->
                                 state.tabs.onSuccess { tabs ->
                                     Column(
-                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(tabSpacing),
                                     ) {
                                         if (tabs.size > 1) {
+                                            val selectedIndex = minOf(pagerState.currentPage, tabs.lastIndex)
                                             SecondaryScrollableTabRow(
-                                                containerColor = Color.Transparent,
+                                                containerColor = headerBackground,
                                                 selectedTabIndex = pagerState.currentPage,
                                                 modifier = Modifier.fillMaxWidth(),
-                                                edgePadding = screenHorizontalPadding,
-                                                divider = {},
+                                                edgePadding = if (plainProfile) 0.dp else screenHorizontalPadding,
+                                                divider = {
+                                                    if (plainProfile) {
+                                                        HorizontalDivider()
+                                                    }
+                                                },
                                                 indicator = {
-                                                    TabRowIndicator(
-                                                        selectedIndex =
-                                                            minOf(
-                                                                pagerState.currentPage,
-                                                                tabs.size - 1,
-                                                            ),
-                                                    )
+                                                    if (plainProfile) {
+                                                        TabRowDefaults.SecondaryIndicator(
+                                                            Modifier.tabIndicatorOffset(selectedIndex, matchContentSize = false),
+                                                        )
+                                                    } else {
+                                                        TabRowIndicator(selectedIndex)
+                                                    }
                                                 },
                                             ) {
+                                                val tabModifier =
+                                                    if (plainProfile) {
+                                                        Modifier.heightIn(min = profileTabHeight)
+                                                    } else {
+                                                        Modifier.clip(CircleShape)
+                                                    }
+                                                val tabColors = MaterialTheme.colorScheme
+                                                val contentColor = LocalContentColor.current
                                                 tabs
                                                     .toImmutableList()
                                                     .forEachIndexed { index, profileTab ->
                                                         Tab(
-                                                            modifier = Modifier.clip(CircleShape),
+                                                            modifier = tabModifier,
                                                             selected = pagerState.currentPage == index,
+                                                            selectedContentColor = if (plainProfile) tabColors.primary else contentColor,
+                                                            unselectedContentColor =
+                                                                if (plainProfile) tabColors.onSurfaceVariant else contentColor,
                                                             onClick = {
                                                                 scope.launch {
                                                                     pagerState.animateScrollToPage(index)
@@ -620,7 +659,7 @@ internal fun ProfileScreen(
                             state = nestedScrollState,
                             contentTopPadding = it.calculateTopPadding(),
                             header = {
-                                Column {
+                                Column(modifier = Modifier.background(headerBackground)) {
                                     ProfileHeader(
                                         state = state.state,
                                         menu = {
@@ -637,9 +676,17 @@ internal fun ProfileScreen(
                                             }
                                         },
                                         isBigScreen = false,
+                                        useCard = false,
                                         onFollowListClick = onFollowListClick,
                                         onFansListClick = onFansListClick,
                                     )
+                                    if (!isBlockedProfile || showBlockedProfileContent) {
+                                        state.state.tabs.onSuccess { tabs ->
+                                            if (tabs.size == 1) {
+                                                HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+                                            }
+                                        }
+                                    }
                                 }
                             },
                             content = {

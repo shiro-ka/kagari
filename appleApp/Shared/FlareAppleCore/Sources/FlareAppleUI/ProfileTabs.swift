@@ -26,6 +26,7 @@ public struct ProfileTabPicker: View {
 public struct ProfileTabBar: View {
     @Environment(\.timelineAppearance.timelineDisplayMode) private var timelineDisplayMode
     @Environment(\.isMultipleColumn) private var isMultipleColumn
+    @Environment(\.profileUsesPlainStyle) private var profileUsesPlainStyle
     private let tabs: [ProfileState.Tab]
     @Binding private var selectedTab: Int
     private let selectionProgress: CGFloat?
@@ -42,7 +43,7 @@ public struct ProfileTabBar: View {
 
     public var body: some View {
         ZStack(alignment: .bottom) {
-            if timelineDisplayMode == .plain && !isMultipleColumn {
+            if profileUsesPlainStyle || (timelineDisplayMode == .plain && !isMultipleColumn) {
                 Divider()
             }
 
@@ -63,7 +64,11 @@ public struct ProfileTabBar: View {
                                 .foregroundStyle(Color.secondary)
                                 .overlay {
                                     Text(title)
+                                        #if os(iOS)
+                                        .flarePrimaryText()
+                                        #else
                                         .foregroundStyle(Color.primary)
+                                        #endif
                                         .opacity(tabEmphasis(at: index))
                                         .accessibilityHidden(true)
                                 }
@@ -149,6 +154,7 @@ private struct ProfileTabFramePreferenceKey: PreferenceKey {
 public struct ProfileTabsLoadingPlaceholder: View {
     @Environment(\.timelineAppearance.timelineDisplayMode) private var timelineDisplayMode
     @Environment(\.isMultipleColumn) private var isMultipleColumn
+    @Environment(\.profileUsesPlainStyle) private var profileUsesPlainStyle
 
     private let placeholderTitles = [
         "Posts",
@@ -162,7 +168,7 @@ public struct ProfileTabsLoadingPlaceholder: View {
 
     public var body: some View {
         ZStack(alignment: .bottom) {
-            if timelineDisplayMode == .plain && !isMultipleColumn {
+            if profileUsesPlainStyle || (timelineDisplayMode == .plain && !isMultipleColumn) {
                 Divider()
             }
 
@@ -170,7 +176,7 @@ public struct ProfileTabsLoadingPlaceholder: View {
                 HStack {
                     ForEach(placeholderTitles.indices, id: \.self) { index in
                         Text(verbatim: placeholderTitles[index])
-                            .foregroundStyle(.secondary)
+                            .flareSecondaryText()
                             .padding(.vertical, 12)
                             .overlay(alignment: .bottom) {
                                 if index == 0 {
@@ -203,7 +209,7 @@ public struct ProfileTimelineLoadingPlaceholder: View {
             ForEach(0..<count, id: \.self) { index in
                 AdaptiveTimelineCard(index: index, totalCount: count) {
                     TimelinePlaceholderView()
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, TimelineHorizontalInsets.content)
                         .padding(.vertical, 8)
                 }
             }

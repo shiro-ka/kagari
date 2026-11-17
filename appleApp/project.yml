@@ -227,6 +227,7 @@ targets:
     type: bundle.unit-test
     platform: iOS
     dependencies:
+      - package: GSPlayer
       - package: LazyPager
       - package: CHTCollectionViewWaterfallLayout
         product: CHTCollectionViewWaterfallLayoutObjC
@@ -294,6 +295,14 @@ targets:
     dependencies:
       - target: FlareAppleCore
       - target: FlareAppleUI
+      - target: FlareAppleResource
+        embed: true
+        link: false
+        copy:
+          destination: resources
+      - package: Kingfisher
+      - package: iOS-Backports
+        product: SwiftUIBackports
       - package: Firebase
         product: FirebaseCrashlytics
     settings:
@@ -460,6 +469,9 @@ targets:
         excludes:
           - Resources/**
     dependencies:
+      - package: GSPlayer
+        destinationFilters: [iOS]
+        link: false
       - package: Kingfisher
         link: false
       - package: iOS-Backports
@@ -565,5 +577,7 @@ schemes:
         MacTimelineTests: all
     test:
       config: Debug
+      environmentVariables:
+        CFFIXED_USER_HOME: "$(TEMP_DIR)/MacTimelineTestsHome"
       targets:
         - MacTimelineTests

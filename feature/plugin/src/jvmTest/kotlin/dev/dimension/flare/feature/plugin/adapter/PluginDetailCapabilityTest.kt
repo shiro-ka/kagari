@@ -3,9 +3,13 @@ package dev.dimension.flare.feature.plugin.adapter
 import androidx.paging.LoadState
 import dev.dimension.flare.common.CacheState
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.ComposeData
+import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
+import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.PostEvent
+import dev.dimension.flare.data.datasource.microblog.SearchOperation
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
 import dev.dimension.flare.data.datasource.microblog.list.ListMetaData
 import dev.dimension.flare.data.datasource.microblog.loader.RelationActionType
@@ -13,12 +17,15 @@ import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoade
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.feature.plugin.abi.PluginAbiV1
 import dev.dimension.flare.feature.plugin.host.PluginHttpTransport
+import dev.dimension.flare.feature.plugin.host.PluginTransportBodyV1
 import dev.dimension.flare.feature.plugin.host.PluginTransportRequestV1
 import dev.dimension.flare.feature.plugin.host.PluginTransportResponseV1
 import dev.dimension.flare.feature.plugin.installer.PluginInstaller
 import dev.dimension.flare.feature.plugin.installer.TestFppFactory
 import dev.dimension.flare.feature.plugin.lifecycle.PluginStateStore
 import dev.dimension.flare.feature.plugin.lifecycle.RunningPluginV1
+import dev.dimension.flare.feature.plugin.login.requireLoginSuccess
+import dev.dimension.flare.feature.plugin.manifest.socialPlatform
 import dev.dimension.flare.feature.plugin.runtime.PluginCallException
 import dev.dimension.flare.feature.plugin.runtime.PluginRuntimePool
 import dev.dimension.flare.feature.plugin.runtime.PluginRuntimeUnavailableException
@@ -29,12 +36,15 @@ import dev.dimension.flare.feature.plugin.wire.ProfileV1
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.PlatformDataSourceContext
+import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.ui.model.ClickContext
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiDMItem
+import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UriLauncher
 import dev.dimension.flare.ui.model.postEventOrNull
+import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.CoroutineScope
@@ -46,13 +56,19 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toOkioPath
@@ -75,11 +91,13 @@ class PluginDetailCapabilityTest {
     private lateinit var root: Path
     private lateinit var runtimePool: PluginRuntimePool
     private lateinit var scope: CoroutineScope
+    private lateinit var transport: NoopTransport
 
     @BeforeTest
     fun setUp() {
         root = Files.createTempDirectory("plugin-detail-capability-test").toOkioPath()
-        runtimePool = PluginRuntimePool(fileSystem, NoopTransport())
+        transport = NoopTransport()
+        runtimePool = PluginRuntimePool(fileSystem, transport)
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
 
@@ -90,6 +108,383 @@ class PluginDetailCapabilityTest {
             runtimePool.close()
             fileSystem.deleteRecursively(root, mustExist = false)
         }
+
+    @Test
+    fun temporaryPagesKeepAccountBoundTargetsAndAdvanceAcrossEmptyPages() =
+        runBlocking {
+            val running = installShowcase()
+            val source = authenticated(running)
+            val pages = source.capabilitySet.timelinePage!!
+            val original =
+                assertIs<UiTimelineV2.TimelinePostItem>(
+                    source
+                        .timeline("home")
+                        .load(20, PagingRequest.Refresh)
+                        .data
+                        .first(),
+                )
+            val route =
+                assertIs<DeeplinkRoute.Timeline.Page>(
+                    DeeplinkRoute.parse(
+                        assertIs<ClickEvent.Deeplink>(
+                            original.presentation.quotes
+                                .single()
+                                .clickEvent,
+                        ).url,
+                    ),
+                )
+            assertEquals(pages.pluginId, route.pluginId)
+            assertEquals(pages.packageHash, route.packageHash)
+            val loader = assertIs<CacheableRemoteLoader<UiTimelineV2>>(pages.timelinePage(route.pageId, route.parameters))
+            assertFalse(loader.collapseReplyChains)
+            val first = loader.load(1, PagingRequest.Refresh)
+            assertEquals("empty", first.nextKey)
+            val child = assertIs<UiTimelineV2.TimelinePostItem>(first.data.single()).post
+            val childRoute = assertIs<DeeplinkRoute.Timeline.Page>(DeeplinkRoute.parse(assertIs<ClickEvent.Deeplink>(child.clickEvent).url))
+            assertEquals(child.statusKey.id, childRoute.parameters["parentId"])
+            val empty = loader.load(1, PagingRequest.Append(first.nextKey!!))
+            assertTrue(empty.data.isEmpty())
+            assertEquals("next", empty.nextKey)
+            val last = loader.load(1, PagingRequest.Append(empty.nextKey!!))
+            assertEquals(1, last.data.size)
+            assertNull(last.nextKey)
+            assertFailsWith<PluginCallException> { pages.timelinePage("missing", route.parameters).load(1, PagingRequest.Refresh) }
+            val ordered = mapOf("sort" to "oldest", "parentId" to "quote")
+            val reversed = mapOf("parentId" to "quote", "sort" to "oldest")
+
+            fun key(parameters: Map<String, String>) =
+                assertIs<CacheableRemoteLoader<UiTimelineV2>>(pages.timelinePage("replies", parameters)).pagingKey
+            assertEquals(key(ordered), key(reversed))
+            assertNotEquals(key(ordered), key(ordered + ("parentId" to "different")))
+            val otherAccount = authenticated(running, accountKey = MicroBlogKey("account-2", "plugin.example"))
+            assertNotEquals(
+                loader.pagingKey,
+                assertIs<CacheableRemoteLoader<UiTimelineV2>>(
+                    otherAccount.capabilitySet.timelinePage!!.timelinePage(route.pageId, route.parameters),
+                ).pagingKey,
+            )
+            assertNull(
+                authenticated(running, unavailableCapabilities = setOf(PluginAbiV1.Capabilities.TIMELINE_PAGE)).capabilitySet.timelinePage,
+            )
+        }
+
+    @Test
+    fun fullMutationResultsKeepTargetsAndDeletionInvalidatesTemporaryLists() =
+        runBlocking {
+            for (deleted in listOf(false, true)) {
+                val source =
+                    authenticated(
+                        installShowcase { script ->
+                            val targeted =
+                                script.replace(
+                                    "id === \"quote\" || id.startsWith(\"reply-\")",
+                                    "id === \"poll\" || id === \"quote\" || id.startsWith(\"reply-\")",
+                                )
+                            if (deleted) {
+                                targeted.replace(
+                                    "return { type: \"updatedPost\", post: post(\"poll\", context) };",
+                                    "return { type: \"deleted\" };",
+                                )
+                            } else {
+                                targeted
+                            }
+                        },
+                    )
+                val original =
+                    assertIs<UiTimelineV2.TimelinePostItem>(
+                        source
+                            .timeline("home")
+                            .load(20, PagingRequest.Refresh)
+                            .data
+                            .first(),
+                    ).post
+                val pages = source.capabilitySet.timelinePage!!
+                val updater = RecordingDatabaseUpdater(original)
+                var event: PostEvent? = null
+                original.poll!!.onVote.invoke(
+                    ClickContext(UriLauncher { event = ClickEvent.Deeplink(it).postEventOrNull()!!.postEvent }),
+                    persistentListOf(0),
+                )
+                source.postMutationHandler.handle(event!!, updater)
+                assertEquals(if (deleted) 1L else 0L, pages.revision.value)
+                if (deleted) {
+                    assertNull(updater.current)
+                } else {
+                    assertEquals(original.clickEvent, assertIs<UiTimelineV2.Post>(updater.current).clickEvent)
+                }
+            }
+        }
+
+    @Test
+    fun pageOnlyLoadingNeedsNoHomeOrCatalogAndTracksPublishAndDelete() =
+        runBlocking {
+            val manifest =
+                """
+                { "schemaVersion": 1, "apiVersion": 2, "id": "dev.example.pages", "version": "1.0.0", "name": "Pages",
+                  "platform": { "id": "Pages", "name": "Pages",
+                    "composeDefaults": { "supportedTypes": ["new", "reply"] },
+                    "capabilities": {
+                      "flare.datasource.timeline-page/v1": { "operations": { "load": {} } },
+                      "flare.datasource.post/v1": { "operations": { "detail": {}, "delete": {} } },
+                      "flare.datasource.compose/v2": { "operations": { "publish": {} } }
+                    }
+                  }
+                }
+                """.trimIndent()
+            val script =
+                """
+                function post(context) { return { key: { id: "published", host: context.origin.slice(8) },
+                  createdAt: "2026-11-09T00:00:00Z", content: { value: "A reply" },
+                  target: { type: "timelinePage", pageId: "replies", title: { value: "Replies" } } }; }
+                defineFlareSocialPlugin({ capabilities: {
+                  timelinePage: { load() { return { items: [], endReached: true }; } },
+                  post: { detail(request, context) { return { post: post(context) }; },
+                    delete(request) { return { type: request.key.id === "noop" ? "noChange" : "deleted" }; } },
+                  compose: { publish(request, context) { return { post: post(context) }; } }
+                } });
+                """.trimIndent()
+            val source = authenticated(install(manifest, script))
+            assertNull(source.capabilitySet.timeline)
+            assertNull(source.capabilitySet.tabCatalog)
+            val pages = source.capabilitySet.timelinePage!!
+            assertTrue(
+                pages
+                    .timelinePage("replies", emptyMap())
+                    .load(20, PagingRequest.Refresh)
+                    .data
+                    .isEmpty(),
+            )
+            source.capabilitySet.compose!!.compose(ComposeData("A reply")) {}
+            assertEquals(1L, pages.revision.value)
+            val posts =
+                source.capabilitySet.post!!
+                    .postHandler.loader
+            posts.deleteStatus(MicroBlogKey("noop", "plugin.example"))
+            assertEquals(1L, pages.revision.value)
+            posts.deleteStatus(MicroBlogKey("published", "plugin.example"))
+            assertEquals(2L, pages.revision.value)
+        }
+
+    @Test
+    fun postContextTabsKeepSeparatePagesAndShareTheReplyTabDefault() =
+        runBlocking {
+            val source = authenticated(installPostContext())
+            val key = MicroBlogKey("root", "plugin.example")
+            val details = requireNotNull(source.postDetailTabs(key))
+            assertEquals(listOf("replies", "related"), details.tabs.map { it.id })
+            assertEquals("replies", details.replyTabId)
+            val (replies, related) = details.tabs
+            assertEquals(UiText.ExternalRef(PLUGIN_ID, "detail.replies", "Replies"), replies.title)
+            assertEquals(listOf("recent", "top"), replies.filter?.options?.map { it.id })
+            assertEquals("top", replies.filter?.defaultOptionId)
+            val recent = replies.loader("recent")
+            val top = replies.loader("top")
+            val relatedPosts = related.loader(null)
+            val another = requireNotNull(source.postDetailTabs(key.copy(id = "another")))
+            val anotherRoot = another.tabs.first().loader("recent")
+            val pagingKeys = listOf(recent, top, relatedPosts, anotherRoot).map { assertIs<CacheableRemoteLoader<*>>(it).pagingKey }
+            assertEquals(4, pagingKeys.toSet().size)
+            val first = recent.load(20, PagingRequest.Refresh)
+            assertEquals(listOf("root-replies-recent-1"), first.data.map { it.statusKey.id })
+            val second = recent.load(20, PagingRequest.Append(requireNotNull(first.nextKey)))
+            assertEquals(listOf("root-replies-recent-2"), second.data.map { it.statusKey.id })
+            assertNull(second.nextKey)
+            assertEquals(listOf("root-related-1"), relatedPosts.load(20, PagingRequest.Refresh).data.map { it.statusKey.id })
+            val shared = source.shareReplies(key)
+            val sharedFirst = shared.load(20, PagingRequest.Refresh)
+            assertEquals(listOf("root-replies-top-1"), sharedFirst.data.map { it.statusKey.id })
+            val sharedSecond = shared.load(20, PagingRequest.Append(requireNotNull(sharedFirst.nextKey)))
+            assertEquals(listOf("root-replies-top-2"), sharedSecond.data.map { it.statusKey.id })
+        }
+
+    @Test
+    fun postContextTabsCanBeEmptyAndSharingRequiresACanonicalReplyTab(): Unit =
+        runBlocking {
+            val source = authenticated(installPostContext())
+            val key = MicroBlogKey("empty", "plugin.example")
+            assertEquals(emptyList(), source.postDetailTabs(key)?.tabs)
+            val withoutReplies = source.shareReplies(key.copy(id = "no-replies")).load(20, PagingRequest.Refresh)
+            assertTrue(withoutReplies.data.isEmpty())
+            assertFailsWith<PluginRuntimeUnavailableException> {
+                source.shareReplies(key.copy(id = "invalid")).load(20, PagingRequest.Refresh)
+            }
+        }
+
+    @Test
+    fun legacyContextRemainsAvailableAndTakesPriorityForSharing() =
+        runBlocking {
+            val key = MicroBlogKey("root", "plugin.example")
+            for (tabbed in listOf(false, true)) {
+                val source = authenticated(installPostContext(tabbed = tabbed, legacy = true))
+                assertEquals(tabbed, source.postDetailTabs(key) != null)
+                val context = source.context(key).load(20, PagingRequest.Refresh)
+                val replies = source.shareReplies(key).load(20, PagingRequest.Refresh)
+                assertEquals(listOf("root", "legacy-reply"), context.data.map { it.statusKey.id })
+                assertEquals(listOf("legacy-reply"), replies.data.map { it.statusKey.id })
+            }
+        }
+
+    @Test
+    fun accountsMustNegotiateBothPostContextTabOperationsOrNeither() =
+        runBlocking {
+            val plugin = installPostContext()
+            val postCapability = PluginAbiV1.Capabilities.POST
+            val key = MicroBlogKey("root", "plugin.example")
+            val source =
+                authenticated(
+                    plugin,
+                    unavailableOperations = mapOf(postCapability to setOf("contextTabs", "contextPage")),
+                )
+            assertNull(source.postDetailTabs(key))
+            for (operation in listOf("contextTabs", "contextPage")) {
+                val accountId = "account-1"
+                val profile = ProfileV1(EntityKeyV1(accountId, key.host), "test@${key.host}", "Test")
+                val incomplete =
+                    LoginSuccessV1(
+                        accountId,
+                        ORIGIN,
+                        JsonObject(emptyMap()),
+                        profile,
+                        mapOf(postCapability to setOf("detail", operation)),
+                    )
+                assertFailsWith<IllegalArgumentException> { plugin.requireLoginSuccess(incomplete, ORIGIN, accountId) }
+            }
+        }
+
+    @Test
+    fun zhihuStyleCommentContextSurvivesNavigationRuntimeEvictionAndReply() = runBlocking { forumCommentScenario("zhihu") }
+
+    @Test
+    fun tiebaStyleFloorAndSubreplyIdsSurviveNavigationRuntimeEvictionAndReply() = runBlocking { forumCommentScenario("tieba") }
+
+    private suspend fun forumCommentScenario(kind: String) {
+        val rootId = "2050290260991534603"
+        val floorId = "2050290260991534604"
+        val firstId = "2050290260991534605"
+        val secondId = "2050290260991534606"
+        val manifest =
+            """
+            { "apiVersion": 2, "id": "dev.example.$kind", "version": "1.0.0", "name": "Forum fixture",
+              "platform": { "id": "ForumFixture", "name": "Forum fixture",
+                "composeDefaults": { "supportedTypes": ["reply"] },
+                "capabilities": {
+                  "flare.datasource.timeline-page/v1": { "operations": { "load": { "directions": ["refresh", "older"] } } },
+                  "flare.datasource.post/v1": { "operations": { "detail": {}, "mutate": {} } },
+                  "flare.datasource.compose/v2": { "operations": { "publish": {} } }
+                }
+              }
+            }
+            """.trimIndent()
+        val script = requireNotNull(javaClass.getResource("/forum-replies-v2.js")).readText().replace("__PLATFORM__", kind)
+        val running = install(manifest, script)
+        val source = authenticated(running)
+        assertNull(source.capabilitySet.timeline)
+        assertNull(source.capabilitySet.tabCatalog)
+        val owner = MicroBlogKey(if (kind == "zhihu") "pin:$rootId" else "t$rootId", "plugin.example")
+        val posts =
+            source.capabilitySet.post!!
+                .postHandler.loader
+        val parent = assertIs<UiTimelineV2.TimelinePostItem>(posts.status(owner))
+        val entry =
+            assertIs<DeeplinkRoute.Timeline.Page>(
+                DeeplinkRoute.parse(
+                    assertIs<ClickEvent.Deeplink>(
+                        parent.presentation.quotes
+                            .single()
+                            .clickEvent,
+                    ).url,
+                ),
+            )
+        assertEquals(rootId, entry.parameters["rootId"])
+        assertEquals(floorId, entry.parameters["floorPid"])
+        val pages = source.capabilitySet.timelinePage!!
+        val hot = assertIs<CacheableRemoteLoader<UiTimelineV2>>(pages.timelinePage(entry.pageId, entry.parameters))
+        assertFalse(hot.collapseReplyChains)
+        val initial = hot.load(20, PagingRequest.Refresh)
+        assertEquals(3, initial.data.size)
+        val comments = initial.data.map { assertIs<UiTimelineV2.TimelinePostItem>(it).post }
+        val first = comments[1]
+        val second = comments[2]
+        assertTrue(first.statusKey.id.endsWith(firstId))
+        assertTrue(second.statusKey.id.endsWith(secondId))
+        assertEquals(first.statusKey, second.references.single { it.type == ReferenceType.Reply }.statusKey)
+        assertEquals(UiTimelineV2.Post.MediaClickPolicy.OpenPostClickEvent, second.mediaClickPolicy)
+        val nested = assertIs<DeeplinkRoute.Timeline.Page>(DeeplinkRoute.parse(assertIs<ClickEvent.Deeplink>(second.clickEvent).url))
+        assertEquals(secondId, nested.parameters["parentId"])
+        assertEquals(rootId, nested.parameters["rootId"])
+        val nextLevel = pages.timelinePage(nested.pageId, nested.parameters).load(20, PagingRequest.Refresh)
+        assertEquals(second.statusKey, nextLevel.data.first().statusKey)
+        val descendant = assertIs<UiTimelineV2.TimelinePostItem>(nextLevel.data[1]).post
+        assertTrue(descendant.statusKey.id.endsWith("2050290260991534607"))
+        assertEquals(second.statusKey, descendant.references.single { it.type == ReferenceType.Reply }.statusKey)
+        val limited = pages.timelinePage(entry.pageId, entry.parameters + ("mode" to "remote-offset"))
+        val limitedIds = mutableListOf<MicroBlogKey>()
+        var limitedPage = limited.load(1, PagingRequest.Refresh)
+        repeat(comments.size) { index ->
+            limitedIds += limitedPage.data.map { it.statusKey }
+            if (index < comments.lastIndex) {
+                val cursor = requireNotNull(limitedPage.nextKey)
+                assertTrue(cursor.startsWith("{"), "The plugin keeps the within-page offset in an opaque JSON cursor")
+                limitedPage = limited.load(1, PagingRequest.Append(cursor))
+            } else {
+                assertNull(limitedPage.nextKey)
+            }
+        }
+        assertEquals(comments.map { it.statusKey }, limitedIds)
+        val latest =
+            assertIs<CacheableRemoteLoader<UiTimelineV2>>(pages.timelinePage(entry.pageId, entry.parameters + ("sort" to "latest")))
+        assertNotEquals(hot.pagingKey, latest.pagingKey)
+        assertEquals(
+            listOf(second.statusKey, first.statusKey),
+            latest
+                .load(20, PagingRequest.Refresh)
+                .data
+                .drop(1)
+                .map { it.statusKey },
+        )
+        val empty = hot.load(20, PagingRequest.Append(initial.nextKey!!))
+        assertTrue(empty.data.isEmpty())
+        assertEquals("21", empty.nextKey)
+        val tail = hot.load(20, PagingRequest.Append(empty.nextKey!!))
+        assertEquals(1, tail.data.size)
+        assertNull(tail.nextKey)
+        // Fresh runtimes must recover all write context from the stable key, not a previously opened list.
+        runtimePool.closeIdle()
+        val detail = assertIs<UiTimelineV2.TimelinePostItem>(posts.status(second.statusKey)).post
+        assertEquals(second.statusKey, detail.statusKey)
+        assertEquals(second.clickEvent, detail.clickEvent)
+        val updater = RecordingDatabaseUpdater(detail)
+        val like = detail.actions.filterIsInstance<ActionMenu.Item>().single { it.actionFamily == PostActionFamily.Like }
+        source.postMutationHandler.handle(requireNotNull(like.clickEvent.postEventOrNull()).postEvent, updater)
+        val updatedLike =
+            assertIs<UiTimelineV2.Post>(updater.current).actions.filterIsInstance<ActionMenu.Item>().single {
+                it.actionFamily ==
+                    PostActionFamily.Like
+            }
+        assertEquals(1L, updatedLike.count?.value)
+        assertEquals(second.clickEvent, assertIs<UiTimelineV2.Post>(updater.current).clickEvent)
+        runtimePool.closeIdle()
+        source.capabilitySet.compose!!.compose(
+            ComposeData("回复这条评论", referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.Reply(second.statusKey))),
+        ) {}
+        val published = Json.parseToJsonElement(assertIs<PluginTransportBodyV1.Text>(transport.requests.last().body).value).jsonObject
+        assertEquals("publish", published.getValue("operation").jsonPrimitive.content)
+        val context = published.getValue("context").jsonObject
+        assertEquals(rootId, context.getValue("rootId").jsonPrimitive.content)
+        assertEquals(floorId, context.getValue("floorPid").jsonPrimitive.content)
+        assertEquals(secondId, context.getValue("replyToId").jsonPrimitive.content)
+        assertEquals(
+            second.statusKey.id,
+            published
+                .getValue("reference")
+                .jsonObject
+                .getValue("key")
+                .jsonObject
+                .getValue("id")
+                .jsonPrimitive.content,
+        )
+        assertEquals(1L, pages.revision.value)
+    }
 
     @Test
     fun notificationLoaderPreservesIndependentRows() =
@@ -281,6 +676,73 @@ class PluginDetailCapabilityTest {
     }
 
     @Test
+    fun partialSearchDispatchesOnlyNegotiatedOperationsAndKeepsProfileLookupOptional() =
+        runBlocking {
+            val manifest =
+                MANIFEST.replace(
+                    "\"capabilities\": {",
+                    """
+                    "capabilities": {
+                      "flare.datasource.search/v1": { "operations": { "profiles": {}, "discoverHashtags": {} } },
+                    """.trimIndent(),
+                )
+            val script =
+                SCRIPT.replace(
+                    "capabilities: {",
+                    """
+                    capabilities: {
+                      search: {
+                        profiles(request) {
+                          return { items: [{ key: { id: "alice", host: "plugin.example" }, handle: request.query, displayName: "Alice" }] };
+                        },
+                        discoverHashtags() { return { items: [{ name: "#trend" }] }; }
+                      },
+                    """.trimIndent(),
+                )
+            val plugin = install(manifest, script)
+            val search = PluginAbiV1.Capabilities.SEARCH
+            val profilesOnly = authenticated(plugin, unavailableOperations = mapOf(search to setOf("discoverHashtags")))
+            val profiles = requireNotNull(profilesOnly.capabilitySet.search)
+            assertTrue(profiles.supports(SearchOperation.Profiles))
+            assertFalse(profiles.supports(SearchOperation.DiscoverHashtags))
+            val result =
+                profiles
+                    .searchUser("alice")
+                    .load(20, PagingRequest.Refresh)
+                    .data
+                    .single()
+            assertEquals("alice", result.handle.raw)
+            assertEquals(ClickEvent.Noop, result.clickEvent)
+            assertTrue(
+                profiles
+                    .searchStatus("alice")
+                    .load(20, PagingRequest.Refresh)
+                    .data
+                    .isEmpty(),
+            )
+            assertTrue(
+                profiles
+                    .discoverHashtags()
+                    .load(20, PagingRequest.Refresh)
+                    .data
+                    .isEmpty(),
+            )
+
+            val discoverOnly = authenticated(plugin, unavailableOperations = mapOf(search to setOf("profiles")))
+            val discover = requireNotNull(discoverOnly.capabilitySet.search)
+            assertFalse(discover.canSearch)
+            assertEquals(
+                "#trend",
+                discover
+                    .discoverHashtags()
+                    .load(20, PagingRequest.Refresh)
+                    .data
+                    .single()
+                    .hashtag,
+            )
+        }
+
+    @Test
     fun partialCapabilitiesKeepHostEntrypointsAndMappedRoutesConsistent() =
         runBlocking<Unit> {
             val plugin = install()
@@ -301,6 +763,43 @@ class PluginDetailCapabilityTest {
                 assertEquals(ClickEvent.Noop, detailPosts(source)[2].clickEvent)
                 assertIs<ClickEvent.Deeplink>(detailPosts(source)[3].clickEvent)
             }
+        }
+
+    @Test
+    fun accountAndGuestRequestsUseTheRunningPackagesHttpOrigins() =
+        runBlocking {
+            val requests = mutableListOf<PluginTransportRequestV1>()
+            runtimePool.close()
+            runtimePool =
+                PluginRuntimePool(
+                    fileSystem,
+                    object : PluginHttpTransport {
+                        override suspend fun execute(request: PluginTransportRequestV1): PluginTransportResponseV1 {
+                            requests += request
+                            return PluginTransportResponseV1(200, emptyMap(), "{}".encodeToByteArray())
+                        }
+                    },
+                )
+            val manifest =
+                MANIFEST
+                    .replace("\"mediaNetwork\": true", "\"mediaNetwork\": true, \"httpOrigins\": [\"https://api.example\"]")
+                    .replace("\"capabilities\": {", "\"guest\": {\"enabled\": true}, \"capabilities\": {")
+            val script =
+                SCRIPT.replace(
+                    "page(request) {",
+                    "async page(request) { await flare.http.request({url: 'https://api.example/data'});",
+                )
+            val plugin = install(manifest, script)
+            assertEquals(5, detailPosts(authenticated(plugin)).size)
+            assertEquals(5, detailPosts(PluginDataSourceV1.guest(plugin, runtimePool, ORIGIN, "en", emptyMap(), null)).size)
+            assertEquals(2, requests.size)
+            assertTrue(requests.all { it.url == "https://api.example/data" && it.headers.isEmpty() })
+            val removed = install(manifest.replace("\"httpOrigins\": [\"https://api.example\"]", "\"httpOrigins\": []"), script)
+            assertFailsWith<PluginRuntimeUnavailableException> { detailPosts(authenticated(removed)) }
+            assertFailsWith<PluginRuntimeUnavailableException> {
+                detailPosts(PluginDataSourceV1.guest(removed, runtimePool, ORIGIN, "en", emptyMap(), null))
+            }
+            assertEquals(2, requests.size)
         }
 
     @Test
@@ -372,14 +871,179 @@ class PluginDetailCapabilityTest {
         }
 
     @Test
+    fun composeBridgePreservesReplyAndQuoteWithoutLegacyFields() =
+        runBlocking {
+            val source = authenticated(installCompose()).capabilitySet.compose!!
+            source.compose(ComposeData("new post")) {}
+            val normal = Json.parseToJsonElement(assertIs<PluginTransportBodyV1.Text>(transport.requests.last().body).value).jsonObject
+            assertFalse("reference" in normal || "replyTo" in normal)
+            val target = MicroBlogKey("opaque/42", "remote.example")
+            for ((type, status) in listOf("reply" to ComposeStatus.Reply(target), "quote" to ComposeStatus.Quote(target))) {
+                source.compose(ComposeData("caption", referenceStatus = ComposeData.ReferenceStatus(status))) {}
+                val payload = Json.parseToJsonElement(assertIs<PluginTransportBodyV1.Text>(transport.requests.last().body).value).jsonObject
+                val reference = payload["reference"]?.jsonObject
+                assertEquals(type, reference?.get("type")?.jsonPrimitive?.content)
+                assertEquals(
+                    target.id,
+                    reference
+                        ?.get("key")
+                        ?.jsonObject
+                        ?.get("id")
+                        ?.jsonPrimitive
+                        ?.content,
+                )
+                assertEquals(
+                    target.host,
+                    reference
+                        ?.get("key")
+                        ?.jsonObject
+                        ?.get("host")
+                        ?.jsonPrimitive
+                        ?.content,
+                )
+                assertFalse("replyTo" in payload || "quoteTo" in payload)
+            }
+        }
+
+    @Test
+    fun privateComposeUsesNegotiatedCapabilityAndIndependentLegacyDefaults() =
+        runBlocking {
+            val manifest =
+                MANIFEST.replace(
+                    "\"capabilities\": {",
+                    """
+                    "composeDefaults": { "supportedTypes": ["new"], "visibility": { "allowed": ["followers"], "default": "followers" } },
+                    "composeDefaultsV3": {
+                      "supportedTypes": ["new"],
+                      "visibility": { "allowed": ["friends", "selfOnly"], "default": "selfOnly" }
+                    },
+                    "capabilities": {
+                      "${PluginAbiV1.Capabilities.COMPOSE}": { "operations": { "publish": {} } },
+                      "${PluginAbiV1.Capabilities.COMPOSE_V3}": { "operations": { "publish": {} } },
+                    """.trimIndent(),
+                )
+            val script =
+                SCRIPT.replace(
+                    "defineFlareSocialPlugin({ capabilities: {",
+                    """
+                    function recordCompose(handler) {
+                      return { async publish(request, context) {
+                        await flare.http.request({ url: context.origin + "/record", method: "POST",
+                          body: { type: "json", value: { handler, visibility: request.visibility } } });
+                        return { post: post("published") };
+                      } };
+                    }
+                    defineFlareSocialPlugin({ capabilities: {
+                      compose: recordCompose("legacy"),
+                      composeV3: recordCompose("extended"),
+                    """.trimIndent(),
+                )
+            val plugin = install(manifest, script)
+            val extended = requireNotNull(authenticated(plugin).capabilitySet.compose)
+            assertEquals(UiTimelineV2.Post.Visibility.SelfOnly, extended.composeConfig(ComposeType.New).visibility?.defaultVisibility)
+            for ((scope, expected) in listOf(
+                UiTimelineV2.Post.Visibility.Friends to "friends",
+                UiTimelineV2.Post.Visibility.SelfOnly to "selfOnly",
+            )) {
+                extended.compose(ComposeData("private post", visibility = scope)) {}
+                val payload = Json.parseToJsonElement(assertIs<PluginTransportBodyV1.Text>(transport.requests.last().body).value).jsonObject
+                assertEquals("extended", payload["handler"]?.jsonPrimitive?.content)
+                assertEquals(expected, payload["visibility"]?.jsonPrimitive?.content)
+            }
+            val legacy = requireNotNull(authenticated(plugin, setOf(PluginAbiV1.Capabilities.COMPOSE_V3)).capabilitySet.compose)
+            assertEquals(UiTimelineV2.Post.Visibility.Followers, legacy.composeConfig(ComposeType.New).visibility?.defaultVisibility)
+            assertFailsWith<IllegalArgumentException> {
+                legacy.publish(ComposeData("private post", visibility = UiTimelineV2.Post.Visibility.SelfOnly)) {}
+            }
+            assertEquals(2, transport.requests.size)
+            legacy.compose(ComposeData("followers post", visibility = UiTimelineV2.Post.Visibility.Followers)) {}
+            val payload = Json.parseToJsonElement(assertIs<PluginTransportBodyV1.Text>(transport.requests.last().body).value).jsonObject
+            assertEquals("legacy", payload["handler"]?.jsonPrimitive?.content)
+            assertEquals("followers", payload["visibility"]?.jsonPrimitive?.content)
+        }
+
+    @Test
+    fun unsupportedComposeTypesAndEmptyQuotesFailBeforePluginCalls() =
+        runBlocking {
+            installCompose().let { running ->
+                val source = authenticated(running).capabilitySet.compose!!
+                assertFailsWith<IllegalArgumentException> {
+                    source.compose(
+                        ComposeData(
+                            "",
+                            referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.Quote(MicroBlogKey("target", "remote.example"))),
+                        ),
+                    ) {
+                    }
+                }
+            }
+            assertTrue(transport.requests.isEmpty())
+            val restricted = installCompose(supportedTypes = "\"new\", \"reply\"")
+            val source = authenticated(restricted).capabilitySet.compose!!
+            val quote =
+                ComposeData(
+                    "caption",
+                    visibility = UiTimelineV2.Post.Visibility.Public,
+                    referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.Quote(MicroBlogKey("target", "remote.example"))),
+                )
+            var progress = 0
+            assertFailsWith<IllegalArgumentException> { source.compose(quote) { progress++ } }
+            assertFailsWith<IllegalArgumentException> { source.publish(quote) { progress++ } }
+            assertEquals(0, progress)
+            assertTrue(transport.requests.isEmpty())
+        }
+
+    @Test
+    fun quoteCannotUseTheReplyMediaExemption() =
+        runBlocking {
+            val source = authenticated(installCompose(minimumMedia = 1)).capabilitySet.compose!!
+            val target = MicroBlogKey("target", "remote.example")
+            assertFailsWith<IllegalArgumentException> {
+                source.compose(ComposeData("caption", referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.Quote(target)))) {}
+            }
+            assertTrue(transport.requests.isEmpty())
+            source.compose(ComposeData("caption", referenceStatus = ComposeData.ReferenceStatus(ComposeStatus.Reply(target)))) {}
+            assertEquals(1, transport.requests.size)
+        }
+
+    private suspend fun installCompose(
+        minimumMedia: Int = 0,
+        supportedTypes: String = "\"new\", \"reply\", \"quote\"",
+    ): RunningPluginV1 {
+        val manifest =
+            MANIFEST.replace(
+                "\"capabilities\": {",
+                """
+                "composeDefaults": {
+                  "supportedTypes": [$supportedTypes], "text": { "maxLength": 1000 },
+                  "media": { "minCountForNew": $minimumMedia, "maxCount": 4, "maxBytes": 1000000 }
+                },
+                "capabilities": { "${PluginAbiV1.Capabilities.COMPOSE}": { "operations": { "publish": {} } },
+                """.trimIndent(),
+            )
+        val script =
+            SCRIPT.replace(
+                "defineFlareSocialPlugin({ capabilities: {",
+                """
+                defineFlareSocialPlugin({ capabilities: {
+                  compose: { async publish(request, context) {
+                    await flare.http.request({ url: context.origin + "/record", method: "POST", body: { type: "json", value: request } });
+                    return { post: post("published") };
+                  } },
+                """.trimIndent(),
+            )
+        return install(manifest, script)
+    }
+
+    @Test
     fun composeWithoutProfileCapabilityKeepsThePersistedLoginProfile() =
         runBlocking<Unit> {
             val manifest =
                 MANIFEST.replace(
                     "\"capabilities\": {",
                     """
-                    "composeDefaults": { "text": { "maxLength": 1000 } },
-                    "capabilities": { "flare.datasource.compose/v1": { "operations": { "publish": {} } },
+                    "composeDefaults": { "supportedTypes": ["new", "reply", "quote"], "text": { "maxLength": 1000 } },
+                    "capabilities": { "flare.datasource.compose/v2": { "operations": { "publish": {} } },
                     """.trimIndent(),
                 )
             val script =
@@ -597,6 +1261,55 @@ class PluginDetailCapabilityTest {
         }
 
     @Test
+    fun readOnlyListBlocksWritesEvenBeforeItsDetailHasBeenLoaded() =
+        runBlocking {
+            val script = SCRIPT.replace("title: \"Cold list\",", "title: \"Cold list\", readOnly: true,")
+            val adapter = requireNotNull(authenticated(install(script = script)).extraCapabilities.listAdapter)
+            assertFailsWith<IllegalArgumentException> { adapter.update("list-1", ListMetaData(title = "Changed")) }
+            assertTrue(adapter.info("list-1").readonly)
+        }
+
+    @Test
+    fun membershipResultsRefreshReadOnlyStateWithoutDroppingTheListToken() =
+        runBlocking {
+            val script =
+                SCRIPT.replace(
+                    "memberships() { return { items: [] }; },",
+                    """
+                    memberships(request) {
+                      const item = { id: "list-1", title: "List" };
+                      if (request.key.id !== "unknown") item.readOnly = request.key.id === "viewer";
+                      return { items: [item] };
+                    },
+                    """.trimIndent(),
+                )
+            val adapter = requireNotNull(authenticated(install(script = script)).extraCapabilities.listAdapter)
+            val members = adapter.memberLoader
+            val viewer = MicroBlogKey("viewer", "plugin.example")
+            assertFalse(adapter.info("list-1").readonly)
+            assertTrue(
+                members
+                    .loadUserLists(20, PagingRequest.Refresh, viewer)
+                    .data
+                    .single()
+                    .readonly,
+            )
+            assertTrue(
+                members
+                    .loadUserLists(20, PagingRequest.Refresh, viewer.copy(id = "unknown"))
+                    .data
+                    .single()
+                    .readonly,
+            )
+            assertFailsWith<IllegalArgumentException> { adapter.update("list-1", ListMetaData(title = "Changed")) }
+            assertFailsWith<IllegalArgumentException> { members.addMember("list-1", viewer) }
+            assertFailsWith<IllegalArgumentException> { members.removeMember("list-1", viewer) }
+
+            members.loadUserLists(20, PagingRequest.Refresh, viewer.copy(id = "editor"))
+            assertEquals("Changed", adapter.update("list-1", ListMetaData(title = "Changed")).title)
+        }
+
+    @Test
     fun mixedTimelinePostsUseTheirSelectedDetailRoutes() =
         runBlocking {
             val dataSource = authenticated(install())
@@ -763,6 +1476,25 @@ class PluginDetailCapabilityTest {
             .data
             .map { assertIs<UiTimelineV2.TimelinePostItem>(it).post }
 
+    private suspend fun installPostContext(
+        tabbed: Boolean = true,
+        legacy: Boolean = false,
+    ): RunningPluginV1 {
+        val operations =
+            buildList {
+                add(""""detail": {}""")
+                if (tabbed) add(""""contextTabs": {}, "contextPage": { "directions": ["refresh", "older"] }""")
+                if (legacy) add(""""context": {}""")
+            }.joinToString()
+        return install(
+            manifest =
+                MANIFEST
+                    .replace("\"apiVersion\": 1", "\"apiVersion\": ${if (tabbed) 2 else 1}")
+                    .replace("\"operations\": { \"detail\": {} }", "\"operations\": { $operations }"),
+            script = SCRIPT.replace("post: { detail(request)", "post: { $POST_CONTEXT_METHODS detail(request)"),
+        )
+    }
+
     private suspend fun authenticated(
         plugin: RunningPluginV1,
         unavailableCapabilities: Set<String> = emptySet(),
@@ -777,7 +1509,7 @@ class PluginDetailCapabilityTest {
                 credential = JsonObject(emptyMap()),
                 profile = ProfileV1(EntityKeyV1(accountKey.id, accountKey.host), "test@plugin.example", "Test"),
                 capabilities =
-                    plugin.installed.manifest.platform.capabilities
+                    plugin.installed.manifest.socialPlatform.capabilities
                         .filterKeys { it !in unavailableCapabilities }
                         .mapValues { (id, declaration) -> declaration.operations.keys - unavailableOperations[id].orEmpty() },
             )
@@ -814,12 +1546,22 @@ private class MemoryPlatformContext(
     override val accountKey: MicroBlogKey,
     private var value: PluginAccountCredentialV1,
 ) : PlatformDataSourceContext {
+    private val mutex = Mutex()
+
+    override suspend fun <T : Any> mutateCredential(
+        serializer: KSerializer<T>,
+        update: (T) -> T?,
+    ): T? =
+        mutex.withLock {
+            update(credential(serializer))?.also { value = it as PluginAccountCredentialV1 }
+        }
+
     override fun <T : Any> credential(serializer: KSerializer<T>): T {
         @Suppress("UNCHECKED_CAST")
         return value as T
     }
 
-    override fun <T : Any> credentialFlow(serializer: KSerializer<T>): Flow<T> = kotlinx.coroutines.flow.flowOf(credential(serializer))
+    override fun <T : Any> credentialFlow(serializer: KSerializer<T>): Flow<T> = flowOf(credential(serializer))
 
     override suspend fun <T : Any> updateCredential(
         serializer: KSerializer<T>,
@@ -830,8 +1572,12 @@ private class MemoryPlatformContext(
 }
 
 private class NoopTransport : PluginHttpTransport {
-    override suspend fun execute(request: PluginTransportRequestV1): PluginTransportResponseV1 =
-        PluginTransportResponseV1(200, emptyMap(), "{}".encodeToByteArray())
+    val requests = mutableListOf<PluginTransportRequestV1>()
+
+    override suspend fun execute(request: PluginTransportRequestV1): PluginTransportResponseV1 {
+        requests += request
+        return PluginTransportResponseV1(200, emptyMap(), "{}".encodeToByteArray())
+    }
 }
 
 private const val MANIFEST =
@@ -887,6 +1633,42 @@ private const val MANIFEST =
 
 private const val LIST_DETAIL =
     """detail(request) { return { id: request.key.id, title: "Cold list", entityToken: "list-token" }; },"""
+
+private const val POST_CONTEXT_METHODS =
+    """
+    contextTabs(request) {
+      const id = request.key.id;
+      if (id === "empty") return { tabs: [] };
+      const tabs = [
+        { id: "replies", title: { key: "detail.replies", fallback: "Replies" }, filter: {
+          options: [
+            { id: "recent", title: { value: "Recent" } },
+            { id: "top", title: { value: "Top" } },
+          ],
+          defaultOptionId: "top",
+        } },
+        { id: "related", title: { value: "Related" } },
+      ];
+      if (id === "no-replies") return { tabs };
+      return { tabs, replyTabId: id === "invalid" ? "missing" : "replies" };
+    },
+    contextPage(request) {
+      const { key, tabId, filterId, page } = request;
+      if (key.id === "no-replies") throw new Error("Sharing loaded a tab with no reply designation");
+      if (tabId === "related" && "filterId" in request) throw new Error("An unfiltered tab received a filter");
+      const prefix = [key.id, tabId, filterId].filter(Boolean).join("-");
+      const first = page.direction === "refresh";
+      if (!first && page.cursor !== prefix) throw new Error("Cursor crossed detail tabs or filters");
+      return {
+        items: [{ type: "post", post: post(prefix + (first ? "-1" : "-2")) }],
+        olderCursor: first ? prefix : null,
+        endReached: !first,
+      };
+    },
+    context(request) {
+      return { items: [post(request.key.id), post("legacy-reply")].map(post => ({ type: "post", post })), endReached: true };
+    },
+    """
 
 private const val SCRIPT =
     """

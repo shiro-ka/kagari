@@ -5,8 +5,10 @@ import dev.dimension.flare.data.datasource.microblog.paging.ShareRepliesLoader
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiHashtag
 import dev.dimension.flare.ui.model.UiProfile
+import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.flow.Flow
 import kotlin.native.HiddenFromObjC
 
 @HiddenFromObjC
@@ -20,9 +22,17 @@ public interface MicroblogDataSource {
 
     public fun context(statusKey: MicroBlogKey): RemoteLoader<UiTimelineV2>
 
+    /** Null selects the legacy combined conversation loader. */
+    public suspend fun postDetailTabs(statusKey: MicroBlogKey): PostDetailTabs? = null
+
+    public fun postDetailPost(statusKey: MicroBlogKey): Flow<UiState<UiTimelineV2>>? = null
+
     public fun shareReplies(statusKey: MicroBlogKey): RemoteLoader<UiTimelineV2> = ShareRepliesLoader(context(statusKey), statusKey)
 
     public fun shareReplyChildren(reply: UiTimelineV2): RemoteLoader<UiTimelineV2>? = null
+
+    public val searchOperations: Set<SearchOperation>
+        get() = defaultSearchOperations
 
     public fun searchStatus(query: String): RemoteLoader<UiTimelineV2>
 
@@ -40,3 +50,5 @@ public interface MicroblogDataSource {
 
     public suspend fun profileTabs(userKey: MicroBlogKey): ImmutableList<ProfileTab>
 }
+
+private val defaultSearchOperations = SearchOperation.entries.toSet()

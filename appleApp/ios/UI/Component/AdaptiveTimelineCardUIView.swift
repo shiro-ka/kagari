@@ -1,5 +1,6 @@
 import UIKit
 import KotlinSharedUI
+import FlareAppleUI
 
 /// UIKit port of `AdaptiveTimelineCard` + `ListCardView`.
 /// Manual frame-based layout — no Auto Layout constraints.
@@ -14,7 +15,8 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
     private static let cornerRadius: CGFloat = 32
     private static let plainEdgeRadius: CGFloat = 4
     private static let dividerHeight: CGFloat = 1.0 / UIScreen.main.scale
-    private static let multipleColumnInsets = UIEdgeInsets(top: 6, left: 2, bottom: 6, right: 2)
+    private static let multipleColumnInsets = UIEdgeInsets(top: 6, left: TimelineHorizontalInsets.multiColumnCard,
+                                                          bottom: 6, right: TimelineHorizontalInsets.multiColumnCard)
 
     private let contentContainer = UIView()
     private let cardBackground = CAShapeLayer()
@@ -62,10 +64,12 @@ final class AdaptiveTimelineCardUIView: UIView, ManualLayoutMeasurable, Timeline
 
     private func applyMode() {
         if useCardStyle {
+            contentContainer.traitOverrides[FlareTextBackgroundTrait.self] = .secondarySystemGroupedBackground
             cardBackground.isHidden = false
             divider.isHidden = true
             showsDivider = false
         } else {
+            contentContainer.traitOverrides.remove(FlareTextBackgroundTrait.self)
             cardBackground.isHidden = true
             let isLast = !(totalCount <= 0 || index < totalCount - 1)
             divider.isHidden = isLast

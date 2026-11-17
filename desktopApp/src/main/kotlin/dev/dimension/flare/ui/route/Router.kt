@@ -81,6 +81,7 @@ import dev.dimension.flare.ui.screen.home.ProfileWithUserNameAndHostDeeplinkRout
 import dev.dimension.flare.ui.screen.home.ReportUserDialog
 import dev.dimension.flare.ui.screen.home.SearchScreen
 import dev.dimension.flare.ui.screen.home.TabSettingScreen
+import dev.dimension.flare.ui.screen.home.TimelinePageScreen
 import dev.dimension.flare.ui.screen.home.TimelineScreen
 import dev.dimension.flare.ui.screen.home.UnblockUserDialog
 import dev.dimension.flare.ui.screen.home.UnmuteUserDialog
@@ -106,7 +107,6 @@ import dev.dimension.flare.ui.screen.settings.PostActionLayoutScreen
 import dev.dimension.flare.ui.screen.settings.SettingsScreen
 import dev.dimension.flare.ui.screen.status.StatusScreen
 import dev.dimension.flare.ui.screen.status.VVOCommentScreen
-import dev.dimension.flare.ui.screen.status.VVOStatusScreen
 import dev.dimension.flare.ui.screen.status.action.AddReactionSheet
 import dev.dimension.flare.ui.screen.status.action.BlueskyReportStatusDialog
 import dev.dimension.flare.ui.screen.status.action.DeleteStatusConfirmDialog
@@ -574,14 +574,6 @@ internal fun Router(
 
                 entry<Route.Discover> { args ->
                     DiscoverScreen(
-                        toUser = { accountType, userKey ->
-                            navigate(
-                                Profile(
-                                    accountType = accountType,
-                                    userKey = userKey,
-                                ),
-                            )
-                        },
                         toSearch = { accountType, keyword ->
                             navigate(
                                 Search(
@@ -598,14 +590,6 @@ internal fun Router(
                     SearchScreen(
                         initialQuery = args.keyword,
                         accountType = args.accountType,
-                        toUser = { accountType, userKey ->
-                            navigate(
-                                Profile(
-                                    accountType = accountType,
-                                    userKey = userKey,
-                                ),
-                            )
-                        },
                         toAskAi = navigateToAgentChat,
                     )
                 }
@@ -763,7 +747,14 @@ internal fun Router(
                 }
 
                 entry<Route.PluginManagement> {
-                    DesktopPluginManagementScreen(onBack = onBack, onCreateWithAI = { navigateToAgentChat(null) })
+                    DesktopPluginManagementScreen(
+                        onBack = onBack,
+                        onCreateWithAI = { navigateToAgentChat(null) },
+                        onOpenMarketplace = { navigate(Route.PluginMarketplace) },
+                    )
+                }
+                entry<Route.PluginMarketplace> {
+                    DesktopPluginManagementScreen(onBack = onBack, marketplace = true)
                 }
 
                 entry<Route.PostActionLayout> {
@@ -781,6 +772,8 @@ internal fun Router(
                 entry<Route.AppLogging> {
                     AppLoggingScreen()
                 }
+
+                entry<Route.TimelinePage> { args -> TimelinePageScreen(args.page) }
 
                 entry<Timeline> { args ->
                     TimelineScreen(
@@ -864,7 +857,7 @@ internal fun Router(
                 }
 
                 entry<Route.VVO.StatusDetail> { args ->
-                    VVOStatusScreen(
+                    StatusScreen(
                         statusKey = args.statusKey,
                         accountType = args.accountType,
                     )

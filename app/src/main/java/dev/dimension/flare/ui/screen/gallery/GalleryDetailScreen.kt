@@ -82,6 +82,7 @@ import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.GalleryMedia
+import dev.dimension.flare.ui.component.GalleryTranslationButton
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.RichText
@@ -236,6 +237,7 @@ internal fun GalleryCommentsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = contentPadding,
                 forceCardMode = true,
+                cardGridPadding = screenHorizontalPadding,
             ) {
                 status(state.comments)
             }
@@ -542,6 +544,7 @@ private fun GallerySideBar(
                             contentPadding = PaddingValues(vertical = 8.dp),
                             modifier = Modifier.fillMaxSize(),
                             forceCardMode = true,
+                            cardGridPadding = screenHorizontalPadding,
                         ) {
                             status(comments)
                         }
@@ -653,6 +656,7 @@ private fun GalleryAuthorCard(
                     )
                 }
             }
+            GalleryTranslationButton(detail)
             StatusActionButton(
                 icon =
                     if (detail.isBookmarked) {
@@ -971,6 +975,9 @@ private fun GalleryTopAppBar(
             BackButton(onBack = onBack)
         },
         actions = {
+            if (!isBigScreen) {
+                detailState.onSuccess { GalleryTranslationButton(it) }
+            }
             val detailLoaded = detailState is UiState.Success
             IconButton(
                 enabled = detailLoaded,

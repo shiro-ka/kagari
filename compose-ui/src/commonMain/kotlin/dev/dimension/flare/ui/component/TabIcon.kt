@@ -59,13 +59,19 @@ import dev.dimension.flare.compose.ui.nostr_login_qr_button
 import dev.dimension.flare.compose.ui.nostr_login_title
 import dev.dimension.flare.compose.ui.pixiv_private_favourites_title
 import dev.dimension.flare.compose.ui.pixiv_private_following_title
+import dev.dimension.flare.compose.ui.pixiv_ranking_day_ai_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_day_female_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_day_male_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_day_manga_title
+import dev.dimension.flare.compose.ui.pixiv_ranking_day_r18_ai_title
+import dev.dimension.flare.compose.ui.pixiv_ranking_day_r18_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_month_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_week_original_title
+import dev.dimension.flare.compose.ui.pixiv_ranking_week_r18_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_week_rookie_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_week_title
+import dev.dimension.flare.compose.ui.plugin_login_qr_new_code
+import dev.dimension.flare.compose.ui.plugin_login_qr_retry_save
 import dev.dimension.flare.compose.ui.posts_title
 import dev.dimension.flare.compose.ui.posts_with_replies_title
 import dev.dimension.flare.compose.ui.profile_tab_articles
@@ -74,6 +80,19 @@ import dev.dimension.flare.compose.ui.rss_title
 import dev.dimension.flare.compose.ui.service_select_next_button
 import dev.dimension.flare.compose.ui.settings_title
 import dev.dimension.flare.compose.ui.social_title
+import dev.dimension.flare.compose.ui.status_detail_all_reactions
+import dev.dimension.flare.compose.ui.status_detail_by_popularity
+import dev.dimension.flare.compose.ui.status_detail_by_time
+import dev.dimension.flare.compose.ui.status_detail_comments
+import dev.dimension.flare.compose.ui.status_detail_liked_by
+import dev.dimension.flare.compose.ui.status_detail_likes
+import dev.dimension.flare.compose.ui.status_detail_oldest
+import dev.dimension.flare.compose.ui.status_detail_quotes
+import dev.dimension.flare.compose.ui.status_detail_reactions
+import dev.dimension.flare.compose.ui.status_detail_recency
+import dev.dimension.flare.compose.ui.status_detail_relevance
+import dev.dimension.flare.compose.ui.status_detail_replies
+import dev.dimension.flare.compose.ui.status_detail_reposted_by
 import dev.dimension.flare.compose.ui.tab_settings_default
 import dev.dimension.flare.compose.ui.tab_settings_filter_repost
 import dev.dimension.flare.compose.ui.weibo_friends_circle_title
@@ -358,8 +377,36 @@ internal val UiStrings.res: StringResource
 
             UiStrings.Reposts -> Res.string.tab_settings_filter_repost
 
+            UiStrings.Comments -> Res.string.status_detail_comments
+
+            UiStrings.ByPopularity -> Res.string.status_detail_by_popularity
+
+            UiStrings.ByTime -> Res.string.status_detail_by_time
+
+            UiStrings.Replies -> Res.string.status_detail_replies
+
+            UiStrings.Quotes -> Res.string.status_detail_quotes
+
+            UiStrings.Relevance -> Res.string.status_detail_relevance
+
+            UiStrings.Recency -> Res.string.status_detail_recency
+
+            UiStrings.Likes -> Res.string.status_detail_likes
+
+            UiStrings.Oldest -> Res.string.status_detail_oldest
+
+            UiStrings.RepostedBy -> Res.string.status_detail_reposted_by
+
+            UiStrings.LikedBy -> Res.string.status_detail_liked_by
+
+            UiStrings.Reactions -> Res.string.status_detail_reactions
+
+            UiStrings.AllReactions -> Res.string.status_detail_all_reactions
+
             UiStrings.Articles -> Res.string.profile_tab_articles
+
             UiStrings.WeiboFriendsCircle -> Res.string.weibo_friends_circle_title
+
             UiStrings.WeiboPrivateFollowing -> Res.string.weibo_private_following_title
 
             UiStrings.Media -> Res.string.media_title
@@ -386,6 +433,10 @@ internal val UiStrings.res: StringResource
 
             UiStrings.QrConnect -> Res.string.nostr_login_qr_button
 
+            UiStrings.QrLoginNewCode -> Res.string.plugin_login_qr_new_code
+
+            UiStrings.QrLoginRetrySave -> Res.string.plugin_login_qr_retry_save
+
             UiStrings.CredentialImport -> Res.string.nostr_login_title
 
             UiStrings.ExternalSigner -> Res.string.nostr_login_amber_button
@@ -407,6 +458,14 @@ internal val UiStrings.res: StringResource
             UiStrings.PixivRankingWeekRookie -> Res.string.pixiv_ranking_week_rookie_title
 
             UiStrings.PixivRankingDayManga -> Res.string.pixiv_ranking_day_manga_title
+
+            UiStrings.PixivRankingDayAi -> Res.string.pixiv_ranking_day_ai_title
+
+            UiStrings.PixivRankingDayR18 -> Res.string.pixiv_ranking_day_r18_title
+
+            UiStrings.PixivRankingWeekR18 -> Res.string.pixiv_ranking_week_r18_title
+
+            UiStrings.PixivRankingDayR18Ai -> Res.string.pixiv_ranking_day_r18_ai_title
 
             UiStrings.Illustrations -> Res.string.illustrations_title
 

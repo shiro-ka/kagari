@@ -1,7 +1,11 @@
 import AVFoundation
 import Combine
+import FlareAppleCore
 import SwiftUI
 @preconcurrency import KotlinSharedUI
+#if os(iOS)
+import GSPlayer
+#endif
 
 public enum VideoState {
     case idle
@@ -35,6 +39,8 @@ final class SharedVideoPlayer {
     private var wantsPlayback = false
     private var rate: Float = 1
     private var loadedSource: MediaPlaybackSource?
+    private var playbackFile: LivePhotoPlaybackFile?
+    private var usesVideoCache = false
     private var unsubscribeRoute: (() -> Void)?
     private var retentionTask: Task<Void, Never>?
     private var handoffTask: Task<Void, Never>?
@@ -62,7 +68,7 @@ final class SharedVideoPlayer {
         memoryPressure = pressure
     }
 
-    func attach(_ session: VideoPlaybackSession, source: MediaPlaybackSource, position: Double?, allowsAudio: Bool) throws -> (AVQueuePlayer, Double) {
+    func attach(_ session: VideoPlaybackSession, source: MediaPlaybackSource, position: Double?, allowsAudio: Bool, usesVideoCache: Bool = false, playbackFile: LivePhotoPlaybackFile? = nil) throws -> (AVQueuePlayer, Double) {
         guard URL(string: source.url) != nil else {
             MediaProxy.shared.release(source: source)
             throw URLError(.badURL)
@@ -83,12 +89,14 @@ final class SharedVideoPlayer {
             return (player, self.position(session))
         }
         let position = position ?? MediaPlaybackMemory.shared.position(for: source.originalUrl)
+        self.usesVideoCache = usesVideoCache
         generation += 1
         stopObserving()
         player.pause()
         player.removeAllItems()
         releaseSource()
         loadedSource = source
+        self.playbackFile = playbackFile
         if let snapshot = source.snapshot {
             let key = source.key
             let unsubscribe = snapshot.onInvalidated { @Sendable [weak self] in
@@ -113,13 +121,59 @@ final class SharedVideoPlayer {
     }
 
     private func replenishQueue() {
-        guard let source = loadedSource, let url = URL(string: source.url), playbackError == nil, player.error == nil,
+        guard let source = loadedSource, let url = playbackFile?.url ?? URL(string: source.url), playbackError == nil, player.error == nil,
               player.currentItem?.status != .failed else { return }
         while player.items().count < 3 {
             // Looper replicas and shared assets can freeze short videos on iOS.
-            let item = AVPlayerItem(url: url)
+            let item = makeItem(url: url)
             player.insert(item, after: player.items().last)
         }
+    }
+
+    private func makeItem(url: URL) -> AVPlayerItem {
+        let item: AVPlayerItem
+        #if os(iOS)
+        if usesVideoCache,
+           let loaderURL = URL(string: "loader-" + url.absoluteString) {
+            // shortcut: GSPlayer's loader- convention is internal; recheck it when upgrading GSPlayer.
+            let asset = AVURLAsset(url: loaderURL)
+            asset.resourceLoader.setDelegate(VideoLoadManager.shared, queue: .main)
+            item = AVPlayerItem(asset: asset)
+        } else {
+            item = AVPlayerItem(url: url)
+        }
+        #else
+        item = AVPlayerItem(url: url)
+        #endif
+        #if os(iOS)
+        item.audioTimePitchAlgorithm = .timeDomain
+        #endif
+        return item
+    }
+
+    func canCache(_ source: MediaPlaybackSource) async -> Bool {
+        #if os(iOS)
+        if loadedSource?.key == source.key { return usesVideoCache }
+        guard let url = URL(string: source.url), url.scheme == "http", url.host == "127.0.0.1",
+              url.pathExtension.lowercased() == "mp4" else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 5
+        // GSPlayer requires video MIME and byte ranges; keep other responses on native AVFoundation.
+        guard let (_, response) = try? await URLSession.shared.data(for: request),
+              let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode),
+              response.mimeType?.lowercased().hasPrefix("video/") == true,
+              response.value(forHTTPHeaderField: "Accept-Ranges")?.lowercased().contains("bytes") == true else { return false }
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    func prepareLivePhoto(_ media: any UiMedia, source: MediaPlaybackSource) async throws -> LivePhotoPlaybackFile? {
+        if loadedSource?.key == source.key, let playbackFile { return playbackFile }
+        return try await LivePhotoPlaybackFile.prepare(media)
     }
 
     private enum PlaybackUpdate: Sendable {
@@ -344,6 +398,7 @@ final class SharedVideoPlayer {
         unsubscribeRoute = nil
         if let source = loadedSource { MediaProxy.shared.release(source: source) }
         loadedSource = nil
+        playbackFile = nil
     }
 }
 
@@ -403,7 +458,11 @@ public final class VideoPlaybackSession {
         let nextRequest = PlaybackRequest(media: media, position: position, muted: muted, rate: rate, playing: playing)
         request = nextRequest
         if mediaIdentity == identity, player != nil {
-            setPlaying(playing, rate: rate)
+            if playing, media.isRemote, case .error = state {
+                reloadInvalidatedSource()
+            } else {
+                setPlaying(playing, rate: rate)
+            }
             return
         }
         mediaIdentity = identity
@@ -434,12 +493,34 @@ public final class VideoPlaybackSession {
         if player == nil { state = .loading }
         loadTask = Task { @MainActor [weak self] in
             do {
-                let source = try await MediaProxy.shared.playbackSource(media: request.media)
+                #if os(iOS)
+                let forceRelay = URL(string: request.media.url)?.pathExtension.lowercased() == "mp4"
+                #else
+                let forceRelay = false
+                #endif
+                // Keep remote TLS, proxy policy, and credentials in ProxyNetwork, outside GSPlayer's downloader.
+                var source = try await MediaProxy.shared.playbackSource(media: request.media, forceRelay: forceRelay)
+                let usesVideoCache = await SharedVideoPlayer.shared.canCache(source)
+                if forceRelay, !usesVideoCache, !Task.isCancelled {
+                    MediaProxy.shared.release(source: source)
+                    source = try await MediaProxy.shared.playbackSource(media: request.media, forceRelay: false)
+                }
+                let playbackFile: LivePhotoPlaybackFile?
+                do {
+                    #if os(iOS)
+                    playbackFile = try await SharedVideoPlayer.shared.prepareLivePhoto(request.media, source: source)
+                    #else
+                    playbackFile = nil
+                    #endif
+                } catch {
+                    MediaProxy.shared.release(source: source)
+                    throw error
+                }
                 guard !Task.isCancelled, let self, self.mediaIdentity == identity else {
                     MediaProxy.shared.release(source: source)
                     return
                 }
-                try self.attach(source, request: request, position: position)
+                try self.attach(source, request: request, position: position, usesVideoCache: usesVideoCache, playbackFile: playbackFile)
             } catch {
                 guard !Task.isCancelled, let self else { return }
                 SharedVideoPlayer.shared.detach(self)
@@ -462,11 +543,11 @@ public final class VideoPlaybackSession {
         updateSubject.send()
     }
 
-    private func attach(_ source: MediaPlaybackSource, request: PlaybackRequest, position: Double?) throws {
+    private func attach(_ source: MediaPlaybackSource, request: PlaybackRequest, position: Double?, usesVideoCache: Bool = false, playbackFile: LivePhotoPlaybackFile? = nil) throws {
         hasRestoredPosition = false
         hasDisplayedFrame = false
         allowsAudio = !request.muted
-        let attachment = try SharedVideoPlayer.shared.attach(self, source: source, position: position, allowsAudio: allowsAudio)
+        let attachment = try SharedVideoPlayer.shared.attach(self, source: source, position: position, allowsAudio: allowsAudio, usesVideoCache: usesVideoCache, playbackFile: playbackFile)
         player = attachment.0
         self.position = attachment.1
         url = request.media.url

@@ -112,6 +112,7 @@ class PluginAuthoringCardTest {
             MaterialTheme {
                 PluginManagementList(
                     state = state,
+                    onSettings = {},
                     onCancelPluginUpdate = {},
                     onUninstall = {},
                     onUpdate = { updated = it },
@@ -176,7 +177,7 @@ class PluginAuthoringCardTest {
                 LocalUriHandler provides uriHandler,
             ) {
                 FlareTheme(darkTheme = false, dynamicColor = false) {
-                    AndroidPluginManagementScreen(onBack = {})
+                    AndroidPluginManagementScreen(onBack = {}, onSettings = {})
                 }
             }
         }
@@ -186,7 +187,7 @@ class PluginAuthoringCardTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val linkText = context.getString(R.string.plugin_report_issue)
         compose.onNodeWithText(context.getString(R.string.plugin_beta_description, linkText)).performFirstLinkClick()
-        compose.runOnIdle { assertEquals("https://github.com/DimensionDev/Flare/issues", openedUrl) }
+        compose.runOnIdle { assertEquals("https://github.com/flaresocialapp/Flare/issues", openedUrl) }
         compose.onNodeWithText(linkText).assertDoesNotExist()
         screenshot("flare-plugins-android.png")
         compose.onNodeWithContentDescription("${context.getString(R.string.more)}: Pixelfed").performClick()
@@ -233,6 +234,7 @@ class PluginAuthoringCardTest {
                         shapesIndex = 0,
                         shapesCount = 1,
                         busy = busy,
+                        onSettings = {},
                         onCancelUpdate = {},
                         onUninstall = { uninstalls++ },
                         onUpdate = {},

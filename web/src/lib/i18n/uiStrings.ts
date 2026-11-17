@@ -60,6 +60,32 @@ export function localizedUiString(value: UiStrings): string {
 			return m.profileTabTimelineWithReply();
 		case 'Highlights':
 			return m.profileTabHighlights();
+		case 'Comments':
+			return m.statusDetailComments();
+		case 'ByPopularity':
+			return m.statusDetailByPopularity();
+		case 'ByTime':
+			return m.statusDetailByTime();
+		case 'Replies':
+			return m.statusDetailReplies();
+		case 'Quotes':
+			return m.statusDetailQuotes();
+		case 'Relevance':
+			return m.statusDetailRelevance();
+		case 'Recency':
+			return m.statusDetailRecency();
+		case 'Likes':
+			return m.statusDetailLikes();
+		case 'Oldest':
+			return m.statusDetailOldest();
+		case 'RepostedBy':
+			return m.statusDetailRepostedBy();
+		case 'LikedBy':
+			return m.statusDetailLikedBy();
+		case 'Reactions':
+			return m.statusDetailReactions();
+		case 'AllReactions':
+			return m.statusDetailAllReactions();
 		case 'Reposts':
 			return m.tabSettingsFilterRepost();
 		case 'Articles':
@@ -101,32 +127,40 @@ export function localizedUiString(value: UiStrings): string {
 		case 'WebCookieLogin':
 			return m.loginWebCookie();
 		case 'PixivRankingWeek':
-			return 'Weekly Ranking';
+			return m.pixivRankingWeekTitle();
 		case 'PixivRankingMonth':
-			return 'Monthly Ranking';
+			return m.pixivRankingMonthTitle();
 		case 'PixivRankingDayMale':
-			return 'Male Ranking';
+			return m.pixivRankingDayMaleTitle();
 		case 'PixivRankingDayFemale':
-			return 'Female Ranking';
+			return m.pixivRankingDayFemaleTitle();
 		case 'PixivRankingWeekOriginal':
-			return 'Original Ranking';
+			return m.pixivRankingWeekOriginalTitle();
 		case 'PixivRankingWeekRookie':
-			return 'Rookie Ranking';
+			return m.pixivRankingWeekRookieTitle();
 		case 'PixivRankingDayManga':
-			return 'Manga Ranking';
+			return m.pixivRankingDayMangaTitle();
+		case 'PixivRankingDayAi':
+			return m.pixivRankingDayAiTitle();
+		case 'PixivRankingDayR18':
+			return m.pixivRankingDayR18Title();
+		case 'PixivRankingWeekR18':
+			return m.pixivRankingWeekR18Title();
+		case 'PixivRankingDayR18Ai':
+			return m.pixivRankingDayR18AiTitle();
 		case 'Illustrations':
 			return m.illustrationsTitle();
 		case 'Manga':
 			return m.mangaTitle();
 		case 'FanboxSupported':
-			return 'Supported posts';
+			return m.fanboxSupportedTitle();
 		case 'FanboxRecommendedCreators':
-			return 'Recommended creators';
+			return m.fanboxRecommendedCreatorsTitle();
 		case 'PixivPrivateFollowing':
-			return 'Private Following';
+			return m.pixivPrivateFollowingTitle();
 		case 'PixivPrivateBookmarks':
 		case 'PixivPrivateFavourites':
-			return 'Private Favorites';
+			return m.pixivPrivateFavoritesTitle();
 		default:
 			return m.loginCredentialImport();
 	}

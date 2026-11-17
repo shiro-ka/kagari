@@ -107,6 +107,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.ComposeReplyRestrictionMenu
 import dev.dimension.flare.ui.component.EmojiPicker
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareDropdownMenu
@@ -115,6 +116,8 @@ import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.TabIcon
 import dev.dimension.flare.ui.component.status.CommonStatusComponent
+import dev.dimension.flare.ui.component.status.LocalStatusBackgroundColor
+import dev.dimension.flare.ui.component.status.StatusComponentDefaults
 import dev.dimension.flare.ui.component.status.StatusVisibilityComponent
 import dev.dimension.flare.ui.component.toImageVector
 import dev.dimension.flare.ui.model.UiEmoji
@@ -649,7 +652,7 @@ internal fun ComposeScreen(
                     }
                 }
             }
-            state.pollState.onSuccess { pollState ->
+            state.pollState.let { pollState ->
                 AnimatedVisibility(pollState.enabled) {
                     Column(
                         modifier =
@@ -663,10 +666,14 @@ internal fun ComposeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             val items =
-                                mapOf(
-                                    true to stringResource(id = R.string.compose_poll_single_choice),
-                                    false to stringResource(id = R.string.compose_poll_multiple_choice),
-                                )
+                                if (pollState.allowsMultiple) {
+                                    mapOf(
+                                        true to stringResource(id = R.string.compose_poll_single_choice),
+                                        false to stringResource(id = R.string.compose_poll_multiple_choice),
+                                    )
+                                } else {
+                                    emptyMap()
+                                }
                             Row(
                                 modifier =
                                     Modifier
@@ -697,6 +704,18 @@ internal fun ComposeScreen(
                                     modifier = Modifier.size(16.dp),
                                 )
                             }
+                        }
+                        if (!pollState.isSupported) {
+                            Text(
+                                text = stringResource(R.string.compose_poll_unsupported_accounts),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        pollState.maxOptionLength?.let { limit ->
+                            Text(
+                                text = stringResource(R.string.compose_poll_option_limits, pollState.maxOptions, limit),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                         pollState.options.forEachIndexed { index, textFieldState ->
                             PollOption(
@@ -754,6 +773,7 @@ internal fun ComposeScreen(
                             modifier = Modifier.padding(horizontal = screenHorizontalPadding),
                         ) {
                             CompositionLocalProvider(
+                                LocalStatusBackgroundColor provides CardDefaults.cardColors().containerColor,
                                 LocalTimelineAppearance provides
                                     LocalTimelineAppearance.current.copy(
                                         showMedia = false,
@@ -766,10 +786,8 @@ internal fun ComposeScreen(
                                     item = content,
                                     modifier =
                                         Modifier
-                                            .padding(
-                                                horizontal = screenHorizontalPadding,
-                                                vertical = 8.dp,
-                                            ).fillMaxWidth(),
+                                            .padding(StatusComponentDefaults.quotePadding)
+                                            .fillMaxWidth(),
                                     isQuote = true,
                                     isClickable = false,
                                 )
@@ -815,7 +833,7 @@ internal fun ComposeScreen(
                     }
                 }
                 KagariQuoteToggleButton(state.interactionGate)
-                state.pollState.onSuccess {
+                state.pollState.takeIf { it.isSupported || it.enabled }?.let {
                     IconButton(
                         onClick = {
                             it.togglePoll()
@@ -892,6 +910,12 @@ internal fun ComposeScreen(
                             }
                         }
                     }
+                }
+                state.state.replyRestriction?.let { restriction ->
+                    ComposeReplyRestrictionMenu(
+                        restriction = restriction,
+                        onSelect = state.state::setReplyRestriction,
+                    )
                 }
                 state.contentWarningState.onSuccess {
                     IconButton(
@@ -1201,18 +1225,12 @@ private fun composePresenter(
             ?.let { UiState.Success(it) }
             ?: UiState.Loading()
 
-    val pollState =
-        state.composeConfig
-            .mapNotNull {
-                it.poll
-            }.map {
-                pollPresenter(it)
-            }
+    val pollState = pollPresenter(state.pollConfig)
 
     val mediaConfig by rememberUpdatedState(state.composeConfig.takeSuccess()?.media)
     val scope = rememberCoroutineScope()
     val notification = koinInject<InAppNotification>()
-    val pollEnabled by rememberUpdatedState(pollState.takeSuccess()?.enabled == true)
+    val pollEnabled by rememberUpdatedState(pollState.enabled)
     val media =
         remember(context) {
             ComposeMediaState(
@@ -1286,7 +1304,6 @@ private fun composePresenter(
         val canApplyDraft =
             (composeConfig?.visibility == null || state.visibilityState.takeSuccess() != null) &&
                 (composeConfig?.media == null || mediaState is UiState.Success) &&
-                (composeConfig?.poll == null || pollState is UiState.Success) &&
                 (composeConfig?.contentWarning == null || contentWarningState is UiState.Success) &&
                 (composeConfig?.language == null || languageState is UiState.Success)
         LaunchedEffect(draft.groupId, draft.updatedAt, canApplyDraft) {
@@ -1301,15 +1318,16 @@ private fun composePresenter(
             media.replaceMedias(draft.medias)
             media.setMediaSensitive(draft.data.sensitive)
             selfLabels.labels = draft.data.selfLabels
-            pollState.takeSuccess()?.setPoll(draft.data.poll)
+            pollState.setPoll(draft.data.poll)
             contentWarningState.takeSuccess()?.setText(draft.data.spoilerText)
             languageState.takeSuccess()?.setSelectedLanguages(draft.data.language)
             state.consumeLoadedDraft()
         }
     }
 
-    val canPoll = media.medias.isEmpty()
+    val canPoll = pollState.enabled || media.medias.isEmpty()
     val canMedia = media.canAddMedia && !pollEnabled
+    val hasPollMediaConflict = pollState.enabled && state.pollConfig?.allowsMedia == false && media.medias.isNotEmpty()
     var showEmojiMenu by remember { mutableStateOf(false) }
     var showAccountSelectMenu by remember { mutableStateOf(false) }
     val buildComposeData by rememberUpdatedState {
@@ -1326,7 +1344,7 @@ private fun composePresenter(
                     )
                 },
             poll =
-                pollState.takeSuccess()?.takeIf { it.enabled }?.let {
+                pollState.takeIf { it.enabled }?.let {
                     ComposeData.Poll(
                         multiple = !it.pollSingleChoice,
                         expiredAfter = it.expiredAt.duration.inWholeMilliseconds,
@@ -1339,6 +1357,7 @@ private fun composePresenter(
             sensitive = media.isMediaSensitive,
             spoilerText = spoilerText,
             visibility = state.visibility,
+            replyRestriction = state.replyRestriction,
             referenceStatus =
                 state.composeStatus?.let {
                     ComposeData.ReferenceStatus(
@@ -1361,7 +1380,7 @@ private fun composePresenter(
                 it.toString()
             }
         val textFieldState = textFieldState
-        val canSend = state.canSend
+        val canSend = state.canSend && pollState.canSend && !hasPollMediaConflict
         val canPoll = canPoll
         val canMedia = canMedia
         val pollState = pollState
@@ -1377,7 +1396,8 @@ private fun composePresenter(
         val kagariSelfLabelsEnabled = state.composeConfig.takeSuccess()?.selfLabels == true
         val kagariLinkCardWarning =
             kagariSelfLabelsEnabled && kagariHasLinkCard(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
-        val hasTextContent = textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports
+        val hasTextContent =
+            textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports || pollEnabled
 
         fun selectEmoji(emoji: UiEmoji) {
             textFieldState.edit {
@@ -1442,7 +1462,7 @@ private fun contentWarningPresenter() =
     }
 
 @Composable
-private fun pollPresenter(config: ComposeConfig.Poll) =
+private fun pollPresenter(config: ComposeConfig.Poll?) =
     run {
         var enabled by remember {
             mutableStateOf(false)
@@ -1459,16 +1479,16 @@ private fun pollPresenter(config: ComposeConfig.Poll) =
         var showExpirationMenu by remember {
             mutableStateOf(false)
         }
-        val canAddPollOption =
-            remember(options) {
-                options.size < config.maxOptions
-            }
-
         object {
             val enabled = enabled
             val options = options.toImmutableList()
-            val pollSingleChoice = pollSingleChoice
-            val canAddPollOption = canAddPollOption
+            val isSupported = config != null
+            val allowsMultiple = config?.allowsMultiple == true
+            val maxOptions = config?.maxOptions ?: 0
+            val maxOptionLength = config?.maxOptionLength
+            val pollSingleChoice = config?.allowsMultiple == false || pollSingleChoice
+            val canAddPollOption = options.size < maxOptions
+            val canSend = !enabled || config?.canPublishOptions(options.map { it.text.toString() }) == true
             val expiredAt = expiredAt
             val showExpirationMenu = showExpirationMenu
 
@@ -1517,7 +1537,7 @@ private fun pollPresenter(config: ComposeConfig.Poll) =
                             } else {
                                 current
                             }
-                        }.take(config.maxOptions)
+                        }
                 pollSingleChoice = !value.multiple
                 expiredAt = PollExpiration.fromDuration(value.expiredAfter)
             }

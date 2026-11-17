@@ -21,6 +21,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +54,8 @@ import java.io.IOException
 import java.net.URI
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -134,6 +137,14 @@ class ImageTranslationRepositoryTest {
 
         override fun close() {
             client.close()
+            // Presenter disposal can outlive the Molecule scope's cancelAndJoin.
+            runBlocking {
+                withTimeout(10_000) {
+                    while (!fs.listOrNull(root / "image_translation_sessions").isNullOrEmpty()) {
+                        delay(1)
+                    }
+                }
+            }
             fs.deleteRecursively(root)
         }
     }
@@ -206,7 +217,7 @@ class ImageTranslationRepositoryTest {
                 started.await()
                 repository.closeSession(session)
                 cancelled.await()
-                assertTrue(result.isCancelled)
+                assertFailsWith<CancellationException> { result.await() }
                 assertEquals(0L, repository.size())
             }
         }
@@ -519,7 +530,30 @@ class ImageTranslationRepositoryTest {
     fun displayFailureKeepsRegenerationInFlightAndRetainsFallback() =
         runBlocking {
             withTimeout(10_000) {
-                fixture().use { f ->
+                val rootDeletion = CountDownLatch(1)
+                val fileSystem =
+                    object : ForwardingFileSystem(FileSystem.SYSTEM) {
+                        override fun deleteRecursively(
+                            fileOrDirectory: Path,
+                            mustExist: Boolean,
+                        ) {
+                            if (fileOrDirectory.parent?.name == "image_translation_sessions") {
+                                // Hold cleanup briefly so premature root deletion is observable.
+                                rootDeletion.await(1, TimeUnit.SECONDS)
+                            } else if (fileOrDirectory.name.startsWith("image-translation")) {
+                                try {
+                                    assertTrue(
+                                        listOrNull(fileOrDirectory / "image_translation_sessions").isNullOrEmpty(),
+                                        "Session cleanup must finish before the fixture deletes its root",
+                                    )
+                                } finally {
+                                    rootDeletion.countDown()
+                                }
+                            }
+                            super.deleteRecursively(fileOrDirectory, mustExist)
+                        }
+                    }
+                fixture(fileSystem).use { f ->
                     val repository = f.repository()
                     val store = AppDataStore(f.storage)
                     store.appSettingsStore.updateData { it.copy(imageTranslationConfig = config) }
@@ -744,9 +778,12 @@ class ImageTranslationRepositoryTest {
                             ImageTranslationPresenter().body() to ImageTranslationSettingsPresenter().body()
                         }
                     try {
-                        var state = models.first { it.second.config.value("model") == "first-image-model" }.first
+                        var state =
+                            models.first { it.first.configured && it.second.config.value("model") == "first-image-model" }.first
                         state.toggle(f.media)
                         firstStarted.await()
+                        // The adapter can start before the presenter publishes its loading state.
+                        models.first { it.first.item(f.media).loading }
                         store.appSettingsStore.updateData {
                             it.copy(
                                 aiConfig = it.aiConfig.copy(type = basic.copy(model = "second-image-model")),

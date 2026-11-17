@@ -16,6 +16,7 @@ import dev.dimension.flare.di.testSingle
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiMedia
 import io.ktor.client.request.get
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsText
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.coroutines.async
@@ -45,12 +46,30 @@ class ProxyRoutingTest {
             val repository = ProxyRepository(OkioFileStorage(createTestFileSystem(), root))
             val calls = CopyOnWriteArrayList<Pair<String, String?>>()
             val cookies = CopyOnWriteArrayList<Pair<String, String?>>()
+            val tokens = CopyOnWriteArrayList<Pair<String, String?>>()
+            val referers = CopyOnWriteArrayList<String?>()
+            val userAgents = CopyOnWriteArrayList<String?>()
             val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
             val executor = Executors.newCachedThreadPool { Thread(it).apply { isDaemon = true } }
             server.executor = executor
             server.createContext("/") { exchange ->
                 calls += exchange.requestURI.path to exchange.requestHeaders.getFirst("Authorization")
                 cookies += exchange.requestURI.path to exchange.requestHeaders.getFirst("Cookie")
+                tokens += exchange.requestURI.path to exchange.requestHeaders.getFirst("X-Media-Token")
+                referers += exchange.requestHeaders.getFirst("Referer")
+                userAgents += exchange.requestHeaders.getFirst("User-Agent")
+                if (exchange.requestURI.path in setOf("/same-redirect", "/redirect-return", "/return-redirect")) {
+                    val location =
+                        when (exchange.requestURI.path) {
+                            "/same-redirect" -> "/credential-target"
+                            "/redirect-return" -> "http://localhost:${server.address.port}/return-redirect"
+                            else -> "http://127.0.0.1:${server.address.port}/credential-target"
+                        }
+                    exchange.responseHeaders.add("Location", location)
+                    exchange.sendResponseHeaders(302, -1)
+                    exchange.close()
+                    return@createContext
+                }
                 if (exchange.requestURI.path == "/redirect") {
                     exchange.responseHeaders.add("Location", "http://localhost:${server.address.port}/credential-target")
                     exchange.sendResponseHeaders(302, -1)
@@ -110,10 +129,37 @@ class ProxyRoutingTest {
                 }
                 assertEquals(listOf("/alice"), calls.map { it.first })
 
+                val systemMedia = UiMedia.Video("$base/range", "", null, 0f, 0f, proxy = ProxyRef.System)
+                assertEquals(systemMedia.url, MediaProxy.playbackSource(systemMedia).url)
+                val forced = MediaProxy.playbackSource(systemMedia, forceRelay = true)
+                try {
+                    assertNotEquals(systemMedia.url, forced.url)
+                    local
+                        .newCall(
+                            Request
+                                .Builder()
+                                .url(forced.url)
+                                .header("Range", "bytes=2-5")
+                                .build(),
+                        ).execute()
+                        .use {
+                            assertEquals(206, it.code)
+                            assertEquals("2345", it.body.string())
+                        }
+                } finally {
+                    MediaProxy.release(forced)
+                }
+
                 val authenticated =
                     UiMedia.Image(
                         "$base/redirect",
-                        persistentMapOf("Authorization" to "Bearer private", "Cookie" to "secret=private"),
+                        persistentMapOf(
+                            "Authorization" to "Bearer private",
+                            "Cookie" to "secret=private",
+                            "X-Media-Token" to "provider-private",
+                            "Referer" to "https://example.com/",
+                            "User-Agent" to "PluginMedia/1.0",
+                        ),
                         alice,
                     )
                 ktorClient(alice).use { client ->
@@ -122,11 +168,74 @@ class ProxyRoutingTest {
                 assertEquals("Bearer private", calls[calls.lastIndex - 1].second)
                 assertEquals("/credential-target" to null, calls.last())
                 assertEquals("/credential-target" to null, cookies.last())
+                assertEquals("/credential-target" to null, tokens.last())
+                assertEquals("https://example.com/", referers.last())
+                assertEquals("PluginMedia/1.0", userAgents.last())
+                ktorClient(alice, protectRequestHeaders = true).use { client ->
+                    client.get("$base/same-redirect") { headers.append("X-Media-Token", "private-ai-token") }.bodyAsText()
+                    assertEquals("/credential-target" to "private-ai-token", tokens.last())
+                    client.get("$base/redirect-return") { headers.append("X-Media-Token", "private-ai-token") }.bodyAsText()
+                    assertEquals("/credential-target" to null, tokens.last())
+                }
+                mediaHttpClient(alice).use { client ->
+                    // Coil supplies headers directly rather than calling applyMedia.
+                    client
+                        .prepareGet("$base/same-redirect") {
+                            authenticated.customHeaders?.forEach { (name, value) -> headers.append(name, value) }
+                        }.execute { assertEquals(200, it.status.value) }
+                    assertEquals("/credential-target" to "provider-private", tokens.last())
+                    client
+                        .prepareGet("$base/redirect-return") {
+                            authenticated.customHeaders?.forEach { (name, value) -> headers.append(name, value) }
+                        }.execute { assertEquals(200, it.status.value) }
+                    assertEquals("/credential-target" to null, tokens.last(), "A redirect back must not restore a custom token")
+                }
+                proxyCallFactory(authenticated)
+                    .newCall(
+                        Request
+                            .Builder()
+                            .url(authenticated.url)
+                            .apply {
+                                authenticated.customHeaders?.forEach { (name, value) -> header(name, value) }
+                                header("Range", "bytes=0-")
+                            }.build(),
+                    ).execute()
+                    .use { assertEquals(200, it.code) }
+                assertEquals("/credential-target" to null, tokens.last(), "The Media3 call factory must also strip custom tokens")
+                assertEquals("https://example.com/", referers.last())
+                assertEquals("PluginMedia/1.0", userAgents.last())
+                val downloadable =
+                    UiMedia.Video(
+                        "$base/video",
+                        "",
+                        null,
+                        0f,
+                        0f,
+                        customHeaders = authenticated.customHeaders,
+                        proxy = alice,
+                        downloadUrl = "http://localhost:${server.address.port}/credential-target",
+                    )
+                proxyCallFactory(downloadable)
+                    .newCall(
+                        Request
+                            .Builder()
+                            .url(downloadable.urlForDownload)
+                            .apply {
+                                downloadable.customHeaders?.forEach { (name, value) -> header(name, value) }
+                            }.build(),
+                    ).execute()
+                    .use { assertEquals(200, it.code) }
+                assertEquals(
+                    "/credential-target" to "provider-private",
+                    tokens.last(),
+                    "An explicitly declared download URL receives its headers",
+                )
                 val redirected = MediaProxy.playbackSource(authenticated)
                 try {
                     local.newCall(Request.Builder().url(redirected.url).build()).execute().use { assertEquals("OK", it.body.string()) }
                     assertEquals("/credential-target" to null, calls.last())
                     assertEquals("/credential-target" to null, cookies.last())
+                    assertEquals("/credential-target" to null, tokens.last())
                 } finally {
                     MediaProxy.release(redirected)
                 }
@@ -147,6 +256,8 @@ class ProxyRoutingTest {
                     local.newCall(Request.Builder().url(url).build()).execute().use { assertEquals(200, it.code) }
                     assertEquals("/credential-target" to null, calls.last(), "Returning to the root origin must not restore credentials")
                     assertEquals("/credential-target" to null, cookies.last())
+                    assertEquals("/credential-target" to null, tokens.last(), "Cross-origin HLS children must not regain custom tokens")
+                    assertEquals("https://example.com/", referers.last())
                 } finally {
                     MediaProxy.release(crossOrigin)
                 }

@@ -68,7 +68,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
                 let bounds = try cyanBounds(screenshot)
                 XCTAssertEqual(bounds.width, tall ? 400 * 9 / 21 : 400 * 9 / 16, accuracy: 2)
                 XCTAssertEqual(bounds.height, 400, accuracy: 2)
-                XCTAssertEqual(bounds.minX, 16 + 44 + 8, accuracy: 2, "Keep the existing avatar/content indentation")
+                XCTAssertEqual(bounds.minX, 16 + 48 + 8, accuracy: 2, "Keep media aligned with the 48pt avatar and 8pt gap")
             }
         }
     }
@@ -137,10 +137,10 @@ final class TimelineMediaPreviewTests: XCTestCase {
                 }
                 let bounds = try cyanBounds(screenshot)
                 let limited = appearance.limitSingleMediaHeight && appearance.expandMediaSize
-                XCTAssertEqual(bounds.width, limited ? 112.5 : 308, accuracy: 2, "\(renderer), step \(index)")
-                XCTAssertEqual(bounds.height, limited ? 200 : (appearance.expandMediaSize ? 308 * 16 / 9 : 308 * 9 / 16),
+                XCTAssertEqual(bounds.width, limited ? 112.5 : 304, accuracy: 2, "\(renderer), step \(index)")
+                XCTAssertEqual(bounds.height, limited ? 200 : (appearance.expandMediaSize ? 304 * 16 / 9 : 304 * 9 / 16),
                                accuracy: 2, "\(renderer), step \(index)")
-                XCTAssertEqual(bounds.minX, 68, accuracy: 2)
+                XCTAssertEqual(bounds.minX, 72, accuracy: 2)
                 if let native {
                     XCTAssertEqual(native.bounds.height, native.timelineHeight(for: 360) ?? 0, accuracy: 1)
                 }
@@ -169,7 +169,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
         XCTAssertEqual(grid.fittingWidth(for: 360), 360)
         let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
             thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil, height: 1_800, width: 360,
-            customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+            customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
         configure([video])
         XCTAssertEqual(grid.fittingWidth(for: 360), 40, accuracy: 0.01, "Tall videos retain their original ratio")
         let audio = UiMediaAudio(url: "https://timeline-preview.invalid/audio.mp3", description: nil,
@@ -181,7 +181,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
     func testSingleVideoToggleUpdatesExistingThumbnailAndPlayer() throws {
         let video = UiMediaVideo(url: "https://timeline-preview.invalid/tall.mp4",
             thumbnailUrl: "https://timeline-preview.invalid/tall.png", description: nil, height: 1_800, width: 360,
-            customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+            customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
         let status = StatusUIKitView()
         let post = singleMediaPost(video, sensitive: true)
         func update(limited: Bool) {
@@ -321,7 +321,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
         let view = fixture.view
         let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
             thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
-            height: 1_800, width: 360, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+            height: 1_800, width: 360, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
         view.set(media: video, cornerRadius: 12, fitsMedia: true)
         var retries = 0
         for width: CGFloat in [40, 16, 180] {
@@ -359,7 +359,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
             let description = "Description for width \(width)"
             let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
                 thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: description,
-                height: 1_000, width: width, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+                height: 1_000, width: width, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
             grid.configure(data: [video], sensitive: false, cornerRadius: 12,
                            singleFollowsImageAspect: true, limitMediaGridToNine: true,
                            mediaLayout: .grid, carouselLeadingPadding: 0, carouselTrailingPadding: 0)
@@ -413,7 +413,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
             for width: Float in [80, 200, 900] {
                 let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
                     thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
-                    height: 1_000, width: width, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+                    height: 1_000, width: width, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
                 media.configure(data: [video], sensitive: true, cornerRadius: 12,
                                 singleFollowsImageAspect: true, limitMediaGridToNine: true,
                                 mediaLayout: .grid, carouselLeadingPadding: 0, carouselTrailingPadding: 0)
@@ -455,7 +455,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
             let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
                 thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
                 height: 1_000, width: width, customHeaders: ["X-Preview-Test": "fixture"],
-                proxy: ProxyRef.Global.shared, downloadUrl: nil)
+                proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
             return StatusMediaView(post: singleMediaPost(video, sensitive: true), data: [video], sensitive: sensitive,
                 cornerRadius: 12, allowsCarousel: false, carouselLeadingPadding: 0, carouselTrailingPadding: 0,
                 onMediaClicked: { _, _ in })
@@ -555,7 +555,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
             let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
                 thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
                 height: 1_000, width: width, customHeaders: ["X-Preview-Test": "fixture"],
-                proxy: ProxyRef.Global.shared, downloadUrl: nil)
+                proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
             return StatusMediaView(post: singleMediaPost(video), data: [video], sensitive: false,
                 cornerRadius: 12, allowsCarousel: false, carouselLeadingPadding: 0, carouselTrailingPadding: 0,
                 onMediaClicked: { _, _ in })
@@ -634,7 +634,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
                 thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png",
                 description: "A tall video with an accessible description",
                 height: 1_000, width: width, customHeaders: ["X-Preview-Test": "fixture"],
-                proxy: ProxyRef.Global.shared, downloadUrl: nil)
+                proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
             return StatusMediaView(post: singleMediaPost(video), data: [video], sensitive: false,
                 cornerRadius: 12, allowsCarousel: false, carouselLeadingPadding: 0, carouselTrailingPadding: 0,
                 onMediaClicked: { _, _ in })
@@ -674,12 +674,12 @@ final class TimelineMediaPreviewTests: XCTestCase {
         }
     }
 
-    private func singleMediaPost(_ media: UiMedia, sensitive: Bool = false) -> UiTimelineV2.Post {
+    private func singleMediaPost(_ media: UiMedia, sensitive: Bool = false, authorName: UiRichText? = nil) -> UiTimelineV2.Post {
         func rich(_ text: String) -> UiRichText {
             let style = RenderTextStyle(link: nil, bold: false, italic: false, strikethrough: false, monospace: false, code: false, underline: false, small: false, time: false, imageLink: nil)
             return UiRichText(renderRuns: [RenderContent.Text(runs: [RenderRun.Text(text: text, style: style)], block: RenderBlockStyle())], isRtl: false, raw: text, innerText: text, imageUrls: [])
         }
-        let profile = UiProfile(key: MicroBlogKey(id: "demo", host: "example.invalid"), handle: UiHandle(raw: "flare", host: "example.invalid", displayOverride: nil), avatar: nil as UiMediaImage?, nameInternal: rich("Flare"), platformId: "mastodon", platformIcon: IconType.Material(icon: .world), clickEvent: ClickEventNoop.shared, banner: nil, description: nil, sourceLanguages: [], translationDisplayState: .hidden, matrices: UiProfile.Matrices(fansCount: 0, followsCount: 0, statusesCount: 0, platformFansCount: nil), mark: [], bottomContent: nil, pluginId: nil)
+        let profile = UiProfile(key: MicroBlogKey(id: "demo", host: "example.invalid"), handle: UiHandle(raw: "flare", host: "example.invalid", displayOverride: nil), avatar: nil as UiMediaImage?, nameInternal: authorName ?? rich("Flare"), platformId: "mastodon", platformIcon: IconType.Material(icon: .world), clickEvent: ClickEventNoop.shared, banner: nil, description: nil, sourceLanguages: [], translationDisplayState: .hidden, matrices: UiProfile.Matrices(fansCount: 0, followsCount: 0, statusesCount: 0, platformFansCount: nil), mark: [], bottomContent: nil, pluginId: nil, clearedMarks: [])
         return UiTimelineV2.Post(platformId: "mastodon", images: [media], sensitive: sensitive, contentWarning: nil, user: profile, platformIcon: IconType.Material(icon: .world), sourceLanguages: [], translationDisplayState: .hidden, content: UiTranslatableText(original: rich("Single attachment · expanded media\nAligned with the post content"), translation: nil), actions: [], poll: nil, statusKey: MicroBlogKey(id: "media-layout", host: "example.invalid"), card: nil, createdAt: KotlinInstant.companion.fromEpochMilliseconds(epochMilliseconds: 0).toUi(), emojiReactions: [], sourceChannel: nil, visibility: nil, replyToHandle: nil, references: [], clickEvent: ClickEventNoop.shared, mediaClickPolicy: .openStatusMedia, accountType: AccountType.Guest.shared, itemKey: "media-layout", pluginId: nil, authorSubtitleInternal: nil)
     }
 
@@ -798,17 +798,24 @@ final class TimelineMediaPreviewTests: XCTestCase {
     }
 
     func testRichTextInlineImagesDecodeAtDisplaySizeOnBothRenderers() async throws {
-        for kind in ["uikit", "swiftui"] {
+        for kind in ["uikit", "swiftui", "repost-header"] {
             let fixture = try await Fixture()
             KingfisherManager.shared.defaultOptions += [.requestModifier(AnyModifier { request in
                 var request = request
                 request.setValue("fixture", forHTTPHeaderField: "X-Preview-Test")
                 return request
             })]
-            let url = fixture.media(path: "inline-\(kind).png").previewUrl
+            let media = fixture.media(path: "inline-\(kind).png")
+            let url = media.previewUrl
+            let isPostHeader = kind == "repost-header"
+            let expectedHeight: CGFloat = isPostHeader ? 45 : 51
             let processor = ImageDownsamplingProcessor(
-                pixelSize: CGSize(width: CGFloat.greatestFiniteMagnitude, height: 51), fillsBounds: false)
-            let largeHeight: CGFloat = kind == "uikit" ? 159 : 144
+                pixelSize: CGSize(width: CGFloat.greatestFiniteMagnitude, height: expectedHeight), fillsBounds: false)
+            let largeHeight: CGFloat = switch kind {
+            case "uikit": 159
+            case "repost-header": 138
+            default: 144
+            }
             let largeProcessor = ImageDownsamplingProcessor(
                 pixelSize: CGSize(width: CGFloat.greatestFiniteMagnitude, height: largeHeight), fillsBounds: false)
             let text = UiRichText(renderRuns: [RenderContent.Text(runs: [RenderRun.Image(url: url, alt: "emoji", proxy: ProxyRef.Global.shared)],
@@ -830,9 +837,24 @@ final class TimelineMediaPreviewTests: XCTestCase {
                     view.prepareForFitting(width: 200)
                 }
             } else {
+                let post = isPostHeader ? singleMediaPost(media, authorName: text) : nil
+                let message = post.map { post in
+                    UiTimelineV2.Message(user: post.user, statusKey: post.statusKey, icon: .retweet,
+                        type: UiTimelineV2.MessageTypeRaw(content: "Reposted"), createdAt: post.createdAt,
+                        clickEvent: ClickEventNoop.shared, accountType: post.accountType, itemKey: nil)
+                }
                 func content(_ size: DynamicTypeSize) -> some View {
-                    RichText(text: text).environment(\.displayScale, 3)
-                        .environment(\.dynamicTypeSize, size).frame(width: 200)
+                    Group {
+                        if let message {
+                            StatusTopMessageView(topMessage: message, isAbovePost: true)
+                                .environment(\.isPostContent, true)
+                        } else {
+                            RichText(text: text)
+                        }
+                    }
+                    .environment(\.displayScale, 3)
+                    .environment(\.dynamicTypeSize, size)
+                    .frame(width: 200)
                 }
                 let controller = UIHostingController(rootView: content(.large))
                 host = controller
@@ -846,7 +868,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
                 try await Task.sleep(for: .milliseconds(10))
             }
             let size = try XCTUnwrap(fixture.cache.imageSize(for: url, processor: processor), kind)
-            XCTAssertEqual(size.height, 51, accuracy: 1, kind)
+            XCTAssertEqual(size.height, expectedHeight, accuracy: 1, kind)
             XCTAssertEqual(size.width / size.height, 4.0 / 3.0, accuracy: 0.03, kind)
             growText?()
             for _ in 0..<300 {
@@ -1114,7 +1136,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
         XCTAssertEqual(retries, 1, "Image reuse must clear the old retry callback")
         let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
             thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
-            height: 768, width: 1_024, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil)
+            height: 768, width: 1_024, customHeaders: nil, proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
         view.set(media: video, cornerRadius: 12)
         view.layoutIfNeeded()
         XCTAssertEqual(view.videoURL?.absoluteString, video.url)
@@ -1420,7 +1442,7 @@ final class TimelineMediaPreviewTests: XCTestCase {
         fixture.view.frame.size = CGSize(width: 180, height: 135)
         let video = UiMediaVideo(url: "https://timeline-preview.invalid/movie.mp4",
             thumbnailUrl: "https://timeline-preview.invalid/thumbnail.png", description: nil,
-            height: 768, width: 1_024, customHeaders: ["X-Preview-Test": "fixture"], proxy: ProxyRef.Global.shared, downloadUrl: nil)
+            height: 768, width: 1_024, customHeaders: ["X-Preview-Test": "fixture"], proxy: ProxyRef.Global.shared, downloadUrl: nil, kind: .video, livePhotoCoverUrl: nil)
         fixture.view.set(media: video, cornerRadius: 0)
         fixture.view.layoutIfNeeded()
         _ = try await fixture.loadedImage(width: 540)

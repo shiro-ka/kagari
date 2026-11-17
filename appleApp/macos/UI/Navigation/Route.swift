@@ -16,6 +16,7 @@ enum Route: Hashable, Identifiable {
     case agentChat(String, String?)
     case localHistoryAgent(String, String?, String)
     case timeline(UiTimelineTabItem, isHome: Bool = false)
+    case timelinePage(DeeplinkRoute.TimelinePage)
     case composeNew
     case composeCrossPost(MacComposePrefill)
     case composeDraft(String)
@@ -27,7 +28,6 @@ enum Route: Hashable, Identifiable {
     case galleryDetail(AccountType, MicroBlogKey)
     case galleryComments(AccountType, MicroBlogKey)
     case statusVVOComment(AccountType, MicroBlogKey)
-    case statusVVOStatus(AccountType, MicroBlogKey)
     case profileUser(AccountType, MicroBlogKey)
     case profileUserNameWithHost(AccountType, String, String)
     case profileInsight(AccountType, MicroBlogKey)
@@ -165,6 +165,8 @@ enum Route: Hashable, Identifiable {
                 target: target,
                 onNavigate: onNavigate
             )
+        case .timelinePage(let page):
+            TimelinePageScreen(page: page)
         case .timeline(let item, let isHome):
             TimelineScreen(tabItem: item, allowGalleryMode: true, isHomeTimeline: isHome)
                 .navigationTitle(item.title.text)
@@ -199,8 +201,6 @@ enum Route: Hashable, Identifiable {
             GalleryCommentsScreen(accountType: accountType, statusKey: statusKey)
         case .statusVVOComment(let accountType, let statusKey):
             VVOCommentScreen(accountType: accountType, statusKey: statusKey)
-        case .statusVVOStatus(let accountType, let statusKey):
-            VVOStatusScreen(accountType: accountType, statusKey: statusKey)
         case .profileUser(let accountType, let userKey):
             ProfileScreen(
                 accountType: accountType,
@@ -537,6 +537,8 @@ extension Route {
 
     private static func fromTimeline(_ timeline: DeeplinkRoute.Timeline) -> Route? {
         switch onEnum(of: timeline) {
+        case .page(let data):
+            .timelinePage(data)
         case .source(let data):
             if let tabItem = TimelineDeepLinkRouteResolver.shared.resolve(route: data) {
                 .timeline(tabItem)
@@ -580,7 +582,7 @@ extension Route {
         case .vVOComment(let data):
             .statusVVOComment(data.accountType, data.commentKey)
         case .vVOStatus(let data):
-            .statusVVOStatus(data.accountType, data.statusKey)
+            .statusDetail(data.accountType, data.statusKey)
         case .shareSheet(let data):
             .statusShareSheet(data.accountType, data.statusKey, data.shareUrl, data.fxShareUrl, data.fixvxShareUrl)
         default:

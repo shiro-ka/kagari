@@ -70,6 +70,7 @@ struct ComposeScreen: View {
                         TextField(text: $viewModel.contentWarning) {
                             Text("compose_cw_placeholder")
                         }
+                        .foregroundStyle(FlarePrimaryTextStyle())
                         .textFieldStyle(.plain)
                         .textInputAutocapitalization(.sentences)
                         .keyboardType(.twitter)
@@ -78,6 +79,7 @@ struct ComposeScreen: View {
                     }
                     
                     TextEditor(text: $viewModel.text)
+                        .foregroundStyle(FlarePrimaryTextStyle())
                         .font(.body)
                         .scrollContentBackground(.hidden)
                         .textInputAutocapitalization(.sentences)
@@ -93,7 +95,7 @@ struct ComposeScreen: View {
                         .overlay(alignment: .topLeading) {
                             if viewModel.text.isEmpty {
                                 Text("compose_placeholder")
-                                    .foregroundStyle(.tertiary)
+                                    .flareTertiaryText()
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 8)
                                     .allowsHitTesting(false)
@@ -126,7 +128,7 @@ struct ComposeScreen: View {
                     if viewModel.pollViewModel.enabled {
                         ComposePollSection(
                             viewModel: viewModel.pollViewModel,
-                            maxChoices: maxPollOptions
+                            config: presenter.state.pollConfig
                         )
                     }
                     if let replyState = presenter.state.replyState,
@@ -140,6 +142,7 @@ struct ComposeScreen: View {
             .scrollIndicators(.hidden)
             .safeAreaInset(edge: .bottom) {
                 composeActionBar
+                    .flareTextBackground(nil)
                     .padding()
                     .backport
                     .glassEffect(.regular, in: .capsule, fallbackBackground: .regularMaterial)
@@ -147,6 +150,7 @@ struct ComposeScreen: View {
             }
             
         }
+        .flareTextBackground(.flareSystemBackground)
         .onAppear {
             let currentPresenter = presenter
             let content = viewModel
@@ -266,7 +270,11 @@ struct ComposeScreen: View {
                         Image(systemName: "paperplane.fill")
                     }
                 }
-                .disabled(!presenter.state.canSend || mediaViewModel.items.contains { !$0.isReady })
+                .disabled(
+                    !presenter.state.canSend ||
+                    !viewModel.pollViewModel.canSend(config: presenter.state.pollConfig, hasMedia: !mediaViewModel.items.isEmpty) ||
+                    mediaViewModel.items.contains { !$0.isReady }
+                )
             }
         }
     }
@@ -279,6 +287,7 @@ struct ComposeScreen: View {
             canUseContentWarning: presenter.state.contentWarningEnabled,
             visibility: composeVisibility,
             allVisibilities: composeVisibilities,
+            replyRestriction: presenter.state.replyRestriction,
             emojiState: presenter.state.emojiState,
             isEmojiPresented: $viewModel.showEmoji,
             languageCodes: Array(presenter.state.languageCodes),
@@ -301,6 +310,7 @@ struct ComposeScreen: View {
                 }
             },
             onSelectVisibility: setVisibility,
+            onSelectReplyRestriction: { presenter.state.setReplyRestriction(value: $0) },
             onSelectEmoji: { item in
                 viewModel.addEmoji(emoji: item)
                 insert(item.insertText)
@@ -360,6 +370,7 @@ struct ComposeScreen: View {
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
+                    .flareTextBackground(.flareSecondarySystemBackground)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(Capsule())
                 }
@@ -472,7 +483,7 @@ struct ComposeScreen: View {
                 Text(user.handle.display)
                 Text(user.key.host)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .flareSecondaryText()
             }
         } icon: {
             accountAvatar(user: user, size: 24)
@@ -556,7 +567,9 @@ struct ComposeScreen: View {
             visibility: getVisibility(),
             medias: getMedia(),
             sensitive: mediaViewModel.sensitive,
-            composeStatus: presenter.state.composeStatus
+            composeStatus: presenter.state.composeStatus,
+            replyRestriction: presenter.state.replyRestriction,
+            pollConfig: presenter.state.pollConfig
         )
     }
 
@@ -625,10 +638,6 @@ struct ComposeScreen: View {
 
     private var remainingTextLength: Int? {
         presenter.state.remainingLength.map { Int(truncating: $0) }
-    }
-
-    private var maxPollOptions: Int {
-        presenter.state.pollMaxOptions.map { Int(truncating: $0) } ?? ComposePollViewModel.defaultMaxChoiceCount
     }
 
     private var languageMaxCount: Int {

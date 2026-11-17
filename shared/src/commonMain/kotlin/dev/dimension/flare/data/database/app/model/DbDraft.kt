@@ -9,6 +9,7 @@ import androidx.room3.PrimaryKey
 import androidx.room3.Relation
 import dev.dimension.flare.common.decodeJson
 import dev.dimension.flare.common.encodeJson
+import dev.dimension.flare.data.datasource.microblog.ComposeReplyRestriction
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.serialization.SerialName
@@ -27,6 +28,7 @@ internal data class DraftContent(
     val reference: DraftReference? = null,
     val interactionGate: dev.dimension.flare.data.datasource.microblog.InteractionGate? = null,
     val selfLabels: List<String> = emptyList(),
+    val replyRestriction: ComposeReplyRestriction? = null,
 ) {
     @Serializable
     data class DraftPoll(

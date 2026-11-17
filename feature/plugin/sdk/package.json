@@ -1,16 +1,16 @@
 {
   "name": "flare-plugin-sdk",
-  "version": "0.1.0-beta.10",
+  "version": "0.1.0-beta.11",
   "description": "Types, tooling, templates and authoring references for Flare plugins",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://github.com/DimensionDev/Flare#plugins-beta",
+  "homepage": "https://github.com/flaresocialapp/Flare#plugins-beta",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DimensionDev/Flare.git",
+    "url": "git+https://github.com/flaresocialapp/Flare.git",
     "directory": "feature/plugin/sdk"
   },
   "bugs": {
-    "url": "https://github.com/DimensionDev/Flare/issues"
+    "url": "https://github.com/flaresocialapp/Flare/issues"
   },
   "bin": {
     "flare-plugin-sdk": "bin/cli.mjs",
@@ -35,5 +35,16 @@
     "ajv": "8.20.0",
     "esbuild": "0.28.2",
     "typescript": "6.0.3"
+  },
+  "exports": {
+    ".": {
+      "types": "./skill/flare-plugin/flare-plugin.d.ts"
+    },
+    "./settings": {
+      "types": "./skill/flare-plugin/settings-sdk.d.ts",
+      "default": "./skill/flare-plugin/settings-sdk.mjs"
+    },
+    "./skill/*": "./skill/*",
+    "./package.json": "./package.json"
   }
 }

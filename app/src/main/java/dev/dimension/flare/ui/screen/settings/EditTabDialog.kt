@@ -253,6 +253,12 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.QrConnect -> R.string.login_button
 
+            UiStrings.Comments, UiStrings.ByPopularity, UiStrings.ByTime, UiStrings.Replies,
+            UiStrings.Quotes, UiStrings.Relevance, UiStrings.Recency, UiStrings.Likes, UiStrings.Oldest,
+            UiStrings.RepostedBy, UiStrings.LikedBy, UiStrings.Reactions, UiStrings.AllReactions,
+            UiStrings.QrLoginNewCode, UiStrings.QrLoginRetrySave,
+            -> R.string.login_button
+
             UiStrings.CredentialImport -> R.string.login_button
 
             UiStrings.ExternalSigner -> R.string.login_button
@@ -276,6 +282,14 @@ private val UiStrings.androidStringRes: Int
             UiStrings.PixivRankingWeekRookie -> R.string.pixiv_ranking_week_rookie_title
 
             UiStrings.PixivRankingDayManga -> R.string.pixiv_ranking_day_manga_title
+
+            UiStrings.PixivRankingDayAi -> R.string.pixiv_ranking_day_ai_title
+
+            UiStrings.PixivRankingDayR18 -> R.string.pixiv_ranking_day_r18_title
+
+            UiStrings.PixivRankingWeekR18 -> R.string.pixiv_ranking_week_r18_title
+
+            UiStrings.PixivRankingDayR18Ai -> R.string.pixiv_ranking_day_r18_ai_title
 
             UiStrings.Illustrations -> R.string.illustrations_title
 

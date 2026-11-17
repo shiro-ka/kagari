@@ -3,6 +3,7 @@ package dev.dimension.flare.data.datasource.microblog
 import dev.dimension.flare.common.FileItem
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
+import kotlinx.serialization.Serializable
 
 public data class ComposeData(
     val content: String,
@@ -17,9 +18,19 @@ public data class ComposeData(
     val referenceStatus: ReferenceStatus? = null,
     val interactionGate: InteractionGate? = null,
     val selfLabels: List<String> = emptyList(),
+    val replyRestriction: ComposeReplyRestriction? = null,
 ) {
+    public val type: ComposeType
+        get() =
+            when (referenceStatus?.composeStatus) {
+                is ComposeStatus.Reply -> ComposeType.Reply
+                is ComposeStatus.Quote -> ComposeType.Quote
+                null -> ComposeType.New
+            }
+
     public data class Poll(
         val options: List<String>,
+        // Poll duration in milliseconds.
         val expiredAfter: Long,
         val multiple: Boolean,
     )
@@ -32,4 +43,12 @@ public data class ComposeData(
     public data class ReferenceStatus(
         val composeStatus: ComposeStatus,
     )
+}
+
+@Serializable
+public enum class ComposeReplyRestriction {
+    Everyone,
+    Following,
+    Mentioned,
+    Verified,
 }

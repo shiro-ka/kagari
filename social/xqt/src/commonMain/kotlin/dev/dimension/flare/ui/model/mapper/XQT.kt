@@ -6,6 +6,7 @@ import de.cketti.codepoints.deluxe.codePointSequence
 import dev.dimension.flare.common.Locale
 import dev.dimension.flare.common.decodeJson
 import dev.dimension.flare.common.encodeJson
+import dev.dimension.flare.common.isWebPlatform
 import dev.dimension.flare.data.database.cache.mapper.XQTTimeline
 import dev.dimension.flare.data.database.cache.mapper.tweets
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
@@ -108,7 +109,7 @@ private val twitterParser by lazy {
     TwitterParser(enableNonAsciiInUrl = false)
 }
 
-private fun TweetUnion.toTweetOrNull(): Tweet? =
+internal fun TweetUnion.toTweetOrNull(): Tweet? =
     when (this) {
         is Tweet -> this
 
@@ -670,6 +671,7 @@ internal fun Tweet.renderStatus(
                                 height = media.originalInfo.height.toFloat(),
                                 width = media.originalInfo.width.toFloat(),
                                 description = media.ext_alt_text,
+                                kind = if (media.type == Media.Type.animatedGif) UiMedia.Video.Kind.Gif else UiMedia.Video.Kind.Video,
                             )
                         }
                     }
@@ -943,6 +945,7 @@ internal fun User.render(accountKey: MicroBlogKey): UiProfile {
             UiHandle(
                 raw = screenName,
                 host = accountKey.host,
+                displayOverride = if (isWebPlatform) null else "@$screenName",
             ),
         banner = legacy.profileBannerUrl.toUiImage(),
         description =
@@ -1363,6 +1366,7 @@ private fun Admin.render(accountKey: MicroBlogKey): UiProfile {
             UiHandle(
                 raw = twitterScreenName.orEmpty(),
                 host = accountKey.host,
+                displayOverride = if (isWebPlatform) null else "@${twitterScreenName.orEmpty()}",
             ),
         platformId = XQT_PLATFORM_ID,
         platformIcon = UiIcon.X.asType(),
@@ -1456,6 +1460,7 @@ internal fun Tweet.renderArticle(accountKey: MicroBlogKey): UiArticle? {
         key = statusKey.toString(),
         title = title,
         content = article.renderArticleContent(accountKey),
+        sourceLanguages = listOfNotNull(legacy?.lang).toPersistentList(),
         cover = article.coverMedia.toUiCardImage(),
         publishDate = legacy?.createdAt?.let { parseXQTCustomDateTime(it)?.toUi() },
         author = UiArticleAuthor.Profile(profile),

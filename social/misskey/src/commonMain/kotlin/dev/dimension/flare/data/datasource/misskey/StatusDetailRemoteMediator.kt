@@ -11,9 +11,13 @@ import dev.dimension.flare.data.network.misskey.api.model.IPinRequest
 import dev.dimension.flare.data.network.misskey.api.model.Note
 import dev.dimension.flare.data.network.misskey.api.model.NotesChildrenRequest
 import dev.dimension.flare.data.network.misskey.api.model.NotesConversationRequest
+import dev.dimension.flare.data.network.misskey.api.model.NotesRepliesRequest
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.mapper.render
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.update
 
 @OptIn(ExperimentalPagingApi::class)
 internal class StatusDetailRemoteMediator(
@@ -21,12 +25,25 @@ internal class StatusDetailRemoteMediator(
     override val accountKey: MicroBlogKey,
     private val service: MisskeyService,
     private val statusOnly: Boolean,
+    private val repliesOnly: Boolean = false,
+    initialNote: Note? = null,
 ) : PostContextLoader {
+    private data class ParentFallback(
+        val revision: Long = 0,
+        val parent: Note? = null,
+        val initialNote: Note? = null,
+    )
+
+    private val parentFallback = MutableStateFlow(ParentFallback(initialNote = initialNote))
+
     override val pagingKey: String =
         buildString {
             append("status_detail_")
             if (statusOnly) {
                 append("status_only_")
+            }
+            if (repliesOnly) {
+                append("replies_")
             }
             append(statusKey.toString())
             append("_")
@@ -39,7 +56,7 @@ internal class StatusDetailRemoteMediator(
         initial: Boolean,
     ): ContextUpdate =
         if (request == PagingRequest.Refresh && !statusOnly) {
-            result.toContextUpdate(statusKey, request, initial).copy(after = null)
+            ContextUpdate(posts = result.data)
         } else {
             result.toContextUpdate(statusKey, request, initial)
         }
@@ -48,14 +65,13 @@ internal class StatusDetailRemoteMediator(
         pageSize: Int,
         request: PagingRequest,
     ): PagingResult<UiTimelineV2> {
+        if (statusOnly && request != PagingRequest.Refresh) {
+            return PagingResult(endOfPaginationReached = true)
+        }
+        var previousKey: String? = null
         val (result, nextKey) =
             when (request) {
                 is PagingRequest.Append -> {
-                    if (statusOnly) {
-                        return PagingResult(
-                            endOfPaginationReached = true,
-                        )
-                    }
                     loadReplyPage(
                         pageSize = pageSize,
                         untilId = request.nextKey.takeIf { it.isNotEmpty() },
@@ -63,31 +79,27 @@ internal class StatusDetailRemoteMediator(
                 }
 
                 is PagingRequest.Prepend -> {
-                    return PagingResult(
-                        endOfPaginationReached = true,
-                    )
+                    val fallback = parentFallback.value.parent?.takeIf { it.id == request.previousKey }
+                    val ancestors =
+                        service
+                            .notesConversation(
+                                NotesConversationRequest(
+                                    noteId = statusKey.id,
+                                    limit = MAX_CONTEXT_NOTES,
+                                ),
+                            ).asReversed()
+                            .ifEmpty { listOfNotNull(fallback) }
+                    ancestors.distinctBy { it.id } to null
                 }
 
                 PagingRequest.Refresh -> {
+                    val previous = parentFallback.getAndUpdate { ParentFallback(revision = it.revision + 1) }
+                    val revision = previous.revision + 1
                     val current =
-                        service
-                            .notesShow(
-                                IPinRequest(noteId = statusKey.id),
-                            )
-                    if (statusOnly) {
-                        listOf(current) to null
-                    } else {
-                        val ancestors =
-                            service
-                                .notesConversation(
-                                    NotesConversationRequest(
-                                        noteId = statusKey.id,
-                                        limit = MAX_CONTEXT_NOTES,
-                                    ),
-                                ).asReversed()
-                                .ifEmpty { listOfNotNull(current.reply) }
-                        (ancestors + current).distinctBy { it.id } to ""
-                    }
+                        previous.initialNote ?: service.notesShow(IPinRequest(noteId = statusKey.id))
+                    parentFallback.update { if (it.revision == revision) it.copy(parent = current.reply) else it }
+                    previousKey = if (statusOnly) null else current.reply?.id ?: current.replyId.orEmpty()
+                    listOf(current) to if (statusOnly) null else ""
                 }
             }
 
@@ -96,6 +108,7 @@ internal class StatusDetailRemoteMediator(
             data =
                 result.render(accountKey),
             nextKey = nextKey,
+            previousKey = previousKey,
         )
     }
 
@@ -104,14 +117,7 @@ internal class StatusDetailRemoteMediator(
         untilId: String?,
     ): Pair<List<Note>, String?> {
         val limit = pageSize.coerceIn(1, MAX_CONTEXT_NOTES)
-        val directChildren =
-            service.notesChildren(
-                NotesChildrenRequest(
-                    noteId = statusKey.id,
-                    untilId = untilId,
-                    limit = limit,
-                ),
-            )
+        val directChildren = fetchChildren(statusKey.id, limit, untilId)
         val result = mutableListOf<Note>()
         val visited = mutableSetOf(statusKey.id)
         var nestedRequests = 0
@@ -135,13 +141,7 @@ internal class StatusDetailRemoteMediator(
                 nestedRequests++
                 appendChildren(
                     parentId = child.id,
-                    children =
-                        service.notesChildren(
-                            NotesChildrenRequest(
-                                noteId = child.id,
-                                limit = minOf(limit, MAX_CONTEXT_NOTES - result.size),
-                            ),
-                        ),
+                    children = fetchChildren(child.id, minOf(limit, MAX_CONTEXT_NOTES - result.size)),
                 )
             }
         }
@@ -150,6 +150,17 @@ internal class StatusDetailRemoteMediator(
         appendChildren(statusKey.id, directChildren)
         return result to directChildren.lastOrNull()?.id
     }
+
+    private suspend fun fetchChildren(
+        noteId: String,
+        limit: Int,
+        untilId: String? = null,
+    ): List<Note> =
+        if (repliesOnly) {
+            service.notesReplies(NotesRepliesRequest(noteId = noteId, limit = limit, untilId = untilId))
+        } else {
+            service.notesChildren(NotesChildrenRequest(noteId = noteId, limit = limit, untilId = untilId))
+        }
 
     private companion object {
         const val MAX_CONTEXT_NOTES = 100

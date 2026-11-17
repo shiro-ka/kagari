@@ -17,6 +17,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import dev.dimension.flare.data.model.PluginPermission
 import dev.dimension.flare.data.model.PluginPermissionType
+import dev.dimension.flare.feature.plugin.installer.PluginInstallWarningTypeV1
+import dev.dimension.flare.feature.plugin.installer.PluginInstallWarningV1
 import dev.dimension.flare.feature.plugin.management.PluginGitHubInstallStateV1
 import dev.dimension.flare.feature.plugin.management.PluginInstallReviewV1
 import dev.dimension.flare.feature.plugin.management.PluginManagementStateV1
@@ -32,6 +34,8 @@ class GitHubInstallDialogTest {
     private val requests = mutableListOf<String>()
     private var confirmations = 0
     private var cancellations = 0
+    private var downloadConfirmations = 0
+    private var downloadCancellations = 0
     private val install = "Install"
     private val cancel = "Cancel"
     private val mediaPermission = "• Load media from any website, which may receive this plugin’s account data"
@@ -47,6 +51,26 @@ class GitHubInstallDialogTest {
             sourceUrl = url,
             permissions = listOf(PluginPermission(PluginPermissionType.MediaNetwork, "*")),
         )
+
+    @Test
+    fun runtimeHttpPermissionIsDistinctFromLoginAccessInTheUpdateReview() {
+        val origin = "https://api.example.org"
+        val permission = PluginPermission(PluginPermissionType.HttpOrigin, origin)
+        state =
+            state.copy(
+                pendingInstall =
+                    review.copy(
+                        permissions = listOf(PluginPermission(PluginPermissionType.NetworkOrigin, origin), permission),
+                        warnings = listOf(PluginInstallWarningV1(PluginInstallWarningTypeV1.AddedPermission, origin, permission)),
+                    ),
+            )
+        show()
+        compose.onNodeWithText("• Access $origin during login").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("Send requests and data to $origin while using the plugin", substring = true).assertCountEquals(2)
+        compose.runOnIdle { assertEquals(0, confirmations) }
+        compose.onNodeWithText(install).performClick()
+        compose.runOnIdle { assertEquals(1, confirmations) }
+    }
 
     @Test
     fun downloadRetryAndPermissionConfirmationStayInTheSameDialog() {
@@ -117,6 +141,28 @@ class GitHubInstallDialogTest {
         compose.runOnIdle { assertEquals(null, state.error) }
     }
 
+    @Test
+    fun largeRepositoryApprovalPreservesTheUrlAndDoesNotGrantInstallation() {
+        show()
+        compose.onNode(hasSetTextAction()).performTextInput(url)
+        compose.runOnIdle { state = state.copy(needsRepositoryDownloadConfirmation = true) }
+        compose.onNodeWithText("Download large repository?").assertIsDisplayed()
+        compose.onNode(hasSetTextAction()).assertDoesNotExist()
+        compose.onNodeWithText(cancel).performClick()
+        compose.onNode(hasSetTextAction()).assertTextContains(url)
+        compose.runOnIdle {
+            assertEquals(1, downloadCancellations)
+            assertEquals(0, cancellations)
+            state = state.copy(needsRepositoryDownloadConfirmation = true)
+        }
+        compose.onNodeWithText("Continue download").performClick()
+        compose.runOnIdle {
+            assertEquals(1, downloadConfirmations)
+            assertEquals(0, confirmations)
+            assertEquals(emptyList<String>(), requests)
+        }
+    }
+
     private fun show() {
         compose.setContent {
             FlareTheme(isDarkTheme = false) {
@@ -132,6 +178,14 @@ class GitHubInstallDialogTest {
                         state = state,
                         onInstall = { requests += it },
                         onConfirm = { confirmations++ },
+                        onConfirmDownload = {
+                            downloadConfirmations++
+                            state = state.copy(needsRepositoryDownloadConfirmation = false)
+                        },
+                        onCancelDownload = {
+                            downloadCancellations++
+                            state = state.copy(needsRepositoryDownloadConfirmation = false)
+                        },
                         onUrlChanged = { state = state.copy(gitHubInstall = state.gitHubInstall?.copy(error = null)) },
                         onDismiss = {
                             cancellations++
