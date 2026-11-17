@@ -53,6 +53,7 @@ import dev.dimension.flare.compose.ui.profile_header_button_requested
 import dev.dimension.flare.compose.ui.profile_mark_bot
 import dev.dimension.flare.compose.ui.profile_mark_cat
 import dev.dimension.flare.compose.ui.profile_mark_locked
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.platform.PlatformErrorButton
 import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
@@ -363,6 +364,12 @@ private fun ProfileHeaderSuccess(
             }
         },
         content = {
+            if (isMe.takeSuccess() == false) {
+                KagariActingAccountLine(
+                    accountType = myAccountKey.takeSuccess()?.let { AccountType.Specific(it) },
+                    viewing = true,
+                )
+            }
             user.description?.let {
                 SelectionContainer {
                     RichText(

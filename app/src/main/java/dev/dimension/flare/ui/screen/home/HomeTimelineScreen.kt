@@ -90,6 +90,8 @@ import compose.icons.fontawesomeicons.solid.CaretDown
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Sliders
 import compose.icons.fontawesomeicons.solid.TableList
+import dev.dimension.flare.data.model.tab.kagariHasMultipleAccounts
+import dev.dimension.flare.ui.component.LocalKagariMixedTimeline
 import dev.dimension.flare.R
 import dev.dimension.flare.common.onSuccess
 import dev.dimension.flare.data.datastore.model.TimelineAutoRefreshInterval
@@ -583,6 +585,32 @@ internal fun TimelineItemContent(
     isCurrentlyVisible: Boolean = true,
     autoRefreshInterval: TimelineAutoRefreshInterval = TimelineAutoRefreshInterval.DISABLED,
     lazyStaggeredGridState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
+) {
+    val mixed = remember(item) { item.kagariHasMultipleAccounts() }
+    CompositionLocalProvider(LocalKagariMixedTimeline provides mixed) {
+        KagariTimelineItemContentBody(
+            item = item,
+            modifier = modifier,
+            contentPadding = contentPadding,
+            changeLogState = changeLogState,
+            isHomeTimeline = isHomeTimeline,
+            isCurrentlyVisible = isCurrentlyVisible,
+            autoRefreshInterval = autoRefreshInterval,
+            lazyStaggeredGridState = lazyStaggeredGridState,
+        )
+    }
+}
+
+@Composable
+private fun KagariTimelineItemContentBody(
+    item: UiTimelineTabItem,
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    changeLogState: ChangeLogState?,
+    isHomeTimeline: Boolean,
+    isCurrentlyVisible: Boolean,
+    autoRefreshInterval: TimelineAutoRefreshInterval,
+    lazyStaggeredGridState: LazyStaggeredGridState,
 ) {
     val isBigScreen = isBigScreen()
     val layoutDirection = LocalLayoutDirection.current

@@ -16,12 +16,17 @@ import dev.dimension.flare.ui.common.AppUriHandler
 import dev.dimension.flare.ui.common.BindAmberSignerLauncher
 import dev.dimension.flare.ui.component.LocalAppSettings
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
+import dev.dimension.flare.ui.component.LocalKagariAccounts
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.model.takeSuccessOr
 import dev.dimension.flare.ui.presenter.EnvironmentSettingsPresenter
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.settings.AccountsPresenter
 import dev.dimension.flare.ui.screen.home.HomeScreen
 import dev.dimension.flare.ui.theme.FlareTheme
+import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toImmutableMap
 import moe.tlaster.precompose.molecule.producePresenter
 
 @Composable
@@ -55,7 +60,20 @@ fun FlareApp(content: @Composable () -> Unit) {
         }
 
     val appSettings = state.appSettings.takeSuccessOr(AppSettings(""))
+    val kagariAccountsState by producePresenter("kagari_accounts") {
+        remember { AccountsPresenter() }.invoke()
+    }
+    val kagariAccounts =
+        remember(kagariAccountsState.accounts) {
+            kagariAccountsState.accounts
+                .takeSuccess()
+                ?.mapNotNull { item -> item.profile.takeSuccess()?.let { item.account.accountKey to it } }
+                ?.toMap()
+                ?.toImmutableMap()
+                ?: persistentMapOf()
+        }
     CompositionLocalProvider(
+        LocalKagariAccounts provides kagariAccounts,
         LocalAppSettings provides appSettings,
         LocalUriHandler provides uriHandler,
         LocalGlobalAppearance provides globalAppearance,

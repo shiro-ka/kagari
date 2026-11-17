@@ -1,5 +1,7 @@
 package dev.dimension.flare.ui.screen.profile
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -7,9 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.KagariActingAccountLine
 import dev.dimension.flare.ui.presenter.profile.BlockUserPresenter
 import dev.dimension.flare.ui.presenter.profile.MuteUserPresenter
 import dev.dimension.flare.ui.presenter.profile.UnblockUserPresenter
@@ -33,7 +37,10 @@ internal fun BlockUserDialog(
             Text(text = stringResource(id = R.string.block_user_title))
         },
         text = {
-            Text(text = stringResource(id = R.string.block_user_description))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = stringResource(id = R.string.block_user_description))
+                KagariActingAccountLine(accountType = accountType)
+            }
         },
         confirmButton = {
             TextButton(
@@ -70,7 +77,10 @@ internal fun MuteUserDialog(
             Text(text = stringResource(id = R.string.mute_user_title))
         },
         text = {
-            Text(text = stringResource(id = R.string.mute_user_description))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = stringResource(id = R.string.mute_user_description))
+                KagariActingAccountLine(accountType = accountType)
+            }
         },
         confirmButton = {
             TextButton(
@@ -107,7 +117,10 @@ internal fun UnblockUserDialog(
             Text(text = stringResource(id = R.string.unblock_user_title))
         },
         text = {
-            Text(text = stringResource(id = R.string.unblock_user_description))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = stringResource(id = R.string.unblock_user_description))
+                KagariActingAccountLine(accountType = accountType)
+            }
         },
         confirmButton = {
             TextButton(
@@ -144,7 +157,10 @@ internal fun UnmuteUserDialog(
             Text(text = stringResource(id = R.string.unmute_user_title))
         },
         text = {
-            Text(text = stringResource(id = R.string.unmute_user_description))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = stringResource(id = R.string.unmute_user_description))
+                KagariActingAccountLine(accountType = accountType)
+            }
         },
         confirmButton = {
             TextButton(

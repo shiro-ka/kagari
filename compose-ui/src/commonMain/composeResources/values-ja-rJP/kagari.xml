@@ -20,4 +20,6 @@
     <string name="kagari_hidden_reply">非表示にされた返信</string>
     <string name="kagari_menu_detach_quote">引用を外す</string>
     <string name="kagari_menu_reattach_quote">引用を戻す</string>
+    <string name="kagari_acting_as">%1$s として操作</string>
+    <string name="kagari_viewing_as">%1$s で表示中</string>
 </resources>

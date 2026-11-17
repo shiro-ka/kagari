@@ -136,7 +136,10 @@ import dev.dimension.flare.ui.component.AdaptiveGrid
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.DateTimeText
 import dev.dimension.flare.ui.component.EmojiImage
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.KagariActingAccountLine
+import dev.dimension.flare.ui.component.KagariActingAccountAvatar
 import dev.dimension.flare.ui.component.FlareDividerDefaults
 import dev.dimension.flare.ui.component.HorizontalDivider
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
@@ -591,6 +594,7 @@ public fun CommonStatusComponent(
                         }
                     StatusActions(
                         item.actions,
+                        kagariAccountType = item.accountType,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1074,6 +1078,7 @@ internal fun StatusActions(
     items: ImmutableList<ActionMenu>,
     modifier: Modifier = Modifier,
     isPost: Boolean = true,
+    kagariAccountType: AccountType? = null,
 ) = CompositionLocalProvider(
     PlatformTextStyle provides
         PlatformTheme.typography.postBody.let {
@@ -1151,6 +1156,13 @@ internal fun StatusActions(
             if (index == displayItems.lastIndex && appearanceSettings.postActionStyle == PostActionStyle.LeftAligned) {
                 Spacer(modifier = Modifier.weight(1f))
             }
+            if (index == displayItems.lastIndex) {
+                KagariActingAccountAvatar(
+                    accountType = kagariAccountType,
+                    size = iconSize + 4.dp,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+            }
             when (action) {
                 is ActionMenu.Group -> {
                     StatusActionGroup(
@@ -1171,6 +1183,10 @@ internal fun StatusActions(
                                 index != displayItems.lastIndex,
                         isStretched = isStretched,
                     ) { closeMenu, isMenuShown ->
+                        KagariActingAccountLine(
+                            accountType = kagariAccountType,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
                         action.actions.fastForEach { subActions ->
                             when (subActions) {
                                 is ActionMenu.Item -> {

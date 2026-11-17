@@ -13,10 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.res.stringResource
 import dev.dimension.flare.R
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.component.KagariActingAccountLine
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.profile.KagariReportUserPresenter
 import dev.dimension.flare.ui.presenter.profile.KagariReportUserState
@@ -75,6 +78,7 @@ private fun KagariBlueskyReportUserDialog(
         text = {
             Column {
                 Text(text = stringResource(id = R.string.report_user_description))
+                KagariActingAccountLine(accountType = accountType, modifier = Modifier.padding(vertical = 8.dp))
                 state.allReasons.forEach {
                     val interactionSource = remember(it) { MutableInteractionSource() }
                     ListItem(
