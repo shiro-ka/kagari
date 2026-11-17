@@ -176,6 +176,33 @@ def type_into(label, text):
     return False
 
 
+def open_post_detail():
+    root = dump()
+    if root is None:
+        return
+    posts = [
+        n for n in root.iter("node")
+        if len(n.get("text") or "") > 30 and not (n.get("text") or "").startswith("http")
+    ]
+    if not posts:
+        shot("detail-missing")
+        return
+    x, y = center(posts[0])
+    adb("shell", "input", "tap", str(x), str(y))
+    time.sleep(8)
+    shot("detail")
+    dump("detail")
+    for label, name in (("Quotes", "detail-quotes"), ("Liked by", "detail-liked-by")):
+        if tap(label, timeout=5, exact=True):
+            time.sleep(5)
+            shot(name)
+    adb("shell", "input", "keyevent", "KEYCODE_BACK")
+    time.sleep(3)
+    if find("Compose", timeout=5) is None:
+        adb("shell", "monkey", "-p", "lab49.kagari", "1")
+        time.sleep(8)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     if not HANDLE or not APP_PASSWORD:
@@ -210,6 +237,7 @@ def main():
     time.sleep(20)
     shot("after-login")
     dump("after-login")
+    open_post_detail()
     if not tap("Compose"):
         return 1
     time.sleep(5)

@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Gear
-import dev.dimension.flare.BuildConfig
 import dev.dimension.flare.R
 import dev.dimension.flare.ui.component.FAIcon
 
@@ -64,5 +63,3 @@ internal fun KagariLoginScreen(
         }
     }
 }
-
-internal val kagariUpstreamVersion: String = BuildConfig.VERSION_NAME.substringBefore("-kagari")
