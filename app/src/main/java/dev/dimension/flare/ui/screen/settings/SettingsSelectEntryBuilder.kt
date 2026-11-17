@@ -5,6 +5,7 @@ import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
+import dev.dimension.flare.ui.route.KagariModerationListRoute
 import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.screen.agent.AgentChatHistoryScreen
 import kotlin.time.Clock
@@ -90,6 +91,9 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             },
             toNostrRelays = {
                 navigate(Route.Settings.NostrRelays(it))
+            },
+            toKagariModerationList = { accountKey, kind ->
+                navigate(KagariModerationListRoute(accountKey, kind))
             },
             toPlugins = {
                 navigate(Route.Settings.Plugins)
@@ -340,6 +344,19 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             ),
     ) {
         AppLoggingScreen(
+            onBack = onBack,
+        )
+    }
+
+    entry<KagariModerationListRoute>(
+        metadata =
+            ListDetailSceneStrategy.detailPane(
+                sceneKey = "Settings",
+            ),
+    ) { args ->
+        KagariModerationListScreen(
+            accountKey = args.accountKey,
+            kind = args.kind,
             onBack = onBack,
         )
     }

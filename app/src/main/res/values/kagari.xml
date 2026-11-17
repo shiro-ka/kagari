@@ -67,4 +67,10 @@
     <string name="kagari_verification_message_simple">This account has been verified by its service.</string>
     <string name="kagari_verification_verified_on">Verified on %1$s</string>
     <string name="kagari_verification_close">Close</string>
+    <string name="kagari_moderation_muted_title">Muted accounts</string>
+    <string name="kagari_moderation_blocked_title">Blocked accounts</string>
+    <string name="kagari_moderation_muted_empty">You have not muted any accounts</string>
+    <string name="kagari_moderation_blocked_empty">You have not blocked any accounts</string>
+    <string name="kagari_moderation_release">Undo</string>
+    <string name="kagari_moderation_released">Undone</string>
 </resources>

@@ -56,11 +56,14 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.FaceSadTear
+import compose.icons.fontawesomeicons.solid.UserSlash
 import compose.icons.fontawesomeicons.solid.List
 import compose.icons.fontawesomeicons.solid.Plus
 import compose.icons.fontawesomeicons.solid.Trash
+import compose.icons.fontawesomeicons.solid.VolumeXmark
 import compose.icons.fontawesomeicons.solid.UserPlus
 import dev.dimension.flare.R
+import dev.dimension.flare.data.datasource.bluesky.kagariIsBluesky
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.repository.LoginExpiredException
 import dev.dimension.flare.data.repository.RequireReLoginException
@@ -111,6 +114,7 @@ internal fun AccountsScreen(
     toRelogin: (ReloginTarget) -> Unit,
     toNostrRelays: (MicroBlogKey) -> Unit,
     toPlugins: () -> Unit,
+    toKagariModerationList: (MicroBlogKey, KagariModerationListKind) -> Unit = { _, _ -> },
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val state by producePresenter {
@@ -312,6 +316,38 @@ internal fun AccountsScreen(
                                                                 stringResource(
                                                                     id = R.string.settings_nostr_relays_manage,
                                                                 ),
+                                                        )
+                                                    },
+                                                )
+                                            }
+                                            if (kagariIsBluesky(account.platformId)) {
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(text = stringResource(id = R.string.kagari_moderation_muted_title))
+                                                    },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        toKagariModerationList(account.accountKey, KagariModerationListKind.Muted)
+                                                    },
+                                                    leadingIcon = {
+                                                        FAIcon(
+                                                            imageVector = FontAwesomeIcons.Solid.VolumeXmark,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(text = stringResource(id = R.string.kagari_moderation_blocked_title))
+                                                    },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        toKagariModerationList(account.accountKey, KagariModerationListKind.Blocked)
+                                                    },
+                                                    leadingIcon = {
+                                                        FAIcon(
+                                                            imageVector = FontAwesomeIcons.Solid.UserSlash,
+                                                            contentDescription = null,
                                                         )
                                                     },
                                                 )

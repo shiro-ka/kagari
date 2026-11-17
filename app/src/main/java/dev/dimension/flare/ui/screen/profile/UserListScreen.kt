@@ -125,6 +125,7 @@ internal fun UserListScreen(
     isRefreshing: Boolean,
     refresh: () -> Unit,
     onUserClick: (MicroBlogKey) -> Unit,
+    trailingContent: @Composable (UiProfile) -> Unit = {},
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     FlareScaffold(
@@ -187,6 +188,7 @@ internal fun UserListScreen(
                             userState = UiState.Success(it),
                             onClick = { onUserClick(it) },
                             toLogin = {},
+                            trailingContent = trailingContent,
                         )
                     }
                 }

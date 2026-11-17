@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.route
 
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.screen.settings.KagariModerationListKind
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -36,3 +37,9 @@ internal data class KagariVerificationDialogRoute(
     val accountType: AccountType,
     val userKey: MicroBlogKey,
 ) : Route.Status
+
+@Serializable
+internal data class KagariModerationListRoute(
+    val accountKey: MicroBlogKey,
+    val kind: KagariModerationListKind,
+) : Route.Settings

@@ -37,10 +37,12 @@ app.bsky.feed.threadgate
 app.bsky.graph.block
 app.bsky.graph.defs
 app.bsky.graph.follow
+app.bsky.graph.getBlocks
 app.bsky.graph.getFollowers
 app.bsky.graph.getFollows
 app.bsky.graph.getList
 app.bsky.graph.getLists
+app.bsky.graph.getMutes
 app.bsky.graph.list
 app.bsky.graph.listitem
 app.bsky.graph.muteActor

@@ -66,4 +66,10 @@
     <string name="kagari_verification_message_simple">このアカウントは、サービスに本人と確認されています。</string>
     <string name="kagari_verification_verified_on">%1$s に認証</string>
     <string name="kagari_verification_close">閉じる</string>
+    <string name="kagari_moderation_muted_title">ミュートしたアカウント</string>
+    <string name="kagari_moderation_blocked_title">ブロックしたアカウント</string>
+    <string name="kagari_moderation_muted_empty">ミュートしたアカウントはありません</string>
+    <string name="kagari_moderation_blocked_empty">ブロックしたアカウントはありません</string>
+    <string name="kagari_moderation_release">解除</string>
+    <string name="kagari_moderation_released">解除しました</string>
 </resources>
