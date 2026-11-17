@@ -70,7 +70,7 @@ public class MastodonCallbackPresenter(
         val service =
             MastodonOAuthService(
                 baseUrl = "https://$host/",
-                client_name = "Flare",
+                client_name = "kagari",
                 website = "https://github.com/flaresocialapp/Flare",
                 redirect_uri = application.application.redirectURI,
             )
@@ -127,7 +127,7 @@ public suspend fun mastodonLoginUseCase(
         val service =
             MastodonOAuthService(
                 baseUrl = baseUrl.toString(),
-                client_name = "Flare",
+                client_name = "kagari",
                 website = "https://github.com/flaresocialapp/Flare",
                 redirect_uri = DeeplinkRoute.Companion.Callback.MASTODON,
             )

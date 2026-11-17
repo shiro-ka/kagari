@@ -107,7 +107,7 @@ private class MisskeyOAuthLoginHandler(
             val service =
                 MisskeyOauthService(
                 proxy = context.proxy,                    host = context.host,
-                    name = "Flare",
+                    name = "kagari",
                     callback = context.redirectUri ?: DeeplinkRoute.Companion.Callback.MISSKEY,
                     session = session,
                 )

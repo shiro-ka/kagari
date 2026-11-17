@@ -112,7 +112,7 @@ public suspend fun misskeyLoginUseCase(
         val service =
             MisskeyOauthService(
                 host = host,
-                name = "Flare",
+                name = "kagari",
                 callback = DeeplinkRoute.Companion.Callback.MISSKEY,
                 session = session,
             )

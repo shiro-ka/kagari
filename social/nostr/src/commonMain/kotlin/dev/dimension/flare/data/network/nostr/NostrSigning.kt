@@ -281,7 +281,7 @@ internal class NostrQrLogin(
             clientPubKey = keys.pubKey.toHexKey(),
             relays = relayUrls,
             secret = pairingSecret,
-            name = "Flare",
+            name = "kagari",
         )
 
     override suspend fun awaitAccount(): NostrService.ImportedAccount.RemoteSigner =
