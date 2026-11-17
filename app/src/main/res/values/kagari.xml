@@ -84,5 +84,5 @@
     <string name="kagari_reattach_quote_confirm">Reattach</string>
     <string name="kagari_reattach_quote_done">Quote reattached</string>
     <string name="kagari_detach_quote_failed">Failed to change the quote, please try again</string>
-    <string name="kagari_gate_default_load_failed">Couldn&apos;t load your default. Replies: %1$s</string>
+    <string name="kagari_gate_default_load_failed">Couldn\'t load your default. Replies: %1$s</string>
 </resources>
