@@ -67,3 +67,15 @@ internal data class KagariStarterPackScreenRoute(
     val accountKey: MicroBlogKey,
     val uri: String,
 ) : Route.Profile
+
+@Serializable
+internal data class KagariDMRequestsRoute(
+    val accountType: AccountType,
+) : Route.DM
+
+@Serializable
+internal data class KagariSendViaChatScreenRoute(
+    val accountKey: MicroBlogKey,
+    val uri: String,
+    val cid: String,
+) : Route.DM

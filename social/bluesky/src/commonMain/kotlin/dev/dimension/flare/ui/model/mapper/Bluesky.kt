@@ -60,6 +60,7 @@ import dev.dimension.flare.ui.model.asTimelinePostItem
 import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.bindMediaProxy
 import dev.dimension.flare.ui.model.toUiImage
+import dev.dimension.flare.ui.route.KagariSendViaChatRoute
 import dev.dimension.flare.ui.model.withProxy
 import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
@@ -1040,6 +1041,16 @@ internal fun PostView.render(
                                                 ),
                                         ),
                                     actionFamily = PostActionFamily.Share,
+                                ),
+                            )
+                            add(
+                                ActionMenu.Item(
+                                    icon = UiIcon.Share,
+                                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.KagariSendViaChat),
+                                    clickEvent =
+                                        ClickEvent.Deeplink(
+                                            KagariSendViaChatRoute(accountKey = accountKey, uri = uri.atUri, cid = cid.cid),
+                                        ),
                                 ),
                             )
 

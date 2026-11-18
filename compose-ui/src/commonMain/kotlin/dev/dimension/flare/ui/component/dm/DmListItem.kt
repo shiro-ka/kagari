@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.CircleExclamation
 import compose.icons.fontawesomeicons.solid.CircleUser
 import compose.icons.fontawesomeicons.solid.List
@@ -140,6 +141,14 @@ public fun LazyListScope.dmList(
                                     }
                                 }
                             }
+                        }
+                        if (item.kagariMuted) {
+                            FAIcon(
+                                FontAwesomeIcons.Solid.BellSlash,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = PlatformTheme.colorScheme.caption,
+                            )
                         }
                         val lastMessage = item.lastMessage
                         if (lastMessage != null) {

@@ -15,6 +15,8 @@ public data class UiDMRoom public constructor(
     val lastMessage: UiDMItem?,
     val unreadCount: Long,
     val pluginId: String? = null,
+    val kagariRequest: Boolean = false,
+    val kagariMuted: Boolean = false,
 ) {
     val lastMessageText: String by lazy {
         when (val message = lastMessage?.content) {

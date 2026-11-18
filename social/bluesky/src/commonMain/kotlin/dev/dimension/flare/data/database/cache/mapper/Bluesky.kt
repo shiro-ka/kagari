@@ -1,5 +1,6 @@
 package dev.dimension.flare.data.database.cache.mapper
 
+import chat.bsky.convo.ConvoStatus
 import chat.bsky.convo.ConvoView
 import chat.bsky.convo.ConvoViewLastMessageUnion
 import chat.bsky.convo.DeletedMessageView
@@ -66,6 +67,8 @@ private fun ConvoView.toUiDMRoom(accountKey: MicroBlogKey): UiDMRoom {
                 accountKey = accountKey,
             ),
         unreadCount = unreadCount,
+        kagariRequest = status == ConvoStatus.Request,
+        kagariMuted = muted,
     )
 }
 

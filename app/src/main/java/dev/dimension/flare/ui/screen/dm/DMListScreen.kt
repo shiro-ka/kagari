@@ -32,6 +32,7 @@ import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.RefreshContainer
 import dev.dimension.flare.ui.component.dm.dmList
 import dev.dimension.flare.ui.presenter.dm.DMListPresenter
+import dev.dimension.flare.ui.presenter.dm.KagariDMRequestsPresenter
 import dev.dimension.flare.ui.presenter.dm.DMListState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
@@ -66,9 +67,13 @@ internal fun DMListScreen(
     accountType: AccountType,
     onBack: () -> Unit,
     onItemClicked: (MicroBlogKey) -> Unit,
+    kagariOnRequestsClicked: (() -> Unit)? = null,
 ) {
     val state by producePresenter("dm_list_$accountType") {
         presenter(accountType)
+    }
+    val kagariRequests by producePresenter("kagari_dm_requests_count_$accountType") {
+        remember(accountType) { KagariDMRequestsPresenter(accountType) }.invoke()
     }
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     FlareScaffold(
@@ -100,6 +105,9 @@ internal fun DMListScreen(
                             .padding(horizontal = screenHorizontalPadding),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
+                    if (kagariOnRequestsClicked != null) {
+                        kagariDMRequestsRow(requests = kagariRequests, onClick = kagariOnRequestsClicked)
+                    }
                     dmList(
                         data = state.items,
                         onItemClicked = onItemClicked,

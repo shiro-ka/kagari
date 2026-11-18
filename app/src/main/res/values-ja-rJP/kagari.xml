@@ -134,4 +134,15 @@
     <string name="kagari_dm_delete_for_me">自分宛を削除</string>
     <string name="kagari_dm_reaction_input">絵文字でリアクション</string>
     <string name="kagari_dm_reaction_failed">リアクションを付けられませんでした</string>
+    <string name="kagari_dm_requests">チャットの要求</string>
+    <string name="kagari_dm_mute">会話をミュート</string>
+    <string name="kagari_dm_unmute">会話のミュートを解除</string>
+    <string name="kagari_dm_action_failed">うまくいきませんでした</string>
+    <string name="kagari_dm_accept">承認</string>
+    <string name="kagari_dm_reject">拒否</string>
+    <string name="kagari_dm_sent">送信しました</string>
+    <string name="kagari_dm_send_via_chat">チャットで送信</string>
+    <string name="kagari_dm_send_via_chat_hint">一言（なくてもよい）</string>
+    <string name="kagari_dm_send">送る</string>
+    <string name="kagari_dm_send_to">送り先: %1$s</string>
 </resources>

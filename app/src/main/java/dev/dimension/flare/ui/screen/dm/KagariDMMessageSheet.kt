@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -111,4 +113,22 @@ private fun kagariFirstGrapheme(text: String): String {
     iterator.setText(text)
     val end = iterator.next()
     return if (end == java.text.BreakIterator.DONE) text else text.substring(0, end)
+}
+
+@Composable
+internal fun KagariDMRequestBar(
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(onClick = onReject, modifier = Modifier.weight(1f)) {
+            Text(text = stringResource(R.string.kagari_dm_reject))
+        }
+        Button(onClick = onAccept, modifier = Modifier.weight(1f)) {
+            Text(text = stringResource(R.string.kagari_dm_accept))
+        }
+    }
 }

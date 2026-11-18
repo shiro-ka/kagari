@@ -4,6 +4,8 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import dev.dimension.flare.ui.route.KagariDMRequestsRoute
+import dev.dimension.flare.ui.route.KagariSendViaChatScreenRoute
 import dev.dimension.flare.ui.route.Route
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -25,6 +27,35 @@ internal fun EntryProviderScope<NavKey>.dmEntryBuilder(
                 navigate(Route.DM.Conversation(args.accountType, roomKey))
             },
             onBack = onBack,
+            kagariOnRequestsClicked = {
+                navigate(KagariDMRequestsRoute(args.accountType))
+            },
+        )
+    }
+
+    entry<KagariSendViaChatScreenRoute> { args ->
+        KagariSendViaChatScreen(
+            accountKey = args.accountKey,
+            uri = args.uri,
+            cid = args.cid,
+            onBack = onBack,
+        )
+    }
+
+    entry<KagariDMRequestsRoute>(
+        metadata = ListDetailSceneStrategy.listPane(
+            sceneKey = "DirectMessage",
+            detailPlaceholder = {
+                DMConversationDetailPlaceholder()
+            }
+        )
+    ) { args ->
+        KagariDMRequestsScreen(
+            accountType = args.accountType,
+            onBack = onBack,
+            onItemClicked = { roomKey ->
+                navigate(Route.DM.Conversation(args.accountType, roomKey))
+            },
         )
     }
     

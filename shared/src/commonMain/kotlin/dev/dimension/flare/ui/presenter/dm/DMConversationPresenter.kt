@@ -20,6 +20,7 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiDMItem
+import dev.dimension.flare.ui.model.UiDMRoom
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.model.flatMap
@@ -58,15 +59,17 @@ public class DMConversationPresenter(
                         directMessage.directMessageConversation(roomKey, scope = scope)
                     }.collectAsLazyPagingItems()
                 }.toPagingState()
-        val users =
+        val kagariRoomState =
             directMessageState
                 .flatMap { directMessage ->
                     remember(directMessage, roomKey) {
                         directMessage.getDirectMessageConversationInfo(roomKey)
                     }.collectAsState().toUi()
-                }.map {
-                    it.users
                 }
+        val users =
+            kagariRoomState.map {
+                it.users
+            }
         directMessageState.onSuccess { directMessage ->
             LaunchedEffect(directMessage, roomKey) {
                 while (true) {
@@ -137,6 +140,27 @@ public class DMConversationPresenter(
 
             override val kagariCanReact = directMessage?.directMessageHandler?.kagariCanReact == true
 
+            override val kagariRoom = (kagariRoomState as? UiState.Success)?.data
+
+            override val kagariCanManageRoom = directMessage?.directMessageHandler?.kagariRoomLoader != null
+
+            override fun kagariAccept(onResult: (Boolean) -> Unit) {
+                val handler = directMessage?.directMessageHandler ?: return onResult(false)
+                scope.launch {
+                    onResult(handler.kagariAccept(roomKey))
+                }
+            }
+
+            override fun kagariSetMuted(
+                muted: Boolean,
+                onResult: (Boolean) -> Unit,
+            ) {
+                val handler = directMessage?.directMessageHandler ?: return onResult(false)
+                scope.launch {
+                    onResult(handler.kagariSetMuted(roomKey, muted))
+                }
+            }
+
             override fun kagariReact(
                 key: MicroBlogKey,
                 value: String,
@@ -188,4 +212,15 @@ public interface DMConversationState {
     )
 
     public fun kagariDeleteForMe(key: MicroBlogKey)
+
+    public val kagariRoom: UiDMRoom?
+
+    public val kagariCanManageRoom: Boolean
+
+    public fun kagariAccept(onResult: (Boolean) -> Unit)
+
+    public fun kagariSetMuted(
+        muted: Boolean,
+        onResult: (Boolean) -> Unit,
+    )
 }

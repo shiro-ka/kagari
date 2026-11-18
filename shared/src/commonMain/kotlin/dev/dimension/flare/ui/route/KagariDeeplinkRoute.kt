@@ -68,3 +68,10 @@ public data class KagariStarterPackRoute(
     val accountKey: MicroBlogKey,
     val uri: String,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariSendViaChatRoute(
+    val accountKey: MicroBlogKey,
+    val uri: String,
+    val cid: String,
+) : DeeplinkRoute.Status()

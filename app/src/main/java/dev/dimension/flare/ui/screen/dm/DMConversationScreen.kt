@@ -6,6 +6,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -112,6 +113,7 @@ internal fun DMConversationScreen(
     val context = LocalContext.current
     var kagariMenuItem by remember { mutableStateOf<UiDMItem?>(null) }
     val kagariFailed = stringResource(R.string.kagari_dm_reaction_failed)
+    val kagariFailedAction = stringResource(R.string.kagari_dm_action_failed)
     val imagePicker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) state.selectImage(FileItem(context, uri))
@@ -179,6 +181,26 @@ internal fun DMConversationScreen(
                             }
                         }
 
+                        if (state.kagariCanManageRoom) {
+                            val muted = state.kagariRoom?.kagariMuted == true
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                if (muted) R.string.kagari_dm_unmute else R.string.kagari_dm_mute,
+                                            ),
+                                    )
+                                },
+                                onClick = {
+                                    state.setShowDropdown(false)
+                                    state.kagariSetMuted(!muted) { ok ->
+                                        if (!ok) Toast.makeText(context, kagariFailedAction, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                            )
+                        }
+
                         if (state.canLeave) {
                             HorizontalDivider()
                             DropdownMenuItem(
@@ -207,107 +229,123 @@ internal fun DMConversationScreen(
             )
         },
         bottomBar = {
-            val image = state.selectedImage
-            Surface {
-                Box {
-                    HorizontalDivider(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxWidth(),
-                        color = FlareDividerDefaults.color,
-                        thickness = FlareDividerDefaults.thickness,
-                    )
-                    OutlinedTextField(
-                        modifier =
-                            Modifier
-                                .padding(
-                                    bottom = LocalBottomBarHeight.current,
-                                ).windowInsetsPadding(
-                                    WindowInsets.systemBars.only(
-                                        WindowInsetsSides.Horizontal,
-                                    ),
-                                ).consumeWindowInsets(
-                                    PaddingValues(
-                                        bottom = LocalBottomBarHeight.current,
-                                    ),
-                                ).imePadding()
-                                .fillMaxWidth()
-                                .padding(
-                                    horizontal = screenHorizontalPadding,
-                                    vertical = 8.dp,
-                                ).focusRequester(
-                                    focusRequester = focusRequester,
-                                ),
-                        state = state.text,
-                        lineLimits = TextFieldLineLimits.SingleLine,
-                        leadingIcon =
-                            if (state.canSendImage) {
-                                {
-                                    IconButton(
-                                        onClick = {
-                                            if (image == null) {
-                                                imagePicker.launch(
-                                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
-                                                )
-                                            } else {
-                                                state.selectImage(null)
-                                            }
-                                        },
-                                        enabled = !state.isSendingImage,
-                                    ) {
-                                        FAIcon(
-                                            imageVector = if (image == null) FontAwesomeIcons.Solid.Image else FontAwesomeIcons.Solid.Xmark,
-                                            contentDescription =
-                                                stringResource(
-                                                    if (image == null) R.string.dm_add_image else R.string.dm_remove_image,
-                                                ),
-                                        )
-                                    }
-                                }
-                            } else {
-                                null
-                            },
-                        supportingText =
-                            if (image != null) {
-                                {
-                                    Text(
-                                        text =
-                                            when {
-                                                state.isSendingImage -> stringResource(R.string.dm_sending)
-                                                state.imageSendFailed -> stringResource(R.string.dm_image_send_failed)
-                                                else -> image.name ?: stringResource(R.string.dm_image_attached)
-                                            },
-                                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            } else {
-                                null
-                            },
-                        isError = state.imageSendFailed,
-                        trailingIcon = {
-                            IconButton(
-                                onClick = {
-                                    state.send()
-                                },
-                                enabled = state.canSend,
-                            ) {
-                                FAIcon(
-                                    FontAwesomeIcons.Solid.PaperPlane,
-                                    contentDescription = stringResource(id = R.string.send),
-                                )
+            Column {
+                if (state.kagariRoom?.kagariRequest == true) {
+                    KagariDMRequestBar(
+                        onAccept = {
+                            state.kagariAccept { ok ->
+                                if (!ok) Toast.makeText(context, kagariFailedAction, Toast.LENGTH_SHORT).show()
                             }
                         },
-                        shape = RoundedCornerShape(100),
-                        placeholder = {
-                            Text(
-                                text = stringResource(id = R.string.dm_send_placeholder),
-                            )
+                        onReject = {
+                            state.leave()
+                            onBack()
                         },
                     )
                 }
+                val image = state.selectedImage
+                Surface {
+                    Box {
+                        HorizontalDivider(
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth(),
+                            color = FlareDividerDefaults.color,
+                            thickness = FlareDividerDefaults.thickness,
+                        )
+                        OutlinedTextField(
+                            modifier =
+                                Modifier
+                                    .padding(
+                                        bottom = LocalBottomBarHeight.current,
+                                    ).windowInsetsPadding(
+                                        WindowInsets.systemBars.only(
+                                            WindowInsetsSides.Horizontal,
+                                        ),
+                                    ).consumeWindowInsets(
+                                        PaddingValues(
+                                            bottom = LocalBottomBarHeight.current,
+                                        ),
+                                    ).imePadding()
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = screenHorizontalPadding,
+                                        vertical = 8.dp,
+                                    ).focusRequester(
+                                        focusRequester = focusRequester,
+                                    ),
+                            state = state.text,
+                            lineLimits = TextFieldLineLimits.SingleLine,
+                            leadingIcon =
+                                if (state.canSendImage) {
+                                    {
+                                        IconButton(
+                                            onClick = {
+                                                if (image == null) {
+                                                    imagePicker.launch(
+                                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                                                    )
+                                                } else {
+                                                    state.selectImage(null)
+                                                }
+                                            },
+                                            enabled = !state.isSendingImage,
+                                        ) {
+                                            FAIcon(
+                                                imageVector = if (image == null) FontAwesomeIcons.Solid.Image else FontAwesomeIcons.Solid.Xmark,
+                                                contentDescription =
+                                                    stringResource(
+                                                        if (image == null) R.string.dm_add_image else R.string.dm_remove_image,
+                                                    ),
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
+                            supportingText =
+                                if (image != null) {
+                                    {
+                                        Text(
+                                            text =
+                                                when {
+                                                    state.isSendingImage -> stringResource(R.string.dm_sending)
+                                                    state.imageSendFailed -> stringResource(R.string.dm_image_send_failed)
+                                                    else -> image.name ?: stringResource(R.string.dm_image_attached)
+                                                },
+                                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                            isError = state.imageSendFailed,
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        state.send()
+                                    },
+                                    enabled = state.canSend,
+                                ) {
+                                    FAIcon(
+                                        FontAwesomeIcons.Solid.PaperPlane,
+                                        contentDescription = stringResource(id = R.string.send),
+                                    )
+                                }
+                            },
+                            shape = RoundedCornerShape(100),
+                            placeholder = {
+                                Text(
+                                    text = stringResource(id = R.string.dm_send_placeholder),
+                                )
+                            },
+                        )
+                    }
+                }
+        
             }
         },
     ) { contentPadding ->

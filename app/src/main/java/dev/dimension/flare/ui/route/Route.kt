@@ -761,6 +761,14 @@ internal sealed interface Route : NavKey {
                     KagariProfileEditScreenRoute(accountKey = deeplinkRoute.accountKey)
                 }
 
+                is KagariSendViaChatRoute -> {
+                    KagariSendViaChatScreenRoute(
+                        accountKey = deeplinkRoute.accountKey,
+                        uri = deeplinkRoute.uri,
+                        cid = deeplinkRoute.cid,
+                    )
+                }
+
                 is KagariStarterPackRoute -> {
                     KagariStarterPackScreenRoute(
                         accountKey = deeplinkRoute.accountKey,

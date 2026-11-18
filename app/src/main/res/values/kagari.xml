@@ -135,4 +135,15 @@
     <string name="kagari_dm_delete_for_me">Delete for me</string>
     <string name="kagari_dm_reaction_input">React with an emoji</string>
     <string name="kagari_dm_reaction_failed">Could not update the reaction</string>
+    <string name="kagari_dm_requests">Chat requests</string>
+    <string name="kagari_dm_mute">Mute conversation</string>
+    <string name="kagari_dm_unmute">Unmute conversation</string>
+    <string name="kagari_dm_action_failed">Something went wrong</string>
+    <string name="kagari_dm_accept">Accept</string>
+    <string name="kagari_dm_reject">Reject</string>
+    <string name="kagari_dm_sent">Sent</string>
+    <string name="kagari_dm_send_via_chat">Send via chat</string>
+    <string name="kagari_dm_send_via_chat_hint">Add a message (optional)</string>
+    <string name="kagari_dm_send">Send</string>
+    <string name="kagari_dm_send_to">To: %1$s</string>
 </resources>

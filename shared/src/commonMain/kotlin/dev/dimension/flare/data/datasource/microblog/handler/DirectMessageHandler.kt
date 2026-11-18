@@ -4,6 +4,7 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.filter
 import androidx.paging.map
 import dev.dimension.flare.common.CacheData
 import dev.dimension.flare.common.Cacheable
@@ -20,6 +21,9 @@ import dev.dimension.flare.data.datasource.microblog.createSendingDirectMessage
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageDelta
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageLoader
 import dev.dimension.flare.data.datasource.microblog.loader.KagariDMReactionLoader
+import dev.dimension.flare.data.datasource.microblog.loader.KagariDMRoomLoader
+import dev.dimension.flare.data.datasource.microblog.pagingConfig
+import dev.dimension.flare.common.BasePagingSource
 import dev.dimension.flare.data.datasource.microblog.offsetPagingConfig
 import dev.dimension.flare.data.datasource.microblog.paging.DirectMessageItemDbPageLoader
 import dev.dimension.flare.data.datasource.microblog.paging.DirectMessageTimelineDbPageLoader
@@ -90,7 +94,9 @@ public class DirectMessageHandler(
             },
         ).flow
             .map { paging ->
-                paging.map { it.content.copy(unreadCount = it.unreadCount).withProxy(ProxyRef.forAccount(accountKey)) }
+                paging
+                    .filter { !it.content.kagariRequest }
+                    .map { it.content.copy(unreadCount = it.unreadCount).withProxy(ProxyRef.forAccount(accountKey)) }
             }.combine(loader.runtimeTransformer) { paging, transformer ->
                 paging.map(transformer.room)
             }.cachedIn(scope)
@@ -249,6 +255,55 @@ public class DirectMessageHandler(
                 }
             }
         }
+    }
+
+    public val kagariRoomLoader: KagariDMRoomLoader?
+        get() = loader as? KagariDMRoomLoader
+
+    public fun kagariRequests(scope: CoroutineScope): Flow<PagingData<UiDMRoom>> =
+        Pager(config = pagingConfig) {
+            object : BasePagingSource<String, UiDMRoom>() {
+                override fun getRefreshKey(state: androidx.paging.PagingState<String, UiDMRoom>): String? = null
+
+                override suspend fun doLoad(params: LoadParams<String>): LoadResult<String, UiDMRoom> {
+                    val roomLoader = kagariRoomLoader ?: return LoadResult.Page(emptyList(), null, null)
+                    val result = roomLoader.kagariLoadRequests(params.loadSize, params.key)
+                    return LoadResult.Page(
+                        data = result.data.map { it.withProxy(ProxyRef.forAccount(accountKey)) },
+                        prevKey = null,
+                        nextKey = result.nextKey?.takeIf { result.data.isNotEmpty() },
+                    )
+                }
+            }
+        }.flow.cachedIn(scope)
+
+    public suspend fun kagariAccept(roomKey: MicroBlogKey): Boolean {
+        val roomLoader = kagariRoomLoader ?: return false
+        return runCatching { roomLoader.kagariAccept(roomKey) }
+            .onSuccess { room -> room?.let { saveRooms(listOf(it)) } }
+            .isSuccess
+    }
+
+    public suspend fun kagariSetMuted(
+        roomKey: MicroBlogKey,
+        muted: Boolean,
+    ): Boolean {
+        val roomLoader = kagariRoomLoader ?: return false
+        return runCatching { roomLoader.kagariSetMuted(roomKey, muted) }
+            .onSuccess { saveRooms(listOf(it)) }
+            .isSuccess
+    }
+
+    public suspend fun kagariSendPost(
+        roomKey: MicroBlogKey,
+        text: String,
+        uri: String,
+        cid: String,
+    ): Boolean {
+        val roomLoader = kagariRoomLoader ?: return false
+        return runCatching { roomLoader.kagariSendPost(roomKey, text, uri, cid) }
+            .onSuccess { saveMessagesAndUpdateRoom(roomKey, listOf(it)) }
+            .isSuccess
     }
 
     public val kagariCanReact: Boolean

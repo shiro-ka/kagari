@@ -18,6 +18,7 @@ import dev.dimension.flare.data.database.cache.mapper.Bluesky
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageDelta
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageLoader
 import dev.dimension.flare.data.datasource.microblog.loader.KagariDMReactionLoader
+import dev.dimension.flare.data.datasource.microblog.loader.KagariDMRoomLoader
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.network.bluesky.BlueskyService
@@ -36,7 +37,27 @@ internal class BlueskyDirectMessageLoader(
     private val getService: suspend () -> BlueskyService,
     private val accountKey: MicroBlogKey,
 ) : DirectMessageLoader,
-    KagariDMReactionLoader {
+    KagariDMReactionLoader,
+    KagariDMRoomLoader {
+    override suspend fun kagariLoadRequests(
+        pageSize: Int,
+        cursor: String?,
+    ): PagingResult<UiDMRoom> = getService().kagariLoadRequestRooms(accountKey, pageSize, cursor)
+
+    override suspend fun kagariAccept(roomKey: MicroBlogKey): UiDMRoom? = getService().kagariAcceptRoom(accountKey, roomKey)
+
+    override suspend fun kagariSetMuted(
+        roomKey: MicroBlogKey,
+        muted: Boolean,
+    ): UiDMRoom = getService().kagariSetRoomMuted(accountKey, roomKey, muted)
+
+    override suspend fun kagariSendPost(
+        roomKey: MicroBlogKey,
+        text: String,
+        uri: String,
+        cid: String,
+    ): UiDMItem = getService().kagariSendPostMessage(accountKey, roomKey, text, uri, cid)
+
     override suspend fun kagariReact(
         roomKey: MicroBlogKey,
         messageKey: MicroBlogKey,

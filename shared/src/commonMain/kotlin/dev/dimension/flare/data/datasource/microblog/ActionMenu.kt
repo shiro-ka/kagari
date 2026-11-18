@@ -183,6 +183,7 @@ public sealed class ActionMenu {
                     KagariUnmuteThread,
                     KagariDetachQuote,
                     KagariReattachQuote,
+                    KagariSendViaChat,
                 }
             }
         }
