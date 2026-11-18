@@ -761,6 +761,21 @@ internal sealed interface Route : NavKey {
                     KagariProfileEditScreenRoute(accountKey = deeplinkRoute.accountKey)
                 }
 
+                is KagariFeedRoute -> {
+                    Bluesky.FeedDetail(
+                        accountType = AccountType.Specific(deeplinkRoute.accountKey),
+                        feedId = deeplinkRoute.uri,
+                    )
+                }
+
+                is KagariListRoute -> {
+                    Lists.Detail(
+                        accountType = AccountType.Specific(deeplinkRoute.accountKey),
+                        listId = deeplinkRoute.uri,
+                        title = deeplinkRoute.title,
+                    )
+                }
+
                 is KagariDetachQuoteRoute -> {
                     KagariDetachQuoteDialogRoute(
                         statusKey = deeplinkRoute.statusKey,

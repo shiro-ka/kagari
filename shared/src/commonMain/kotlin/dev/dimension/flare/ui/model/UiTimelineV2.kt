@@ -336,6 +336,8 @@ public sealed class UiTimelineV2 {
         val pluginId: String? = null,
         internal val authorSubtitleInternal: String? = null,
         public val kagariMutedWord: String? = null,
+        public val kagariEmbed: KagariEmbed? = null,
+        public val kagariCardWithQuote: Boolean = false,
     ) : UiTimelineV2() {
         @WebExport
         val authorSubtitle: String

@@ -25,4 +25,15 @@
     <string name="kagari_profile_edit">Edit profile</string>
     <string name="kagari_muted_word_hidden">Post with your muted word “%1$s”</string>
     <string name="kagari_muted_word_show">Show</string>
+    <string name="kagari_embed_feed">Feed</string>
+    <string name="kagari_embed_user_list">List</string>
+    <string name="kagari_embed_moderation_list">Moderation list</string>
+    <string name="kagari_embed_starter_pack">Starter pack</string>
+    <string name="kagari_embed_labeler">Labeler</string>
+    <string name="kagari_embed_likes">%1$s likes</string>
+    <string name="kagari_embed_separator"> · </string>
+    <string name="kagari_embed_deleted">Deleted</string>
+    <string name="kagari_embed_blocked">Blocked</string>
+    <string name="kagari_embed_removed_by_author">Removed by author</string>
+    <string name="kagari_embed_removed_by_you">Removed by you</string>
 </resources>

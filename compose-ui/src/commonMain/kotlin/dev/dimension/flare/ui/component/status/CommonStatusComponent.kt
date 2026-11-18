@@ -246,9 +246,10 @@ public fun CommonStatusComponent(
         val hasBodyAfterReply = hasBodyContent || showsDetailTranslation
         val hasPreMediaBody = replyToHandle != null || hasBodyAfterReply
         val showsImages = item.images.isNotEmpty() && showMedia
-        val showsCard = item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() && quotes.isEmpty()
+        val showsCard = item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() && (quotes.isEmpty() || item.kagariCardWithQuote)
         val showsQuotes = quotes.isNotEmpty() && !isQuote
-        val showsAttachments = showsImages || showsCard || showsQuotes
+        val kagariEmbed = item.kagariEmbed?.takeIf { !isQuote }
+        val showsAttachments = showsImages || showsCard || showsQuotes || kagariEmbed != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
         val showsActions = (appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions
@@ -575,6 +576,12 @@ public fun CommonStatusComponent(
                         quotes = quotes,
                         allowMediaCarousel = allowMediaCarousel,
                     )
+                }
+                if (kagariEmbed != null) {
+                    Spacer(
+                        modifier = Modifier.height(if (showsImages || showsCard) 8.dp else firstAttachmentSpacing),
+                    )
+                    KagariEmbedComponent(embed = kagariEmbed)
                 }
 
                 if (showsReactions) {

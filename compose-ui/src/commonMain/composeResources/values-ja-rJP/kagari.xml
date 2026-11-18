@@ -25,4 +25,15 @@
     <string name="kagari_profile_edit">プロフィールを編集</string>
     <string name="kagari_muted_word_hidden">ミュートワード「%1$s」を含む投稿</string>
     <string name="kagari_muted_word_show">表示</string>
+    <string name="kagari_embed_feed">フィード</string>
+    <string name="kagari_embed_user_list">リスト</string>
+    <string name="kagari_embed_moderation_list">モデレーションリスト</string>
+    <string name="kagari_embed_starter_pack">スターターパック</string>
+    <string name="kagari_embed_labeler">ラベラー</string>
+    <string name="kagari_embed_likes">いいね %1$s</string>
+    <string name="kagari_embed_separator">・</string>
+    <string name="kagari_embed_deleted">削除されています</string>
+    <string name="kagari_embed_blocked">ブロックされています</string>
+    <string name="kagari_embed_removed_by_author">投稿者が削除しました</string>
+    <string name="kagari_embed_removed_by_you">あなたが削除しました</string>
 </resources>
