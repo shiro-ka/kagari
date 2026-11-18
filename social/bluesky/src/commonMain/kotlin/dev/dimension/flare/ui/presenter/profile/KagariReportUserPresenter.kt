@@ -15,9 +15,8 @@ import dev.dimension.flare.data.repository.AccountService
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
-import dev.dimension.flare.ui.model.collectAsUiState
-import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.rememberKagariBluesky
 import dev.dimension.flare.ui.presenter.status.action.BlueskyReportStatusState
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -34,10 +33,8 @@ public class KagariReportUserPresenter(
 
     @Composable
     override fun body(): KagariReportUserState {
-        val flow = remember(accountType) { accountService.accountServiceFlow(accountType) }
-        val service by flow.collectAsUiState()
         var reason by remember { mutableStateOf<BlueskyReportStatusState.ReportReason?>(null) }
-        val bluesky = service.takeSuccess() as? BlueskyDataSource
+        val bluesky = accountService.rememberKagariBluesky(accountType)
         return object : KagariReportUserState {
             override val supported: Boolean = bluesky != null
             override val allReasons = BlueskyReportStatusState.ReportReason.entries.toImmutableList()

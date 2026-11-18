@@ -15,10 +15,10 @@ import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.mapper.render
-import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariLoadState
+import dev.dimension.flare.ui.presenter.rememberKagariService
 import dev.dimension.flare.ui.render.UiDateTime
 import dev.dimension.flare.ui.render.toUi
 import kotlinx.collections.immutable.ImmutableList
@@ -34,19 +34,13 @@ public class KagariVerificationPresenter(
 
     @Composable
     override fun body(): KagariVerificationState {
-        val flow = remember(accountType) { accountService.accountServiceFlow(accountType) }
-        val service by flow.collectAsUiState()
-        val dataSource = service.takeSuccess()
+        val dataSource = accountService.rememberKagariService(accountType)
         var verifiers by remember { mutableStateOf<UiState<ImmutableList<KagariVerifier>>>(UiState.Loading()) }
         LaunchedEffect(dataSource, userKey) {
             if (dataSource == null) return@LaunchedEffect
             verifiers =
                 if (dataSource is BlueskyDataSource) {
-                    runCatching { dataSource.kagariVerifiers(userKey) }
-                        .fold(
-                            onSuccess = { UiState.Success(it) },
-                            onFailure = { UiState.Error(it) },
-                        )
+                    kagariLoadState { dataSource.kagariVerifiers(userKey) }
                 } else {
                     UiState.Success(persistentListOf())
                 }

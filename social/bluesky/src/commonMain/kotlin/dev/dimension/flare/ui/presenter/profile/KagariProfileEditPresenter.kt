@@ -17,13 +17,12 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariLoadState
+import dev.dimension.flare.ui.presenter.kagariSubmit
+import dev.dimension.flare.ui.presenter.rememberKagariService
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 public class KagariProfileEditPresenter(
     private val accountKey: MicroBlogKey,
@@ -33,19 +32,12 @@ public class KagariProfileEditPresenter(
 
     @Composable
     override fun body(): KagariProfileEditState {
-        val flow = remember(accountKey) { accountService.accountServiceFlow(AccountType.Specific(accountKey)) }
-        val service by flow.collectAsUiState()
-        val dataSource = service.takeSuccess()?.takeIf { it.kagariSupportsProfileEdit() }
+        val dataSource = accountService.rememberKagariService(AccountType.Specific(accountKey))?.takeIf { it.kagariSupportsProfileEdit() }
         var draft by remember { mutableStateOf<UiState<KagariProfileDraft>>(UiState.Loading()) }
         var saving by remember { mutableStateOf(false) }
         LaunchedEffect(dataSource) {
             val source = dataSource ?: return@LaunchedEffect
-            draft =
-                runCatching { source.kagariLoadProfileDraft() }
-                    .fold(
-                        onSuccess = { UiState.Success(it) },
-                        onFailure = { UiState.Error(it) },
-                    )
+            draft = kagariLoadState { source.kagariLoadProfileDraft() }
         }
         return object : KagariProfileEditState {
             override val draft: UiState<KagariProfileDraft> = draft
@@ -59,13 +51,8 @@ public class KagariProfileEditPresenter(
             ) {
                 val source = dataSource ?: return onResult(false)
                 val before = draft.takeSuccess() ?: return onResult(false)
-                saving = true
-                scope.launch {
-                    val ok = runCatching { source.kagariSaveProfile(before, after, avatar, banner) }.isSuccess
-                    withContext(Dispatchers.Main) {
-                        saving = false
-                        onResult(ok)
-                    }
+                scope.kagariSubmit(busy = { saving = it }, onResult = onResult) {
+                    source.kagariSaveProfile(before, after, avatar, banner)
                 }
             }
         }

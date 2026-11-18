@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.dimension.flare.data.datasource.bluesky.BlueskyDataSource
 import dev.dimension.flare.data.datasource.bluesky.KagariStarterPackDetail
 import dev.dimension.flare.data.datasource.bluesky.kagariFollow
 import dev.dimension.flare.data.datasource.bluesky.kagariLoadStarterPack
@@ -16,9 +15,10 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariLoadState
+import dev.dimension.flare.ui.presenter.rememberKagariBluesky
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,20 +33,13 @@ public class KagariStarterPackPresenter(
 
     @Composable
     override fun body(): KagariStarterPackState {
-        val flow = remember(accountKey) { accountService.accountServiceFlow(AccountType.Specific(accountKey)) }
-        val service by flow.collectAsUiState()
-        val bluesky = service.takeSuccess() as? BlueskyDataSource
+        val bluesky = accountService.rememberKagariBluesky(AccountType.Specific(accountKey))
         var detail by remember { mutableStateOf<UiState<KagariStarterPackDetail>>(UiState.Loading()) }
         var followed by remember { mutableStateOf(emptySet<MicroBlogKey>()) }
         var following by remember { mutableStateOf(emptySet<MicroBlogKey>()) }
         LaunchedEffect(bluesky, uri) {
             val source = bluesky ?: return@LaunchedEffect
-            detail =
-                runCatching { source.kagariService().kagariLoadStarterPack(accountKey, uri) }
-                    .fold(
-                        onSuccess = { UiState.Success(it) },
-                        onFailure = { UiState.Error(it) },
-                    )
+            detail = kagariLoadState { source.kagariService().kagariLoadStarterPack(accountKey, uri) }
         }
 
         fun followUsers(

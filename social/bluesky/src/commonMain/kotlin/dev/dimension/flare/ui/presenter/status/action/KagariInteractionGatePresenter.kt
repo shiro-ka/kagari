@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.dimension.flare.data.datasource.bluesky.BlueskyDataSource
 import dev.dimension.flare.data.datasource.bluesky.blueskyInteractionGateConfig
 import dev.dimension.flare.data.datasource.bluesky.loadBlueskyInteractionGate
 import dev.dimension.flare.data.datasource.bluesky.saveBlueskyInteractionGate
@@ -18,14 +17,11 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.collectAsUiState
-import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariLoadState
+import dev.dimension.flare.ui.presenter.kagariSubmit
+import dev.dimension.flare.ui.presenter.rememberKagariBluesky
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 public class KagariInteractionGatePresenter(
     private val accountType: AccountType,
@@ -33,17 +29,10 @@ public class KagariInteractionGatePresenter(
 ) : PresenterBase<KagariInteractionGateState>() {
     private val scope by koinInject<CoroutineScope>()
     private val accountService: AccountService by koinInject()
-    private val serviceFlow by lazy {
-        accountService.accountServiceFlow(accountType).map { service ->
-            require(service is BlueskyDataSource)
-            service
-        }
-    }
 
     @Composable
     override fun body(): KagariInteractionGateState {
-        val serviceState by serviceFlow.collectAsUiState()
-        val dataSource = serviceState.takeSuccess()
+        val dataSource = accountService.rememberKagariBluesky(accountType)
         var current by remember { mutableStateOf<UiState<InteractionGate>>(UiState.Loading()) }
         var isReply by remember { mutableStateOf(false) }
         var lists by remember { mutableStateOf<List<InteractionGateList>?>(null) }
@@ -51,15 +40,11 @@ public class KagariInteractionGatePresenter(
         LaunchedEffect(dataSource) {
             val source = dataSource ?: return@LaunchedEffect
             current =
-                runCatching {
+                kagariLoadState {
                     loadBlueskyInteractionGate(source.kagariService(), source.accountKey, statusKey.id)
-                }.fold(
-                    onSuccess = {
-                        isReply = it.isReply
-                        UiState.Success(it.gate)
-                    },
-                    onFailure = { UiState.Error(it) },
-                )
+                        .also { isReply = it.isReply }
+                        .gate
+                }
             lists =
                 runCatching {
                     blueskyInteractionGateConfig(source.accountKey, source::kagariService).loadLists()
@@ -76,16 +61,8 @@ public class KagariInteractionGatePresenter(
                 onResult: (Boolean) -> Unit,
             ) {
                 val source = dataSource ?: return onResult(false)
-                saving = true
-                scope.launch {
-                    val ok =
-                        runCatching {
-                            saveBlueskyInteractionGate(source.kagariService(), source.accountKey, statusKey.id, gate)
-                        }.isSuccess
-                    withContext(Dispatchers.Main) {
-                        saving = false
-                        onResult(ok)
-                    }
+                scope.kagariSubmit(busy = { saving = it }, onResult = onResult) {
+                    saveBlueskyInteractionGate(source.kagariService(), source.accountKey, statusKey.id, gate)
                 }
             }
         }

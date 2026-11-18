@@ -6,19 +6,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.dimension.flare.data.datasource.bluesky.BlueskyDataSource
 import dev.dimension.flare.data.datasource.bluesky.setBlueskyQuoteDetached
 import dev.dimension.flare.data.repository.AccountService
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
-import dev.dimension.flare.ui.model.collectAsUiState
-import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariSubmit
+import dev.dimension.flare.ui.presenter.rememberKagariBluesky
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 public class KagariDetachQuotePresenter(
     private val accountType: AccountType,
@@ -30,9 +26,7 @@ public class KagariDetachQuotePresenter(
 
     @Composable
     override fun body(): KagariDetachQuoteState {
-        val flow = remember(accountType) { accountService.accountServiceFlow(accountType) }
-        val service by flow.collectAsUiState()
-        val bluesky = service.takeSuccess() as? BlueskyDataSource
+        val bluesky = accountService.rememberKagariBluesky(accountType)
         var saving by remember { mutableStateOf(false) }
         return object : KagariDetachQuoteState {
             override val ready: Boolean = bluesky != null
@@ -43,22 +37,14 @@ public class KagariDetachQuotePresenter(
                 onResult: (Boolean) -> Unit,
             ) {
                 val dataSource = bluesky ?: return onResult(false)
-                saving = true
-                scope.launch {
-                    val ok =
-                        runCatching {
-                            setBlueskyQuoteDetached(
-                                service = dataSource.kagariService(),
-                                accountKey = dataSource.accountKey,
-                                quotedPostUri = quotedUri,
-                                quotingPostUri = statusKey.id,
-                                detach = detach,
-                            )
-                        }.isSuccess
-                    withContext(Dispatchers.Main) {
-                        saving = false
-                        onResult(ok)
-                    }
+                scope.kagariSubmit(busy = { saving = it }, onResult = onResult) {
+                    setBlueskyQuoteDetached(
+                        service = dataSource.kagariService(),
+                        accountKey = dataSource.accountKey,
+                        quotedPostUri = quotedUri,
+                        quotingPostUri = statusKey.id,
+                        detach = detach,
+                    )
                 }
             }
         }

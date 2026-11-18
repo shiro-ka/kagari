@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.dimension.flare.data.datasource.bluesky.BlueskyDataSource
 import dev.dimension.flare.data.datasource.bluesky.KagariMuteWord
 import dev.dimension.flare.data.datasource.bluesky.kagariLoadMuteWords
 import dev.dimension.flare.data.datasource.bluesky.kagariSaveMuteWords
@@ -16,13 +15,12 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
+import dev.dimension.flare.ui.presenter.kagariLoadState
+import dev.dimension.flare.ui.presenter.kagariSubmit
+import dev.dimension.flare.ui.presenter.rememberKagariBluesky
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 public class KagariMuteWordsPresenter(
     private val accountKey: MicroBlogKey,
@@ -32,19 +30,12 @@ public class KagariMuteWordsPresenter(
 
     @Composable
     override fun body(): KagariMuteWordsState {
-        val flow = remember(accountKey) { accountService.accountServiceFlow(AccountType.Specific(accountKey)) }
-        val service by flow.collectAsUiState()
-        val bluesky = service.takeSuccess() as? BlueskyDataSource
+        val bluesky = accountService.rememberKagariBluesky(AccountType.Specific(accountKey))
         var words by remember { mutableStateOf<UiState<List<KagariMuteWord>>>(UiState.Loading()) }
         var saving by remember { mutableStateOf(false) }
         LaunchedEffect(bluesky) {
             val source = bluesky ?: return@LaunchedEffect
-            words =
-                runCatching { source.kagariService().kagariLoadMuteWords(accountKey) }
-                    .fold(
-                        onSuccess = { UiState.Success(it) },
-                        onFailure = { UiState.Error(it) },
-                    )
+            words = kagariLoadState { source.kagariService().kagariLoadMuteWords(accountKey) }
         }
 
         fun save(
@@ -52,14 +43,14 @@ public class KagariMuteWordsPresenter(
             onResult: (Boolean) -> Unit,
         ) {
             val source = bluesky ?: return onResult(false)
-            saving = true
-            scope.launch {
-                val ok = runCatching { source.kagariService().kagariSaveMuteWords(accountKey, next) }.isSuccess
-                withContext(Dispatchers.Main) {
-                    saving = false
+            scope.kagariSubmit(
+                busy = { saving = it },
+                onResult = { ok ->
                     if (ok) words = UiState.Success(next)
                     onResult(ok)
-                }
+                },
+            ) {
+                source.kagariService().kagariSaveMuteWords(accountKey, next)
             }
         }
         return object : KagariMuteWordsState {
