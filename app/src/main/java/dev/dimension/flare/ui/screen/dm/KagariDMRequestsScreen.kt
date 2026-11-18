@@ -75,13 +75,13 @@ private fun KagariDMRequestsRow(
     onClick: () -> Unit,
 ) {
     ListItem(
-        headlineContent = {
+        modifier = Modifier.clickable(onClick = onClick),
+        trailingContent = { Text(text = "$count ›") },
+        content = {
             Text(
                 text = stringResource(R.string.kagari_dm_requests),
                 color = MaterialTheme.colorScheme.primary,
             )
         },
-        trailingContent = { Text(text = "$count ›") },
-        modifier = Modifier.clickable(onClick = onClick),
     )
 }

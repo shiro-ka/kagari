@@ -66,13 +66,13 @@ internal fun KagariDMMessageSheet(
             }
             if (canCopy) {
                 ListItem(
-                    headlineContent = { Text(text = stringResource(R.string.kagari_dm_copy)) },
                     modifier = Modifier.clickable(onClick = onCopy),
+                    content = { Text(text = stringResource(R.string.kagari_dm_copy)) },
                 )
             }
             ListItem(
-                headlineContent = { Text(text = stringResource(R.string.kagari_dm_delete_for_me)) },
                 modifier = Modifier.clickable(onClick = onDeleteForMe),
+                content = { Text(text = stringResource(R.string.kagari_dm_delete_for_me)) },
             )
         }
     }
