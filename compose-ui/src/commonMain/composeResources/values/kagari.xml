@@ -22,4 +22,5 @@
     <string name="kagari_menu_reattach_quote">Reattach quote</string>
     <string name="kagari_acting_as">As %1$s</string>
     <string name="kagari_viewing_as">Viewing as %1$s</string>
+    <string name="kagari_profile_edit">Edit profile</string>
 </resources>

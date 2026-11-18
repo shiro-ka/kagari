@@ -757,6 +757,10 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
+                is KagariProfileEditRoute -> {
+                    KagariProfileEditScreenRoute(accountKey = deeplinkRoute.accountKey)
+                }
+
                 is KagariDetachQuoteRoute -> {
                     KagariDetachQuoteDialogRoute(
                         statusKey = deeplinkRoute.statusKey,

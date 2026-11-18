@@ -44,3 +44,8 @@ public data class KagariDetachQuoteRoute(
     val quotedUri: String,
     val detach: Boolean,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariProfileEditRoute(
+    val accountKey: MicroBlogKey,
+) : DeeplinkRoute.Status()

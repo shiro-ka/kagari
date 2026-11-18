@@ -36,6 +36,7 @@ public data class UiProfile public constructor(
     public val bottomContent: BottomContent?,
     public val pluginId: String? = null,
     internal val clearedMarks: SerializableImmutableList<Mark> = persistentListOf(),
+    public val kagariPronouns: String? = null,
 ) {
     public constructor(
         key: MicroBlogKey,
@@ -102,6 +103,7 @@ public data class UiProfile public constructor(
             bottomContent = bottomContent.mergeWith(existing.bottomContent),
             pluginId = pluginId,
             clearedMarks = clearedMarks,
+            kagariPronouns = kagariPronouns ?: existing.kagariPronouns,
         )
     }
 

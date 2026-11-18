@@ -86,4 +86,22 @@
     <string name="kagari_detach_quote_failed">Failed to change the quote, please try again</string>
     <string name="kagari_gate_default_load_failed">Couldn\'t load your default. Replies: %1$s</string>
     <string name="kagari_gate_default_loading">Replies: loading your default…</string>
+    <string name="kagari_profile_edit_title">Edit profile</string>
+    <string name="kagari_profile_edit_save">Save</string>
+    <string name="kagari_profile_edit_saved">Profile saved</string>
+    <string name="kagari_profile_edit_failed">Failed to save your profile, please try again</string>
+    <string name="kagari_profile_edit_load_failed">Couldn\'t load your profile</string>
+    <string name="kagari_profile_edit_name">Display name</string>
+    <string name="kagari_profile_edit_description">Description</string>
+    <string name="kagari_profile_edit_pronouns">Pronouns</string>
+    <string name="kagari_profile_edit_links">Links</string>
+    <string name="kagari_profile_edit_link_url">URL (https://)</string>
+    <string name="kagari_profile_edit_link_title">Title (optional)</string>
+    <string name="kagari_profile_edit_add_link">Add a link</string>
+    <string name="kagari_profile_edit_discard_title">Discard your changes?</string>
+    <string name="kagari_profile_edit_discard">Discard</string>
+    <string name="kagari_profile_edit_remaining">%1$d left</string>
+    <string name="kagari_crop_avatar">Crop avatar</string>
+    <string name="kagari_crop_banner">Crop banner</string>
+    <string name="kagari_crop_done">Done</string>
 </resources>

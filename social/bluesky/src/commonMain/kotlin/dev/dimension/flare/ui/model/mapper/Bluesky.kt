@@ -77,6 +77,7 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -1252,7 +1253,8 @@ internal fun ProfileViewDetailed.render(accountKey: MicroBlogKey): UiProfile {
                 statusesCount = postsCount ?: 0,
             ),
         mark = kagariBlueskyVerifiedMarks(verification?.verifiedStatus?.value, verification?.trustedVerifierStatus?.value),
-        bottomContent = null,
+        bottomContent = kagariBlueskyLinks(links.orEmpty().map { it.url.uri to it.title }, accountKey),
+        kagariPronouns = pronouns?.takeIf { it.isNotBlank() },
         platformId = BLUESKY_PLATFORM_ID,
         platformIcon = UiIcon.Bluesky.asType(),
         clickEvent =
@@ -1785,3 +1787,24 @@ internal fun MessageView.render(accountKey: MicroBlogKey) =
     UiDMItem.Message.Text(
         text = parseBluesky(text, facets.orEmpty(), accountKey),
     )
+
+internal fun kagariBlueskyLinks(
+    links: List<Pair<String, String?>>,
+    accountKey: MicroBlogKey,
+): UiProfile.BottomContent? {
+    if (links.isEmpty()) return null
+    val fields = linkedMapOf<String, UiRichText>()
+    links.forEach { (url, title) ->
+        val base =
+            title?.takeIf { it.isNotBlank() }
+                ?: url.removePrefix("https://").removePrefix("http://").substringBefore('/')
+        var key = base
+        var index = 2
+        while (key in fields) {
+            key = "$base ($index)"
+            index++
+        }
+        fields[key] = parser.parse(url).toUiRichText(accountKey)
+    }
+    return UiProfile.BottomContent.Fields(fields = fields.toImmutableMap())
+}

@@ -508,6 +508,7 @@ internal sealed interface Route : NavKey {
                 is KagariMuteThreadRoute,
                 is KagariVerificationRoute,
                 is KagariDetachQuoteRoute,
+                is KagariProfileEditRoute,
                 -> {
                     null
                 }

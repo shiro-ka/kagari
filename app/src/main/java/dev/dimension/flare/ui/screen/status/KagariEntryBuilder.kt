@@ -5,10 +5,12 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.ui.route.KagariDetachQuoteDialogRoute
 import dev.dimension.flare.ui.route.KagariHideReplyDialogRoute
+import dev.dimension.flare.ui.route.KagariProfileEditScreenRoute
 import dev.dimension.flare.ui.route.KagariMuteThreadDialogRoute
 import dev.dimension.flare.ui.route.KagariPinPostDialogRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateDialogRoute
 import dev.dimension.flare.ui.route.KagariVerificationDialogRoute
+import dev.dimension.flare.ui.screen.profile.KagariProfileEditScreen
 import dev.dimension.flare.ui.screen.profile.KagariVerificationDialog
 import dev.dimension.flare.ui.screen.status.action.KagariDetachQuoteDialog
 import dev.dimension.flare.ui.screen.status.action.KagariHideReplyDialog
@@ -73,6 +75,12 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
             accountType = args.accountType,
             quotedUri = args.quotedUri,
             detach = args.detach,
+            onBack = onBack,
+        )
+    }
+    entry<KagariProfileEditScreenRoute> { args ->
+        KagariProfileEditScreen(
+            accountKey = args.accountKey,
             onBack = onBack,
         )
     }

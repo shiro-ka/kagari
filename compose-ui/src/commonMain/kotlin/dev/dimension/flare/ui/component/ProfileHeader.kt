@@ -41,6 +41,7 @@ import compose.icons.fontawesomeicons.solid.LocationDot
 import compose.icons.fontawesomeicons.solid.Lock
 import compose.icons.fontawesomeicons.solid.Robot
 import dev.dimension.flare.compose.ui.Res
+import dev.dimension.flare.compose.ui.kagari_profile_edit
 import dev.dimension.flare.compose.ui.profile_field_location
 import dev.dimension.flare.compose.ui.profile_field_verified_link
 import dev.dimension.flare.compose.ui.profile_field_website
@@ -62,14 +63,17 @@ import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.status.TranslationDisplayBadge
 import dev.dimension.flare.ui.model.TranslationDisplayState
+import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiRelation
 import dev.dimension.flare.ui.model.UiState
+import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.profile.FollowButtonState
 import dev.dimension.flare.ui.presenter.profile.ProfileState
 import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.KagariProfileEditRoute
 import dev.dimension.flare.ui.route.KagariVerificationRoute
 import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.PlatformTheme
@@ -271,6 +275,16 @@ private fun ProfileHeaderSuccess(
                             }
                         }
                     }
+                } else if (user.platformIcon == UiIcon.Bluesky.asType()) {
+                    myAccountKey.takeSuccess()?.let { accountKey ->
+                        PlatformOutlinedButton(
+                            onClick = {
+                                uriLauncher.openUri(KagariProfileEditRoute(accountKey = accountKey).toUri())
+                            },
+                        ) {
+                            PlatformText(text = stringResource(Res.string.kagari_profile_edit))
+                        }
+                    }
                 }
             }
             menu.invoke(this)
@@ -319,6 +333,13 @@ private fun ProfileHeaderSuccess(
             )
         },
         handleTrailing = {
+            user.kagariPronouns?.let { pronouns ->
+                PlatformText(
+                    text = "· $pronouns",
+                    style = PlatformTheme.typography.caption,
+                    color = PlatformTheme.colorScheme.caption,
+                )
+            }
             user.mark.fastForEach {
                 when (it) {
                     UiProfile.Mark.Verified, UiProfile.Mark.KagariTrustedVerifier -> Unit
