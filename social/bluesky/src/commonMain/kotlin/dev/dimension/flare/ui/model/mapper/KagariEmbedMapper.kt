@@ -49,7 +49,7 @@ internal fun kagariFindEmbed(
             )
         }
 
-        is RecordViewRecordUnion.GeneratorView -> {
+        is RecordViewRecordUnion.FeedGeneratorView -> {
             val feed = record.value
             KagariEmbed.Card(
                 kind = KagariEmbed.Kind.Feed,
@@ -61,7 +61,7 @@ internal fun kagariFindEmbed(
             )
         }
 
-        is RecordViewRecordUnion.ListView -> {
+        is RecordViewRecordUnion.GraphListView -> {
             val list = record.value
             KagariEmbed.Card(
                 kind =
@@ -78,7 +78,7 @@ internal fun kagariFindEmbed(
             )
         }
 
-        is RecordViewRecordUnion.StarterPackViewBasic -> {
+        is RecordViewRecordUnion.GraphStarterPackViewBasic -> {
             val pack = record.value
             val handle = pack.creator.handle.handle
             val name =
@@ -102,7 +102,7 @@ internal fun kagariFindEmbed(
             )
         }
 
-        is RecordViewRecordUnion.LabelerView -> {
+        is RecordViewRecordUnion.LabelerLabelerView -> {
             val labeler = record.value
             val handle = labeler.creator.handle.handle
             KagariEmbed.Card(
