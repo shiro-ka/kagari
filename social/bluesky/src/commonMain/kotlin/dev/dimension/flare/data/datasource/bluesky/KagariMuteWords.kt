@@ -5,18 +5,14 @@ import app.bsky.actor.MutedWordActorTarget
 import app.bsky.actor.MutedWordTarget
 import app.bsky.actor.MutedWordsPref
 import app.bsky.actor.PreferencesUnion
-import app.bsky.actor.PutPreferencesRequest
 import dev.dimension.flare.data.network.bluesky.BlueskyService
 import dev.dimension.flare.model.MicroBlogKey
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.api.model.JsonContent
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -30,16 +26,13 @@ public data class KagariMuteWord(
     val expiresAt: Instant?,
 )
 
-private val kagariMuteWords = MutableStateFlow<Map<MicroBlogKey, List<KagariMuteWord>>>(emptyMap())
+private val kagariMuteWords = KagariAccountCache<List<KagariMuteWord>>()
 
-internal fun kagariMuteWordsFor(accountKey: MicroBlogKey): List<KagariMuteWord> = kagariMuteWords.value[accountKey].orEmpty()
+internal fun kagariMuteWordsFor(accountKey: MicroBlogKey): List<KagariMuteWord> = kagariMuteWords[accountKey].orEmpty()
 
 internal suspend fun BlueskyService.kagariLoadMuteWords(accountKey: MicroBlogKey): List<KagariMuteWord> {
     val words =
-        getPreferences()
-            .requireResponse()
-            .preferences
-            .filterIsInstance<PreferencesUnion.MutedWordsPref>()
+        kagariPreferences<PreferencesUnion.MutedWordsPref>()
             .flatMap { it.value.items }
             .map { word ->
                 KagariMuteWord(
@@ -50,7 +43,7 @@ internal suspend fun BlueskyService.kagariLoadMuteWords(accountKey: MicroBlogKey
                     expiresAt = word.expiresAt,
                 )
             }
-    kagariMuteWords.update { it + (accountKey to words) }
+    kagariMuteWords.put(accountKey, words)
     return words
 }
 
@@ -58,12 +51,7 @@ internal suspend fun BlueskyService.kagariSaveMuteWords(
     accountKey: MicroBlogKey,
     words: List<KagariMuteWord>,
 ) {
-    val others =
-        getPreferences()
-            .requireResponse()
-            .preferences
-            .filterNot { it is PreferencesUnion.MutedWordsPref }
-    val pref =
+    kagariReplacePreference(
         PreferencesUnion.MutedWordsPref(
             MutedWordsPref(
                 items =
@@ -83,9 +71,9 @@ internal suspend fun BlueskyService.kagariSaveMuteWords(
                             )
                         }.toImmutableList(),
             ),
-        )
-    putPreferences(PutPreferencesRequest(preferences = (others + pref).toImmutableList()))
-    kagariMuteWords.update { it + (accountKey to words) }
+        ),
+    )
+    kagariMuteWords.put(accountKey, words)
 }
 
 private val kagariSpacelessLanguages = setOf("ja", "zh", "ko", "th", "vi")
@@ -111,8 +99,8 @@ internal fun kagariMatchMuteWord(
             runCatching { json["facets"]?.jsonArray }.getOrNull()?.forEach { facet ->
                 runCatching { facet.jsonObject["features"]?.jsonArray }.getOrNull()?.forEach { feature ->
                     val obj = runCatching { feature.jsonObject }.getOrNull() ?: return@forEach
-                    if (obj["\$type"]?.jsonPrimitive?.contentOrNull == "app.bsky.richtext.facet#tag") {
-                        obj["tag"]?.jsonPrimitive?.contentOrNull?.let { add(it.lowercase()) }
+                    if (obj.kagariString("\$type") == "app.bsky.richtext.facet#tag") {
+                        obj.kagariString("tag")?.let { add(it.lowercase()) }
                     }
                 }
             }

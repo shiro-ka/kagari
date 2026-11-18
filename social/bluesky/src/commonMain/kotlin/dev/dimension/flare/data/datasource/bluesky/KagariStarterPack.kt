@@ -10,8 +10,6 @@ import dev.dimension.flare.ui.model.UiList
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.mapper.render
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.api.AtUri
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.api.Nsid
@@ -58,8 +56,8 @@ internal suspend fun BlueskyService.kagariLoadStarterPack(
         } while (cursor != null && members.size < 1000)
     }
     return KagariStarterPackDetail(
-        name = record?.get("name")?.jsonPrimitive?.contentOrNull ?: pack.creator.handle.handle,
-        description = record?.get("description")?.jsonPrimitive?.contentOrNull,
+        name = record?.kagariString("name") ?: pack.creator.handle.handle,
+        description = record?.kagariString("description"),
         creator = pack.creator.render(accountKey),
         feeds = pack.feeds.orEmpty().map { it.render(accountKey) },
         members = members.filter { it.profile.key != accountKey },

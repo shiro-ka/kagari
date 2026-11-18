@@ -7,11 +7,8 @@ import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
-import dev.dimension.flare.data.platform.BLUESKY_PLATFORM_ID
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.mapper.render
-
-public fun kagariIsBluesky(platformId: String): Boolean = platformId == BLUESKY_PLATFORM_ID
 
 public fun MicroblogDataSource.kagariMutedAccounts(): RemoteLoader<UiProfile> =
     (this as? BlueskyDataSource)?.let { KagariModerationListPagingSource(it, blocked = false) } ?: notSupported()

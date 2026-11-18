@@ -17,6 +17,7 @@ import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_login_app_password
 import dev.dimension.flare.compose.ui.kagari_login_oauth
 import dev.dimension.flare.compose.ui.mastodon_login_verify_message
+import dev.dimension.flare.data.datasource.bluesky.kagariIsBluesky
 import dev.dimension.flare.ui.component.platform.KagariPrimaryButton
 import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
 import dev.dimension.flare.ui.component.platform.PlatformLinearProgressIndicator
@@ -36,7 +37,7 @@ internal fun kagariUsesStackedLogin(
     platformId: String,
     methods: List<LoginMethodSpec>,
 ): Boolean =
-    platformId == "Bluesky" &&
+    kagariIsBluesky(platformId) &&
         methods.any { it.type == LoginMethodType.OAuth } &&
         methods.any { it.type == LoginMethodType.Password }
 

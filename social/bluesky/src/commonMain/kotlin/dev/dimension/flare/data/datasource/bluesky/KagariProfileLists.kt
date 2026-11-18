@@ -17,9 +17,6 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiList
 import dev.dimension.flare.ui.model.mapper.render
 import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.api.Did
 
 internal suspend fun BlueskyDataSource.kagariLoadProfileListKinds(userKey: MicroBlogKey): List<KagariProfileListKind> {
@@ -88,27 +85,11 @@ internal fun BlueskyDataSource.kagariProfileListPager(
         }
     }.flow
 
-internal fun StarterPackViewBasic.kagariStarterPackName(): String? =
-    runCatching {
-        record
-            .decodeAs<JsonObject>()["name"]
-            ?.jsonPrimitive
-            ?.contentOrNull
-    }.getOrNull()
-
-internal fun StarterPackViewBasic.kagariStarterPackDescription(): String? =
-    runCatching {
-        record
-            .decodeAs<JsonObject>()["description"]
-            ?.jsonPrimitive
-            ?.contentOrNull
-    }.getOrNull()
-
 private fun StarterPackViewBasic.kagariRender(accountKey: MicroBlogKey): UiList.List =
     UiList.List(
         proxy = ProxyRef.forAccount(accountKey),
         id = uri.atUri,
-        title = kagariStarterPackName() ?: creator.handle.handle,
-        description = kagariStarterPackDescription(),
+        title = record.kagariStarterPackName() ?: creator.handle.handle,
+        description = record.kagariStarterPackDescription(),
         creator = creator.render(accountKey),
     )

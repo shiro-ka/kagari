@@ -5,6 +5,7 @@ import app.bsky.embed.RecordWithMediaViewMediaUnion
 import app.bsky.feed.PostView
 import app.bsky.feed.PostViewEmbedUnion
 import app.bsky.graph.Token
+import dev.dimension.flare.data.datasource.bluesky.kagariStarterPackName
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.UiCard
@@ -14,9 +15,6 @@ import dev.dimension.flare.ui.route.KagariFeedRoute
 import dev.dimension.flare.ui.route.KagariListRoute
 import dev.dimension.flare.ui.route.KagariStarterPackRoute
 import dev.dimension.flare.ui.route.toUri
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 internal fun kagariFindEmbed(
     accountKey: MicroBlogKey,
@@ -82,16 +80,9 @@ internal fun kagariFindEmbed(
         is RecordViewRecordUnion.GraphStarterPackViewBasic -> {
             val pack = record.value
             val handle = pack.creator.handle.handle
-            val name =
-                runCatching {
-                    pack.record
-                        .decodeAs<JsonObject>()["name"]
-                        ?.jsonPrimitive
-                        ?.contentOrNull
-                }.getOrNull()
             KagariEmbed.Card(
                 kind = KagariEmbed.Kind.StarterPack,
-                title = name ?: handle,
+                title = pack.record.kagariStarterPackName() ?: handle,
                 creatorHandle = handle,
                 avatar = null,
                 likeCount = null,

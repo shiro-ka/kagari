@@ -3,8 +3,6 @@ package dev.dimension.flare.data.datasource.bluesky
 import app.bsky.actor.GetProfileQueryParams
 import com.atproto.repo.CreateRecordRequest
 import com.atproto.repo.DeleteRecordRequest
-import com.atproto.repo.GetRecordQueryParams
-import com.atproto.repo.PutRecordRequest
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -44,7 +42,7 @@ public suspend fun MicroblogDataSource.kagariLoadProfileDraft(): KagariProfileDr
     val dataSource = this as BlueskyDataSource
     val service = dataSource.kagariService()
     val did = Did(did = dataSource.accountKey.id)
-    val record = dataSource.kagariProfileRecord()
+    val record = service.kagariProfileRecord(did)
     val view = service.getProfile(GetProfileQueryParams(actor = did)).requireResponse()
     return KagariProfileDraft(
         displayName = record.string("displayName"),
@@ -73,7 +71,7 @@ public suspend fun MicroblogDataSource.kagariSaveProfile(
     val dataSource = this as BlueskyDataSource
     val service = dataSource.kagariService()
     val repo = Did(did = dataSource.accountKey.id)
-    val current = dataSource.kagariProfileRecord()
+    val current = service.kagariProfileRecord(repo)
     val updated = current.toMutableMap()
     updated["\$type"] = JsonPrimitive("app.bsky.actor.profile")
     updated.setOrRemove("displayName", after.displayName)
@@ -122,15 +120,7 @@ public suspend fun MicroblogDataSource.kagariSaveProfile(
                 },
             )
     }
-    service
-        .putRecord(
-            PutRecordRequest(
-                repo = repo,
-                collection = Nsid("app.bsky.actor.profile"),
-                rkey = RKey("self"),
-                record = JsonObject(updated).bskyJson(),
-            ),
-        ).requireResponse()
+    service.kagariPutProfileRecord(repo, JsonObject(updated))
     val keptUris = refs.map { it.first }.toSet()
     before.links
         .mapNotNull { it.uri }
@@ -147,19 +137,6 @@ public suspend fun MicroblogDataSource.kagariSaveProfile(
             }
         }
 }
-
-private suspend fun BlueskyDataSource.kagariProfileRecord(): JsonObject =
-    kagariService()
-        .getRecord(
-            GetRecordQueryParams(
-                repo = Did(did = accountKey.id),
-                collection = Nsid("app.bsky.actor.profile"),
-                rkey = RKey("self"),
-            ),
-        ).maybeResponse()
-        ?.value
-        ?.decodeAs<JsonObject>()
-        ?: buildJsonObject { put("\$type", "app.bsky.actor.profile") }
 
 private fun JsonObject.string(key: String): String = (this[key] as? JsonPrimitive)?.contentOrNull.orEmpty()
 

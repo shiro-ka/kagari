@@ -4,7 +4,6 @@ import app.bsky.actor.PostInteractionSettingsPref
 import app.bsky.actor.PostInteractionSettingsPrefPostgateEmbeddingRuleUnion
 import app.bsky.actor.PostInteractionSettingsPrefThreadgateAllowRuleUnion
 import app.bsky.actor.PreferencesUnion
-import app.bsky.actor.PutPreferencesRequest
 import app.bsky.feed.Postgate
 import app.bsky.feed.PostgateDisableRule
 import app.bsky.feed.PostgateEmbeddingRuleUnion
@@ -21,7 +20,6 @@ import com.atproto.repo.ApplyWritesRequest
 import com.atproto.repo.ApplyWritesRequestWriteUnion
 import com.atproto.repo.DeleteRecordRequest
 import com.atproto.repo.GetRecordQueryParams
-import com.atproto.repo.PutRecordRequest
 import dev.dimension.flare.data.datasource.microblog.InteractionGate
 import dev.dimension.flare.data.datasource.microblog.InteractionGateConfig
 import dev.dimension.flare.data.datasource.microblog.InteractionGateList
@@ -29,28 +27,15 @@ import dev.dimension.flare.data.network.bluesky.BlueskyService
 import dev.dimension.flare.model.MicroBlogKey
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.api.AtUri
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.api.Nsid
 import sh.christian.ozone.api.RKey
 import sh.christian.ozone.api.model.JsonContent
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlin.random.Random
 import kotlin.time.Clock
 
-private val kagariGateDefaults = MutableStateFlow<Map<MicroBlogKey, InteractionGate>>(emptyMap())
-
-private fun rememberKagariGateDefault(
-    accountKey: MicroBlogKey,
-    gate: InteractionGate,
-) {
-    kagariGateDefaults.update { it + (accountKey to gate) }
-}
+private val kagariGateDefaults = KagariAccountCache<InteractionGate>()
 
 internal fun blueskyInteractionGateConfig(
     accountKey: MicroBlogKey,
@@ -60,34 +45,17 @@ internal fun blueskyInteractionGateConfig(
         loadDefault = {
             (
                 getService()
-                    .getPreferences()
-                    .requireResponse()
-                    .preferences
-                    .filterIsInstance<PreferencesUnion.PostInteractionSettingsPref>()
+                    .kagariPreferences<PreferencesUnion.PostInteractionSettingsPref>()
                     .firstOrNull()
                     ?.value
                     ?.toInteractionGate()
                     ?: InteractionGate()
-            ).also { rememberKagariGateDefault(accountKey, it) }
+            ).also { kagariGateDefaults.put(accountKey, it) }
         },
-        cachedDefault = { kagariGateDefaults.value[accountKey] },
+        cachedDefault = { kagariGateDefaults[accountKey] },
         saveDefault = { gate ->
-            val service = getService()
-            val current =
-                service
-                    .getPreferences()
-                    .requireResponse()
-                    .preferences
-                    .filterNot { it is PreferencesUnion.PostInteractionSettingsPref }
-            service.putPreferences(
-                request =
-                    PutPreferencesRequest(
-                        preferences =
-                            (current + PreferencesUnion.PostInteractionSettingsPref(gate.toPref()))
-                                .toImmutableList(),
-                    ),
-            )
-            rememberKagariGateDefault(accountKey, gate)
+            getService().kagariReplacePreference(PreferencesUnion.PostInteractionSettingsPref(gate.toPref()))
+            kagariGateDefaults.put(accountKey, gate)
         },
         loadLists = {
             getService()
@@ -165,28 +133,20 @@ internal suspend fun loadBlueskyInteractionGate(
     accountKey: MicroBlogKey,
     postUri: String,
 ): BlueskyStoredGate {
-    val rkey = RKey(postUri.substringAfterLast('/'))
     val post =
         service
             .getRecord(
-                params = GetRecordQueryParams(repo = Did(did = accountKey.id), collection = Nsid("app.bsky.feed.post"), rkey = rkey),
+                params =
+                    GetRecordQueryParams(
+                        repo = Did(did = accountKey.id),
+                        collection = Nsid("app.bsky.feed.post"),
+                        rkey = RKey(postUri.substringAfterLast('/')),
+                    ),
             ).requireResponse()
             .value
-    val isReply = runCatching { post.decodeAs<JsonObject>()["reply"] != null }.getOrDefault(false)
-    val threadgate =
-        service
-            .getRecord(
-                params = GetRecordQueryParams(repo = Did(did = accountKey.id), collection = Nsid("app.bsky.feed.threadgate"), rkey = rkey),
-            ).maybeResponse()
-            ?.value
-            ?.let { runCatching { it.decodeAs<Threadgate>() }.getOrNull() }
-    val postgate =
-        service
-            .getRecord(
-                params = GetRecordQueryParams(repo = Did(did = accountKey.id), collection = Nsid("app.bsky.feed.postgate"), rkey = rkey),
-            ).maybeResponse()
-            ?.value
-            ?.let { runCatching { it.decodeAs<Postgate>() }.getOrNull() }
+    val isReply = post.kagariIsReply()
+    val threadgate = loadThreadgate(service, accountKey, postUri)
+    val postgate = loadPostgate(service, accountKey, postUri)
     val allow = threadgate?.allow
     val reply =
         when {
@@ -222,50 +182,44 @@ internal suspend fun saveBlueskyInteractionGate(
     val now = Clock.System.now()
     if (!stored.isReply) {
         val allow = gate.reply.toThreadgateAllow()
-        if (allow == null && stored.hiddenReplies.isEmpty()) {
-            service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.threadgate"), rkey = rkey))
-        } else {
-            service
-                .putRecord(
-                    PutRecordRequest(
-                        repo = repo,
-                        collection = Nsid("app.bsky.feed.threadgate"),
-                        rkey = rkey,
-                        record =
-                            Threadgate(
-                                post = uri,
-                                allow = allow,
-                                createdAt = now,
-                                hiddenReplies = stored.hiddenReplies.ifEmpty { null },
-                            ).bskyJson(),
-                    ),
-                ).requireResponse()
-        }
+        service.writeGateRecord(
+            repo = repo,
+            collection = THREADGATE_COLLECTION,
+            rkey = rkey,
+            record =
+                if (allow == null && stored.hiddenReplies.isEmpty()) {
+                    null
+                } else {
+                    Threadgate(
+                        post = uri,
+                        allow = allow,
+                        createdAt = now,
+                        hiddenReplies = stored.hiddenReplies.ifEmpty { null },
+                    ).bskyJson()
+                },
+        )
     }
-    if (gate.allowQuote && stored.detached.isEmpty()) {
-        service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.postgate"), rkey = rkey))
-    } else {
-        service
-            .putRecord(
-                PutRecordRequest(
-                    repo = repo,
-                    collection = Nsid("app.bsky.feed.postgate"),
-                    rkey = rkey,
-                    record =
-                        Postgate(
-                            createdAt = now,
-                            post = uri,
-                            detachedEmbeddingUris = stored.detached.ifEmpty { null },
-                            embeddingRules =
-                                if (gate.allowQuote) {
-                                    null
-                                } else {
-                                    listOf(PostgateEmbeddingRuleUnion.DisableRule(PostgateDisableRule))
-                                },
-                        ).bskyJson(),
-                ),
-            ).requireResponse()
-    }
+    service.writeGateRecord(
+        repo = repo,
+        collection = POSTGATE_COLLECTION,
+        rkey = rkey,
+        record =
+            if (gate.allowQuote && stored.detached.isEmpty()) {
+                null
+            } else {
+                Postgate(
+                    createdAt = now,
+                    post = uri,
+                    detachedEmbeddingUris = stored.detached.ifEmpty { null },
+                    embeddingRules =
+                        if (gate.allowQuote) {
+                            null
+                        } else {
+                            listOf(PostgateEmbeddingRuleUnion.DisableRule(PostgateDisableRule))
+                        },
+                ).bskyJson()
+            },
+    )
 }
 
 internal suspend fun setBlueskyQuoteDetached(
@@ -277,36 +231,27 @@ internal suspend fun setBlueskyQuoteDetached(
 ) {
     val rkey = RKey(quotedPostUri.substringAfterLast('/'))
     val repo = Did(did = accountKey.id)
-    val existing =
-        service
-            .getRecord(
-                params = GetRecordQueryParams(repo = repo, collection = Nsid("app.bsky.feed.postgate"), rkey = rkey),
-            ).maybeResponse()
-            ?.value
-            ?.let { runCatching { it.decodeAs<Postgate>() }.getOrNull() }
+    val existing = loadPostgate(service, accountKey, quotedPostUri)
     val target = AtUri(quotingPostUri)
     val others = existing?.detachedEmbeddingUris.orEmpty().filterNot { it == target }
     val detached = if (detach) others + target else others
     val rules = existing?.embeddingRules
-    if (detached.isEmpty() && rules.isNullOrEmpty()) {
-        service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.postgate"), rkey = rkey))
-    } else {
-        service
-            .putRecord(
-                PutRecordRequest(
-                    repo = repo,
-                    collection = Nsid("app.bsky.feed.postgate"),
-                    rkey = rkey,
-                    record =
-                        Postgate(
-                            createdAt = existing?.createdAt ?: Clock.System.now(),
-                            post = AtUri(quotedPostUri),
-                            detachedEmbeddingUris = detached.ifEmpty { null },
-                            embeddingRules = rules,
-                        ).bskyJson(),
-                ),
-            ).requireResponse()
-    }
+    service.writeGateRecord(
+        repo = repo,
+        collection = POSTGATE_COLLECTION,
+        rkey = rkey,
+        record =
+            if (detached.isEmpty() && rules.isNullOrEmpty()) {
+                null
+            } else {
+                Postgate(
+                    createdAt = existing?.createdAt ?: Clock.System.now(),
+                    post = AtUri(quotedPostUri),
+                    detachedEmbeddingUris = detached.ifEmpty { null },
+                    embeddingRules = rules,
+                ).bskyJson()
+            },
+    )
 }
 
 internal class KagariTooManyHiddenRepliesException : IllegalStateException("too many hidden replies")
@@ -327,16 +272,7 @@ internal suspend fun loadBlueskyReplyVisibility(
             .requireResponse()
             .posts
             .first()
-    val rootUri =
-        reply.record
-            .decodeAs<JsonObject>()["reply"]
-            ?.jsonObject
-            ?.get("root")
-            ?.jsonObject
-            ?.get("uri")
-            ?.jsonPrimitive
-            ?.contentOrNull
-            ?: error("not a reply")
+    val rootUri = reply.record.kagariReplyRootUri() ?: error("not a reply")
     val threadgate = loadThreadgate(service, accountKey, rootUri)
     return BlueskyReplyVisibility(
         rootUri = rootUri,
@@ -358,45 +294,59 @@ internal suspend fun setBlueskyReplyHidden(
     if (next.size > MAX_HIDDEN_REPLIES) throw KagariTooManyHiddenRepliesException()
     val repo = Did(did = accountKey.id)
     val rkey = RKey(rootUri.substringAfterLast('/'))
-    if (current?.allow == null && next.isEmpty()) {
-        service.deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid("app.bsky.feed.threadgate"), rkey = rkey))
-        return
-    }
-    service
-        .putRecord(
-            PutRecordRequest(
-                repo = repo,
-                collection = Nsid("app.bsky.feed.threadgate"),
-                rkey = rkey,
-                record =
-                    Threadgate(
-                        post = AtUri(rootUri),
-                        allow = current?.allow,
-                        createdAt = current?.createdAt ?: Clock.System.now(),
-                        hiddenReplies = next.ifEmpty { null },
-                    ).bskyJson(),
-            ),
-        ).requireResponse()
+    service.writeGateRecord(
+        repo = repo,
+        collection = THREADGATE_COLLECTION,
+        rkey = rkey,
+        record =
+            if (current?.allow == null && next.isEmpty()) {
+                null
+            } else {
+                Threadgate(
+                    post = AtUri(rootUri),
+                    allow = current?.allow,
+                    createdAt = current?.createdAt ?: Clock.System.now(),
+                    hiddenReplies = next.ifEmpty { null },
+                ).bskyJson()
+            },
+    )
 }
 
 private const val MAX_HIDDEN_REPLIES = 300
 
+private const val THREADGATE_COLLECTION = "app.bsky.feed.threadgate"
+private const val POSTGATE_COLLECTION = "app.bsky.feed.postgate"
+
 private suspend fun loadThreadgate(
     service: BlueskyService,
     accountKey: MicroBlogKey,
-    rootUri: String,
+    postUri: String,
 ): Threadgate? =
     service
-        .getRecord(
-            params =
-                GetRecordQueryParams(
-                    repo = Did(did = accountKey.id),
-                    collection = Nsid("app.bsky.feed.threadgate"),
-                    rkey = RKey(rootUri.substringAfterLast('/')),
-                ),
-        ).maybeResponse()
-        ?.value
+        .kagariGetRecord(Did(did = accountKey.id), THREADGATE_COLLECTION, RKey(postUri.substringAfterLast('/')))
         ?.let { runCatching { it.decodeAs<Threadgate>() }.getOrNull() }
+
+private suspend fun loadPostgate(
+    service: BlueskyService,
+    accountKey: MicroBlogKey,
+    postUri: String,
+): Postgate? =
+    service
+        .kagariGetRecord(Did(did = accountKey.id), POSTGATE_COLLECTION, RKey(postUri.substringAfterLast('/')))
+        ?.let { runCatching { it.decodeAs<Postgate>() }.getOrNull() }
+
+private suspend fun BlueskyService.writeGateRecord(
+    repo: Did,
+    collection: String,
+    rkey: RKey,
+    record: JsonContent?,
+) {
+    if (record == null) {
+        deleteRecord(DeleteRecordRequest(repo = repo, collection = Nsid(collection), rkey = rkey))
+    } else {
+        kagariPutRecord(repo, collection, rkey, record)
+    }
+}
 
 private fun create(
     collection: String,

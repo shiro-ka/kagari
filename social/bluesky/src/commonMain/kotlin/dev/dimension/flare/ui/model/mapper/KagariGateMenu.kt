@@ -3,6 +3,9 @@ package dev.dimension.flare.ui.model.mapper
 import app.bsky.embed.RecordViewRecordUnion
 import app.bsky.feed.PostView
 import app.bsky.feed.PostViewEmbedUnion
+import dev.dimension.flare.data.datasource.bluesky.kagariIsReply
+import dev.dimension.flare.data.datasource.bluesky.kagariReplyRootUri
+import dev.dimension.flare.data.datasource.bluesky.kagariString
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
@@ -15,10 +18,8 @@ import dev.dimension.flare.ui.route.KagariMuteThreadRoute
 import dev.dimension.flare.ui.route.KagariPinPostRoute
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 internal fun PostView.kagariInteractionGateMenu(
     accountKey: MicroBlogKey,
@@ -31,7 +32,7 @@ internal fun PostView.kagariInteractionGateMenu(
                 accountType = AccountType.Specific(accountKey),
             ),
         )
-    val isReply = runCatching { record.decodeAs<JsonObject>()["reply"] != null }.getOrDefault(false)
+    val isReply = record.kagariIsReply()
     val tokens = if (isReply) listOf("reply-post") else threadgateTokens()
     return listOf(
         ActionMenu.Item(
@@ -55,7 +56,7 @@ private fun PostView.threadgateTokens(): List<String> {
     if (allow.isEmpty()) return listOf("nobody")
     val types =
         allow.mapNotNull {
-            runCatching { it.jsonObject["\$type"]?.jsonPrimitive?.contentOrNull }.getOrNull()
+            runCatching { it.jsonObject.kagariString("\$type") }.getOrNull()
         }
     return buildList {
         if (types.any { it.endsWith("#followerRule") }) add("followers")
@@ -70,17 +71,7 @@ internal fun PostView.kagariHideReplyMenu(
     accountKey: MicroBlogKey,
     statusKey: MicroBlogKey,
 ): List<ActionMenu> {
-    val rootUri =
-        runCatching {
-            record
-                .decodeAs<JsonObject>()["reply"]
-                ?.jsonObject
-                ?.get("root")
-                ?.jsonObject
-                ?.get("uri")
-                ?.jsonPrimitive
-                ?.contentOrNull
-        }.getOrNull() ?: return emptyList()
+    val rootUri = runCatching { record.kagariReplyRootUri() }.getOrNull() ?: return emptyList()
     val rootAuthor = rootUri.removePrefix("at://").substringBefore('/')
     if (rootAuthor != accountKey.id) return emptyList()
     return listOf(
@@ -131,17 +122,7 @@ internal fun PostView.kagariMuteThreadMenu(
     accountKey: MicroBlogKey,
     statusKey: MicroBlogKey,
 ): List<ActionMenu> {
-    val rootUri =
-        runCatching {
-            record
-                .decodeAs<JsonObject>()["reply"]
-                ?.jsonObject
-                ?.get("root")
-                ?.jsonObject
-                ?.get("uri")
-                ?.jsonPrimitive
-                ?.contentOrNull
-        }.getOrNull() ?: uri.atUri
+    val rootUri = runCatching { record.kagariReplyRootUri() }.getOrNull() ?: uri.atUri
     val muted = viewer?.threadMuted == true
     return listOf(
         ActionMenu.Item(
@@ -175,8 +156,8 @@ internal fun PostView.kagariDetachQuoteMenu(
     val embed = runCatching { record.decodeAs<JsonObject>()["embed"]?.jsonObject }.getOrNull() ?: return emptyList()
     val inner = embed["record"]?.jsonObject ?: return emptyList()
     val quotedUri =
-        inner["uri"]?.jsonPrimitive?.contentOrNull
-            ?: inner["record"]?.jsonObject?.get("uri")?.jsonPrimitive?.contentOrNull
+        inner.kagariString("uri")
+            ?: inner["record"]?.jsonObject?.kagariString("uri")
             ?: return emptyList()
     if (quotedUri.removePrefix("at://").substringBefore('/') != accountKey.id) return emptyList()
     val quoted =
