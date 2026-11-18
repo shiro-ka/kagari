@@ -66,12 +66,18 @@ def direct_message(stamp):
         record("two-dm-accepted")
 
 
+def pull_to_refresh():
+    e.adb("shell", "input", "swipe", "540", "900", "540", "1900", "600")
+    time.sleep(8)
+
+
 def open_test_post(stamp):
     if not s.open_drawer():
         return False
     if not e.tap("自分", timeout=5, exact=True):
         return False
     time.sleep(8)
+    pull_to_refresh()
     for _ in range(5):
         node = e.find(f"kagari test {stamp}", timeout=3)
         if node is not None:
