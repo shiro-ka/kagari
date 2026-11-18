@@ -1008,4 +1008,15 @@
     <string name="visibility_friends_description">あなたをフォローしている人、およびあなたがフォローしている人だけがこの投稿を見ることができます</string>
     <string name="visibility_self">自分のみ</string>
     <string name="visibility_self_description">あなただけがこの投稿を見ることができます</string>
+    <string name="compose_poll_unsupported_accounts">選んだアカウントの中に、アンケートを投稿できないものがあります。</string>
+    <string name="compose_poll_option_limits">選択肢は2〜%1$d個、それぞれ%2$d文字までです。</string>
+    <string name="settings_ai_config_custom_headers">カスタムヘッダー</string>
+    <string name="settings_ai_config_header_add">ヘッダーを追加</string>
+    <string name="settings_ai_config_header_name">ヘッダーの名前</string>
+    <string name="settings_ai_config_header_value">ヘッダーの値</string>
+    <string name="settings_ai_config_headers_invalid">ヘッダーの名前は重ならないように、値は1行の半角英数字で入力してください。</string>
+    <string name="dm_add_image">画像を添付</string>
+    <string name="dm_remove_image">画像を外す</string>
+    <string name="dm_image_attached">画像を添付しました</string>
+    <string name="dm_image_send_failed">画像を送れませんでした。もう一度お試しください。</string>
 </resources>

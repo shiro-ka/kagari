@@ -66,31 +66,28 @@ def direct_message(stamp):
         record("two-dm-accepted")
 
 
-def detach_quote(stamp):
-    if not e.tap("通知", timeout=10, exact=True):
-        return
+def open_test_post(stamp):
+    if not s.open_drawer():
+        return False
+    if not e.tap("自分", timeout=5, exact=True):
+        return False
     time.sleep(8)
-    e.tap("メンション", timeout=5, exact=True)
-    time.sleep(8)
-    record("two-notifications")
-    if not menu_for(f"kagari quote test {stamp}"):
-        return
-    record("two-quote-menu")
-    if not e.tap("引用を外す", timeout=5, exact=True):
-        return
-    time.sleep(3)
-    record("two-detach-dialog")
-    if e.tap("外す", timeout=5, exact=True):
-        time.sleep(8)
-        record("two-detached")
+    for _ in range(5):
+        node = e.find(f"kagari test {stamp}", timeout=3)
+        if node is not None:
+            x, y = e.center(node)
+            e.adb("shell", "input", "tap", str(x), str(y))
+            time.sleep(8)
+            return True
+        e.adb("shell", "input", "swipe", "540", "1800", "540", "900", "500")
+        time.sleep(2)
+    return False
 
 
 def hide_reply(stamp):
-    if not e.tap("通知", timeout=10, exact=True):
+    if not open_test_post(stamp):
         return
-    time.sleep(8)
-    e.tap("メンション", timeout=5, exact=True)
-    time.sleep(8)
+    record("two-test-post")
     if not menu_for(f"kagari reply test {stamp}"):
         return
     record("two-reply-menu")
@@ -101,6 +98,25 @@ def hide_reply(stamp):
     if e.tap("非表示にする", timeout=5, exact=True):
         time.sleep(8)
         record("two-hidden")
+
+
+def detach_quote(stamp):
+    if not open_test_post(stamp):
+        return
+    if not e.tap("引用", timeout=8, exact=True):
+        return
+    time.sleep(6)
+    record("two-quotes")
+    if not menu_for(f"kagari quote test {stamp}"):
+        return
+    record("two-quote-menu")
+    if not e.tap("引用を外す", timeout=5, exact=True):
+        return
+    time.sleep(3)
+    record("two-detach-dialog")
+    if e.tap("外す", timeout=5, exact=True):
+        time.sleep(8)
+        record("two-detached")
 
 
 def embeds(stamp):
@@ -119,7 +135,7 @@ def main():
     os.makedirs(e.OUT, exist_ok=True)
     stamp = os.environ.get("KAGARI_TEST_STAMP", "")
     s.reset_home()
-    for step in (direct_message, detach_quote, hide_reply, embeds):
+    for step in (direct_message, hide_reply, detach_quote, embeds):
         try:
             step(stamp)
         except Exception as error:
