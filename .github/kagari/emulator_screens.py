@@ -28,6 +28,9 @@ def open_drawer():
     if not e.tap("Open navigation menu", timeout=10):
         return False
     time.sleep(2)
+    if e.find("Me", timeout=3, exact=True) is None:
+        e.tap(e.HANDLE.lstrip("@"), timeout=5)
+        time.sleep(2)
     record("drawer")
     return True
 
@@ -45,8 +48,7 @@ def notifications():
 def profile_tabs():
     if not open_drawer():
         return
-    handle = e.HANDLE.lstrip("@")
-    if not (e.tap(handle, timeout=5) or e.tap("Me", timeout=5, exact=True)):
+    if not e.tap("Me", timeout=5, exact=True):
         return
     time.sleep(8)
     record("profile")
