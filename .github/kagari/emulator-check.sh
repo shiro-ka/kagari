@@ -30,6 +30,7 @@ adb shell am start -W -n "$package/$activity" > /dev/null
 sleep 15
 if [ -n "${BSKY_HANDLE:-}" ]; then
   python3 .github/kagari/emulator_login.py "$out/login" || echo "login script failed" > "$out/login-failed.txt"
+  python3 .github/kagari/emulator_screens.py "$out/screens" || echo "screens script failed" > "$out/screens-failed.txt"
 fi
 adb logcat -d > "$out/logcat.txt"
 adb logcat -d -b crash > "$out/crash.txt" || true
