@@ -31,6 +31,15 @@ sleep 15
 if [ -n "${BSKY_HANDLE:-}" ]; then
   python3 .github/kagari/emulator_login.py "$out/login" || echo "login script failed" > "$out/login-failed.txt"
   python3 .github/kagari/emulator_screens.py "$out/screens" || echo "screens script failed" > "$out/screens-failed.txt"
+  if [ -n "${BSKY_MAIN_HANDLE:-}" ]; then
+    mkdir -p "$out/two"
+    if python3 .github/kagari/bsky_test_data.py setup "$out/two" > "$out/two/setup.txt" 2>&1; then
+      sleep 15
+      KAGARI_TEST_STAMP=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["stamp"])' "$out/two/state.json") \
+        python3 .github/kagari/emulator_two_accounts.py "$out/two" || echo "two accounts script failed" > "$out/two-failed.txt"
+    fi
+    python3 .github/kagari/bsky_test_data.py cleanup "$out/two" > "$out/two/cleanup.txt" 2>&1 || true
+  fi
 fi
 adb logcat -d > "$out/logcat.txt"
 adb logcat -d -b crash > "$out/crash.txt" || true
