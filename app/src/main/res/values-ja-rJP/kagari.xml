@@ -148,4 +148,8 @@
     <string name="kagari_profile_list_empty_feeds">フィードはまだありません</string>
     <string name="kagari_profile_list_empty_starter_packs">まだスターターパックはありません</string>
     <string name="kagari_profile_list_empty_lists">リストはまだありません</string>
+    <string name="kagari_search_top">トップ</string>
+    <string name="kagari_search_latest">最新</string>
+    <string name="kagari_settings_search_top">検索をトップで開く</string>
+    <string name="kagari_settings_search_top_description">Bluesky の投稿の検索を、最新ではなくトップの並びで開きます</string>
 </resources>

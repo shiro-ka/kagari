@@ -149,4 +149,8 @@
     <string name="kagari_profile_list_empty_feeds">No feeds yet</string>
     <string name="kagari_profile_list_empty_starter_packs">No starter packs yet</string>
     <string name="kagari_profile_list_empty_lists">No lists yet</string>
+    <string name="kagari_search_top">Top</string>
+    <string name="kagari_search_latest">Latest</string>
+    <string name="kagari_settings_search_top">Open search in Top</string>
+    <string name="kagari_settings_search_top_description">Bluesky post search starts with Top instead of Latest</string>
 </resources>

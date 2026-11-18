@@ -320,6 +320,11 @@ internal fun LazyStaggeredGridScope.searchContent(state: SearchState) {
                             containerColor = Color.Transparent,
                         ),
                 elevation = ListItemDefaults.elevation(),
+                trailingContent = {
+                    state.kagariSortTop?.let { top ->
+                        KagariSearchSortChips(top = top, onSelected = state::kagariSetSortTop)
+                    }
+                },
                 content = {
                     Text(text = stringResource(R.string.search_status))
                 },

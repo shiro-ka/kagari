@@ -29,6 +29,7 @@ public data class GlobalAppearance(
     val showPostInMediaViewer: Boolean = AppearanceKeys.ShowPostInMediaViewer.default,
     val kagariVerifiedBadge: KagariVerifiedBadge = AppearanceKeys.KagariVerifiedBadge.default,
     val kagariShowHiddenReplies: Boolean = AppearanceKeys.KagariShowHiddenReplies.default,
+    val kagariSearchTop: Boolean = AppearanceKeys.KagariSearchTop.default,
 ) {
     public companion object {
         public val Default: GlobalAppearance = GlobalAppearance()
@@ -90,6 +91,7 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         showPostInMediaViewer = get(AppearanceKeys.ShowPostInMediaViewer),
         kagariVerifiedBadge = get(AppearanceKeys.KagariVerifiedBadge),
         kagariShowHiddenReplies = get(AppearanceKeys.KagariShowHiddenReplies),
+        kagariSearchTop = get(AppearanceKeys.KagariSearchTop),
     )
 
 public fun AppearancePatch.toTimelineAppearance(): TimelineAppearance = toTimelineAppearance(override = null)

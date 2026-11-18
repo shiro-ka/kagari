@@ -71,6 +71,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
 import dev.dimension.flare.data.datasource.microblog.KagariProfileListKind
 import dev.dimension.flare.data.datasource.microblog.KagariProfileListSource
+import dev.dimension.flare.data.datasource.microblog.KagariSortableSearch
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.ShortcutSpec
@@ -157,6 +158,7 @@ internal class BlueskyDataSource(
     RelationDataSource,
     DirectMessageDataSource,
     KagariProfileListSource,
+    KagariSortableSearch,
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
@@ -795,6 +797,16 @@ internal class BlueskyDataSource(
             accountKey,
             query,
         )
+
+    override fun kagariSearchStatus(
+        query: String,
+        top: Boolean,
+    ) = SearchStatusRemoteMediator(
+        getService = this::pdsService,
+        accountKey,
+        query,
+        kagariTop = top,
+    )
 
     override fun searchUser(query: String): RemoteLoader<UiProfile> =
         SearchUserPagingSource(

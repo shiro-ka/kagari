@@ -18,6 +18,7 @@ import dev.dimension.flare.common.combineLatestFlowLists
 import dev.dimension.flare.common.isEmpty
 import dev.dimension.flare.common.refreshSuspend
 import dev.dimension.flare.common.toPagingState
+import dev.dimension.flare.data.datasource.microblog.KagariSortableSearch
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.SearchOperation
 import dev.dimension.flare.data.datasource.microblog.accountKeyOrNull
@@ -27,6 +28,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.toPagingSource
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
 import dev.dimension.flare.data.repository.AccountRepository
+import dev.dimension.flare.data.repository.SettingsRepository
 import dev.dimension.flare.data.repository.accountServiceFlow
 import dev.dimension.flare.data.repository.allAccountServicesFlow
 import dev.dimension.flare.di.koinInject
@@ -85,6 +87,8 @@ public class SearchPresenter(
 ) : PresenterBase<SearchState>() {
     private val accountRepository: AccountRepository by koinInject()
     private val selectedAccountKeyFlow = MutableStateFlow((accountType as? AccountType.Specific)?.accountKey)
+    private val kagariSettings: SettingsRepository by koinInject()
+    private val kagariTopFlow = MutableStateFlow<Boolean?>(null)
 
     private val accountsFlow by lazy {
         combine(allAccountServicesFlow(accountRepository), selectedAccountKeyFlow) { sources, selectedKey ->
@@ -126,8 +130,12 @@ public class SearchPresenter(
         val dataSource = serviceState.takeSuccess()
         val search = remember(dataSource) { dataSource?.capabilities?.search }
         val searching = query.isNotEmpty()
+        val kagariDefaultTop by remember { kagariSettings.globalAppearance.map { it.kagariSearchTop } }.collectAsState(false)
+        val kagariTopOverride by kagariTopFlow.collectAsState()
+        val kagariTop = kagariTopOverride ?: kagariDefaultTop
+        val kagariSortable = dataSource as? KagariSortableSearch
 
-        return key(dataSource, query) {
+        return key(dataSource, query, kagariTop) {
             val users =
                 if (searching && search?.supports(SearchOperation.Profiles) == true) {
                     rememberSearchPaging { search.searchUser(query) }
@@ -137,7 +145,7 @@ public class SearchPresenter(
             val status =
                 when {
                     searching && search?.supports(SearchOperation.Posts) == true -> {
-                        rememberSearchTimeline { search.searchStatus(query) }
+                        rememberSearchTimeline { kagariSortable?.kagariSearchStatus(query, kagariTop) ?: search.searchStatus(query) }
                     }
 
                     searching && serviceState is UiState.Error -> {
@@ -150,6 +158,12 @@ public class SearchPresenter(
                 }
 
             object : SearchState {
+                override val kagariSortTop = kagariTop.takeIf { kagariSortable != null }
+
+                override fun kagariSetSortTop(top: Boolean) {
+                    kagariTopFlow.value = top
+                }
+
                 override val users = users
                 override val status = status
                 override val searching = searching
@@ -201,6 +215,13 @@ public interface SearchState {
     public fun setAccount(profile: UiProfile)
 
     public fun setAccountKey(key: MicroBlogKey)
+
+    @WebIgnore
+    public val kagariSortTop: Boolean?
+        get() = null
+
+    @WebIgnore
+    public fun kagariSetSortTop(top: Boolean) {}
 }
 
 @Composable

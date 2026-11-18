@@ -168,6 +168,26 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
             )
             SegmentedListItem(
                 onClick = {
+                    state.update(AppearanceKeys.KagariSearchTop, !globalAppearance.kagariSearchTop)
+                },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.kagari_settings_search_top))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.kagari_settings_search_top_description))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = globalAppearance.kagariSearchTop,
+                        onCheckedChange = {
+                            state.update(AppearanceKeys.KagariSearchTop, it)
+                        },
+                    )
+                },
+            )
+            SegmentedListItem(
+                onClick = {
                     state.update(AppearanceKeys.ShowEmojiReactions, !timelineAppearance.showEmojiReactions)
                 },
                 shapes = ListItemDefaults.item(),
