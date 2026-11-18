@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.component.dm
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.status.CommonStatusComponent
 import dev.dimension.flare.ui.component.status.LocalStatusBackgroundColor
 import dev.dimension.flare.ui.component.status.MediaItem
+import dev.dimension.flare.ui.model.KagariDMReaction
 import dev.dimension.flare.ui.model.UiDMItem
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiProfile
@@ -51,6 +53,8 @@ public fun DMItem(
     onRetry: () -> Unit,
     onUserClicked: (UiProfile) -> Unit,
     modifier: Modifier = Modifier,
+    kagariOnLongClick: (() -> Unit)? = null,
+    kagariOnReactionClick: ((KagariDMReaction) -> Unit)? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     Column(
@@ -67,7 +71,14 @@ public fun DMItem(
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth(0.75f),
+                    .fillMaxWidth(0.75f)
+                    .let {
+                        if (kagariOnLongClick != null) {
+                            it.combinedClickable(onClick = {}, onLongClick = kagariOnLongClick)
+                        } else {
+                            it
+                        }
+                    },
             contentAlignment =
                 if (item.isFromMe) {
                     Alignment.CenterEnd
@@ -177,6 +188,16 @@ public fun DMItem(
                     }
                 }
             }
+        }
+        item.kagariQuote?.let {
+            KagariDMQuote(post = it, modifier = Modifier.padding(top = 4.dp))
+        }
+        if (item.kagariReactions.isNotEmpty()) {
+            KagariDMReactions(
+                reactions = item.kagariReactions,
+                onClick = kagariOnReactionClick,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

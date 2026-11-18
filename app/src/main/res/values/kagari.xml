@@ -131,4 +131,8 @@
     <string name="kagari_starter_pack_follow_failed">Some follows failed</string>
     <string name="kagari_starter_pack_members">People %1$d</string>
     <string name="kagari_starter_pack_feeds">Feeds %1$d</string>
+    <string name="kagari_dm_copy">Copy message text</string>
+    <string name="kagari_dm_delete_for_me">Delete for me</string>
+    <string name="kagari_dm_reaction_input">React with an emoji</string>
+    <string name="kagari_dm_reaction_failed">Could not update the reaction</string>
 </resources>

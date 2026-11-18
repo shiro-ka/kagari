@@ -1484,6 +1484,11 @@ private fun findQuote(
         }
     }
 
+internal fun kagariRenderRecord(
+    accountKey: MicroBlogKey,
+    record: RecordViewRecordUnion,
+): UiTimelineV2.Post? = render(accountKey, record, emptyMap())
+
 private fun render(
     accountKey: MicroBlogKey,
     record: RecordViewRecordUnion,

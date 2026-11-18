@@ -19,6 +19,7 @@ import dev.dimension.flare.data.database.cache.model.DbMessageRoomReference
 import dev.dimension.flare.data.datasource.microblog.createSendingDirectMessage
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageDelta
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageLoader
+import dev.dimension.flare.data.datasource.microblog.loader.KagariDMReactionLoader
 import dev.dimension.flare.data.datasource.microblog.offsetPagingConfig
 import dev.dimension.flare.data.datasource.microblog.paging.DirectMessageItemDbPageLoader
 import dev.dimension.flare.data.datasource.microblog.paging.DirectMessageTimelineDbPageLoader
@@ -248,6 +249,21 @@ public class DirectMessageHandler(
                 }
             }
         }
+    }
+
+    public val kagariCanReact: Boolean
+        get() = loader is KagariDMReactionLoader
+
+    public suspend fun kagariReact(
+        roomKey: MicroBlogKey,
+        messageKey: MicroBlogKey,
+        value: String,
+        add: Boolean,
+    ): Boolean {
+        val reactionLoader = loader as? KagariDMReactionLoader ?: return false
+        return runCatching { reactionLoader.kagariReact(roomKey, messageKey, value, add) }
+            .onSuccess { saveMessagesAndUpdateRoom(roomKey, listOf(it)) }
+            .isSuccess
     }
 
     public suspend fun fetchNew(roomKey: MicroBlogKey) {

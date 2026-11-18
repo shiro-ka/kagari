@@ -17,6 +17,7 @@ import chat.bsky.convo.UpdateReadRequest
 import dev.dimension.flare.data.database.cache.mapper.Bluesky
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageDelta
 import dev.dimension.flare.data.datasource.microblog.loader.DirectMessageLoader
+import dev.dimension.flare.data.datasource.microblog.loader.KagariDMReactionLoader
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.network.bluesky.BlueskyService
@@ -34,7 +35,15 @@ import sh.christian.ozone.api.Did
 internal class BlueskyDirectMessageLoader(
     private val getService: suspend () -> BlueskyService,
     private val accountKey: MicroBlogKey,
-) : DirectMessageLoader {
+) : DirectMessageLoader,
+    KagariDMReactionLoader {
+    override suspend fun kagariReact(
+        roomKey: MicroBlogKey,
+        messageKey: MicroBlogKey,
+        value: String,
+        add: Boolean,
+    ): UiDMItem = getService().kagariReactToMessage(accountKey, roomKey, messageKey, value, add)
+
     override val platformId: String = BLUESKY_PLATFORM_ID
 
     override suspend fun loadRooms(
@@ -126,12 +135,17 @@ internal class BlueskyDirectMessageLoader(
         roomKey: MicroBlogKey,
         message: String,
     ): UiDMItem {
+        val service = getService()
         val response =
-            getService().sendMessage(
+            service.sendMessage(
                 request =
                     SendMessageRequest(
                         convoId = roomKey.id,
-                        message = MessageInput(message),
+                        message =
+                            MessageInput(
+                                text = message,
+                                facets = service.kagariMessageFacets(message).ifEmpty { null },
+                            ),
                     ),
             )
         return Bluesky

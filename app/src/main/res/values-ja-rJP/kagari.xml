@@ -130,4 +130,8 @@
     <string name="kagari_starter_pack_follow_failed">フォローできなかった人がいます</string>
     <string name="kagari_starter_pack_members">入っている人 %1$d</string>
     <string name="kagari_starter_pack_feeds">フィード %1$d</string>
+    <string name="kagari_dm_copy">メッセージのテキストをコピー</string>
+    <string name="kagari_dm_delete_for_me">自分宛を削除</string>
+    <string name="kagari_dm_reaction_input">絵文字でリアクション</string>
+    <string name="kagari_dm_reaction_failed">リアクションを付けられませんでした</string>
 </resources>

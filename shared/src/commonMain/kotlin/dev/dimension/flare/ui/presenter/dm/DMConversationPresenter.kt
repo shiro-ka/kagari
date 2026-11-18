@@ -134,6 +134,26 @@ public class DMConversationPresenter(
                     if (it.supportsLeavingDirectMessage) it.leaveDirectMessage(roomKey)
                 }
             }
+
+            override val kagariCanReact = directMessage?.directMessageHandler?.kagariCanReact == true
+
+            override fun kagariReact(
+                key: MicroBlogKey,
+                value: String,
+                add: Boolean,
+                onResult: (Boolean) -> Unit,
+            ) {
+                val handler = directMessage?.directMessageHandler ?: return onResult(false)
+                scope.launch {
+                    onResult(handler.kagariReact(roomKey, key, value, add))
+                }
+            }
+
+            override fun kagariDeleteForMe(key: MicroBlogKey) {
+                directMessageState.onSuccess {
+                    it.deleteDirectMessage(roomKey, key)
+                }
+            }
         }
     }
 }
@@ -157,4 +177,15 @@ public interface DMConversationState {
     public fun retry(key: MicroBlogKey)
 
     public fun leave()
+
+    public val kagariCanReact: Boolean
+
+    public fun kagariReact(
+        key: MicroBlogKey,
+        value: String,
+        add: Boolean,
+        onResult: (Boolean) -> Unit,
+    )
+
+    public fun kagariDeleteForMe(key: MicroBlogKey)
 }

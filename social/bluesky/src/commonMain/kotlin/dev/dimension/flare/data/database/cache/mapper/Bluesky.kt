@@ -97,6 +97,8 @@ private fun MessageView.toUiDMItem(
         sendState = null,
         showSender = false,
         remoteCursor = rev,
+        kagariQuote = kagariQuote(accountKey),
+        kagariReactions = kagariReactions(accountKey),
     )
 }
 

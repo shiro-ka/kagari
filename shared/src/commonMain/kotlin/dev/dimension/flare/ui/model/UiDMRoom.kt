@@ -45,6 +45,8 @@ public data class UiDMItem public constructor(
     val showSender: Boolean,
     val remoteCursor: String? = null,
     val pluginId: String? = null,
+    val kagariQuote: UiTimelineV2.Post? = null,
+    val kagariReactions: List<KagariDMReaction> = emptyList(),
 ) {
     @Serializable
     public sealed interface Message {

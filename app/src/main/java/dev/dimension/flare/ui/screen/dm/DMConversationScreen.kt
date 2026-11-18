@@ -1,5 +1,6 @@
 package dev.dimension.flare.ui.screen.dm
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,6 +77,7 @@ import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.dm.DMItem
 import dev.dimension.flare.ui.component.dm.DMLoadingItem
 import dev.dimension.flare.ui.component.status.ListEmptyView
+import dev.dimension.flare.ui.model.UiDMItem
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.dm.DMConversationPresenter
@@ -108,6 +110,8 @@ internal fun DMConversationScreen(
         )
     }
     val context = LocalContext.current
+    var kagariMenuItem by remember { mutableStateOf<UiDMItem?>(null) }
+    val kagariFailed = stringResource(R.string.kagari_dm_reaction_failed)
     val imagePicker =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) state.selectImage(FileItem(context, uri))
@@ -360,10 +364,45 @@ internal fun DMConversationScreen(
                         onUserClicked = {
                             toProfile.invoke(it.key)
                         },
+                        kagariOnLongClick =
+                            if (item.sendState == null && item.content != UiDMItem.Message.Deleted) {
+                                { kagariMenuItem = item }
+                            } else {
+                                null
+                            },
+                        kagariOnReactionClick = { reaction ->
+                            state.kagariReact(item.key, reaction.value, false) { ok ->
+                                if (!ok) Toast.makeText(context, kagariFailed, Toast.LENGTH_SHORT).show()
+                            }
+                        },
                     )
                 },
             )
         }
+    }
+    kagariMenuItem?.let { menuItem ->
+        val text = (menuItem.content as? UiDMItem.Message.Text)?.text?.innerText
+        KagariDMMessageSheet(
+            canReact = state.kagariCanReact,
+            canCopy = !text.isNullOrEmpty(),
+            onReact = { value ->
+                kagariMenuItem = null
+                val add = menuItem.kagariReactions.none { it.value == value && it.mine }
+                state.kagariReact(menuItem.key, value, add) { ok ->
+                    if (!ok) Toast.makeText(context, kagariFailed, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onCopy = {
+                kagariMenuItem = null
+                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText(null, text.orEmpty()))
+            },
+            onDeleteForMe = {
+                kagariMenuItem = null
+                state.kagariDeleteForMe(menuItem.key)
+            },
+            onDismiss = { kagariMenuItem = null },
+        )
     }
 }
 
