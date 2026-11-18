@@ -167,6 +167,21 @@ def cleanup(out):
     with open(path) as f:
         state = json.load(f)
     main = Session(os.environ["BSKY_MAIN_HANDLE"], os.environ["BSKY_MAIN_APP_PASSWORD"])
+    sub = Session(os.environ["BSKY_HANDLE"], os.environ["BSKY_APP_PASSWORD"])
+    target = state["sub"][0]
+    rkey = target.rsplit("/", 1)[-1]
+    for collection, key, uri in (
+        ("app.bsky.feed.threadgate", "hiddenReplies", state["main"][0]),
+        ("app.bsky.feed.postgate", "detachedEmbeddingUris", state["main"][1]),
+    ):
+        try:
+            value = sub.xrpc(
+                "com.atproto.repo.getRecord",
+                params={"repo": sub.did, "collection": collection, "rkey": rkey},
+            )["value"].get(key, [])
+            print(collection, key, "contains" if uri in value else "missing", len(value))
+        except RuntimeError as error:
+            print(collection, "read failed", re.sub(r"\s+", " ", str(error))[:200])
     for uri in state.get("main", []):
         try:
             main.delete(uri)

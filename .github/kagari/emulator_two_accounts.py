@@ -102,8 +102,12 @@ def hide_reply(stamp):
     time.sleep(5)
     record("two-hide-dialog")
     if e.tap("非表示にする", timeout=5, exact=True):
-        time.sleep(8)
+        time.sleep(2)
         record("two-hidden")
+        pull_to_refresh()
+        e.adb("shell", "input", "swipe", "540", "1800", "540", "600", "500")
+        time.sleep(3)
+        record("two-hidden-refreshed")
 
 
 def detach_quote(stamp):
@@ -121,8 +125,10 @@ def detach_quote(stamp):
     time.sleep(3)
     record("two-detach-dialog")
     if e.tap("外す", timeout=5, exact=True):
-        time.sleep(8)
+        time.sleep(2)
         record("two-detached")
+        pull_to_refresh()
+        record("two-detached-refreshed")
 
 
 def embeds(stamp):
