@@ -1,21 +1,11 @@
 package dev.dimension.flare.ui.screen.status.action
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
@@ -23,6 +13,8 @@ import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.status.action.KagariInteractionGatePresenter
 import dev.dimension.flare.ui.presenter.status.action.KagariInteractionGateState
+import dev.dimension.flare.ui.screen.KagariLoadingDialog
+import dev.dimension.flare.ui.screen.KagariMessageDialog
 import dev.dimension.flare.ui.screen.compose.KagariGateDialog
 import moe.tlaster.precompose.molecule.producePresenter
 
@@ -53,33 +45,21 @@ internal fun KagariInteractionGateDialog(
                 },
             )
         is UiState.Error ->
-            AlertDialog(
+            KagariMessageDialog(
+                title = stringResource(R.string.kagari_gate_edit_title),
+                message = current.throwable.message.orEmpty(),
                 onDismissRequest = onBack,
-                title = { Text(stringResource(R.string.kagari_gate_edit_title)) },
-                text = { Text(current.throwable.message.orEmpty()) },
-                confirmButton = {
-                    TextButton(onClick = onBack) { Text(stringResource(android.R.string.ok)) }
-                },
             )
         is UiState.Loading ->
-            AlertDialog(
+            KagariLoadingDialog(
+                title = stringResource(R.string.kagari_gate_edit_title),
                 onDismissRequest = onBack,
-                title = { Text(stringResource(R.string.kagari_gate_edit_title)) },
-                text = {
-                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                },
-                confirmButton = {},
             )
     }
     if (failed) {
-        AlertDialog(
+        KagariMessageDialog(
+            message = stringResource(R.string.kagari_gate_edit_failed),
             onDismissRequest = { failed = false },
-            text = { Text(stringResource(R.string.kagari_gate_edit_failed)) },
-            confirmButton = {
-                TextButton(onClick = { failed = false }) { Text(stringResource(android.R.string.ok)) }
-            },
         )
     }
 }

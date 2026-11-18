@@ -1,9 +1,7 @@
 package dev.dimension.flare.ui.screen.profile
 
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,16 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +40,10 @@ import dev.dimension.flare.ui.presenter.profile.KagariStarterPackPresenter
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.KagariFeedRoute
 import dev.dimension.flare.ui.route.toUri
+import dev.dimension.flare.ui.screen.KagariConfirmDialog
+import dev.dimension.flare.ui.screen.KagariLoadingBox
+import dev.dimension.flare.ui.screen.KagariMessageBox
+import dev.dimension.flare.ui.screen.kagariToast
 import moe.tlaster.precompose.molecule.producePresenter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +61,7 @@ internal fun KagariStarterPackScreen(
     var confirmFollowAll by remember { mutableStateOf(false) }
     val failedText = stringResource(R.string.kagari_starter_pack_follow_failed)
     val onFollowResult: (Int) -> Unit = { failed ->
-        if (failed > 0) Toast.makeText(context, failedText, Toast.LENGTH_SHORT).show()
+        if (failed > 0) kagariToast(context, failedText)
     }
 
     Scaffold(
@@ -75,15 +74,11 @@ internal fun KagariStarterPackScreen(
     ) { padding ->
         when (val detail = state.detail) {
             is UiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                KagariLoadingBox(padding = padding)
             }
 
             is UiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text(text = stringResource(R.string.kagari_starter_pack_failed))
-                }
+                KagariMessageBox(message = stringResource(R.string.kagari_starter_pack_failed), padding = padding)
             }
 
             is UiState.Success -> {
@@ -213,24 +208,14 @@ internal fun KagariStarterPackScreen(
     }
 
     if (confirmFollowAll) {
-        AlertDialog(
+        KagariConfirmDialog(
+            text = stringResource(R.string.kagari_starter_pack_follow_all_confirm, state.notFollowingCount),
+            confirmText = stringResource(R.string.kagari_starter_pack_follow_all),
+            onConfirm = {
+                confirmFollowAll = false
+                state.followAll(onFollowResult)
+            },
             onDismissRequest = { confirmFollowAll = false },
-            text = { Text(text = stringResource(R.string.kagari_starter_pack_follow_all_confirm, state.notFollowingCount)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmFollowAll = false
-                        state.followAll(onFollowResult)
-                    },
-                ) {
-                    Text(text = stringResource(R.string.kagari_starter_pack_follow_all))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmFollowAll = false }) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-            },
         )
     }
 }

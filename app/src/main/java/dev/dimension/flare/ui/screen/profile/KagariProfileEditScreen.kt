@@ -1,7 +1,6 @@
 package dev.dimension.flare.ui.screen.profile
 
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -22,8 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +62,10 @@ import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.model.toUiImage
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.profile.KagariProfileEditPresenter
+import dev.dimension.flare.ui.screen.KagariConfirmDialog
+import dev.dimension.flare.ui.screen.KagariLoadingBox
+import dev.dimension.flare.ui.screen.KagariMessageBox
+import dev.dimension.flare.ui.screen.kagariToast
 import moe.tlaster.precompose.molecule.producePresenter
 
 private const val KAGARI_NAME_MAX = 64
@@ -164,12 +165,10 @@ internal fun KagariProfileEditScreen(
                                 avatar = avatar?.let { KagariProfileImage(kagariEncodeUnder(it), "image/jpeg") },
                                 banner = banner?.let { KagariProfileImage(kagariEncodeUnder(it), "image/jpeg") },
                             ) { ok ->
-                                Toast
-                                    .makeText(
-                                        context,
-                                        if (ok) R.string.kagari_profile_edit_saved else R.string.kagari_profile_edit_failed,
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
+                                kagariToast(
+                                    context,
+                                    if (ok) R.string.kagari_profile_edit_saved else R.string.kagari_profile_edit_failed,
+                                )
                                 if (ok) onBack()
                             }
                         },
@@ -182,15 +181,11 @@ internal fun KagariProfileEditScreen(
     ) { padding ->
         when (val current = state.draft) {
             is UiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                KagariLoadingBox(padding = padding)
             }
 
             is UiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text(text = stringResource(R.string.kagari_profile_edit_load_failed))
-                }
+                KagariMessageBox(message = stringResource(R.string.kagari_profile_edit_load_failed), padding = padding)
             }
 
             is UiState.Success -> {
@@ -338,24 +333,14 @@ internal fun KagariProfileEditScreen(
     }
 
     if (confirmDiscard) {
-        AlertDialog(
+        KagariConfirmDialog(
+            title = stringResource(R.string.kagari_profile_edit_discard_title),
+            confirmText = stringResource(R.string.kagari_profile_edit_discard),
+            onConfirm = {
+                confirmDiscard = false
+                onBack()
+            },
             onDismissRequest = { confirmDiscard = false },
-            title = { Text(text = stringResource(R.string.kagari_profile_edit_discard_title)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmDiscard = false
-                        onBack()
-                    },
-                ) {
-                    Text(text = stringResource(R.string.kagari_profile_edit_discard))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDiscard = false }) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-            },
         )
     }
 }

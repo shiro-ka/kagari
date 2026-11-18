@@ -1,6 +1,5 @@
 package dev.dimension.flare.ui.screen.dm
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +33,7 @@ import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.dm.dmList
 import dev.dimension.flare.ui.presenter.dm.KagariSendViaChatPresenter
 import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.screen.kagariToast
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import moe.tlaster.precompose.molecule.producePresenter
 
@@ -92,10 +92,10 @@ internal fun KagariSendViaChatScreen(
                             onClick = {
                                 state.send(roomKey, text.trim()) { ok ->
                                     if (ok) {
-                                        Toast.makeText(context, sentText, Toast.LENGTH_SHORT).show()
+                                        kagariToast(context, sentText)
                                         onBack()
                                     } else {
-                                        Toast.makeText(context, failedText, Toast.LENGTH_SHORT).show()
+                                        kagariToast(context, failedText)
                                     }
                                 }
                             },

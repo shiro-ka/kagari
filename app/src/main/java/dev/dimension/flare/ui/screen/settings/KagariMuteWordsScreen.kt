@@ -1,8 +1,6 @@
 package dev.dimension.flare.ui.screen.settings
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +40,9 @@ import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.profile.KagariMuteWordsPresenter
+import dev.dimension.flare.ui.screen.KagariLoadingBox
+import dev.dimension.flare.ui.screen.KagariMessageBox
+import dev.dimension.flare.ui.screen.kagariToast
 import moe.tlaster.precompose.molecule.producePresenter
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -85,15 +85,11 @@ internal fun KagariMuteWordsScreen(
     ) { padding ->
         when (val words = state.words) {
             is UiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                KagariLoadingBox(padding = padding)
             }
 
             is UiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                    Text(text = failed)
-                }
+                KagariMessageBox(message = failed, padding = padding)
             }
 
             is UiState.Success -> {
@@ -152,7 +148,7 @@ internal fun KagariMuteWordsScreen(
                                         if (ok) {
                                             input = ""
                                         } else {
-                                            Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
+                                            kagariToast(context, failed)
                                         }
                                     }
                                 },
@@ -189,7 +185,7 @@ internal fun KagariMuteWordsScreen(
                                 enabled = !state.saving,
                                 onClick = {
                                     state.remove(word) { ok ->
-                                        if (!ok) Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
+                                        if (!ok) kagariToast(context, failed)
                                     }
                                 },
                             ) {

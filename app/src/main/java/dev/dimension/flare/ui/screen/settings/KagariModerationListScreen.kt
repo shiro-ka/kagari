@@ -1,9 +1,7 @@
 package dev.dimension.flare.ui.screen.settings
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +23,7 @@ import dev.dimension.flare.ui.presenter.profile.UnmuteUserPresenter
 import dev.dimension.flare.ui.presenter.profile.UserListPresenter
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.toUri
+import dev.dimension.flare.ui.screen.KagariConfirmDialog
 import dev.dimension.flare.ui.screen.profile.UserListScreen
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -145,44 +144,26 @@ private fun KagariReleaseDialog(
                 state::confirm
             }
         }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text =
-                    stringResource(
-                        when (kind) {
-                            KagariModerationListKind.Muted -> R.string.unmute_user_title
-                            KagariModerationListKind.Blocked -> R.string.unblock_user_title
-                        },
-                    ),
-            )
-        },
-        text = {
-            Text(
-                text =
-                    stringResource(
-                        when (kind) {
-                            KagariModerationListKind.Muted -> R.string.unmute_user_description
-                            KagariModerationListKind.Blocked -> R.string.unblock_user_description
-                        },
-                    ),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    confirm()
-                    onConfirmed()
+    KagariConfirmDialog(
+        title =
+            stringResource(
+                when (kind) {
+                    KagariModerationListKind.Muted -> R.string.unmute_user_title
+                    KagariModerationListKind.Blocked -> R.string.unblock_user_title
                 },
-            ) {
-                Text(text = stringResource(id = android.R.string.ok))
-            }
+            ),
+        text =
+            stringResource(
+                when (kind) {
+                    KagariModerationListKind.Muted -> R.string.unmute_user_description
+                    KagariModerationListKind.Blocked -> R.string.unblock_user_description
+                },
+            ),
+        confirmText = stringResource(id = android.R.string.ok),
+        onConfirm = {
+            confirm()
+            onConfirmed()
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(id = android.R.string.cancel))
-            }
-        },
+        onDismissRequest = onDismiss,
     )
 }
