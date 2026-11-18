@@ -733,85 +733,8 @@ internal sealed interface Route : NavKey {
                     )
                 }
 
-                is KagariHideReplyRoute -> {
-                    KagariHideReplyDialogRoute(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                    )
-                }
-
-                is KagariPinPostRoute -> {
-                    KagariPinPostDialogRoute(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                        pin = deeplinkRoute.pin,
-                    )
-                }
-
-                is KagariMuteThreadRoute -> {
-                    KagariMuteThreadDialogRoute(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                        rootUri = deeplinkRoute.rootUri,
-                        mute = deeplinkRoute.mute,
-                    )
-                }
-
-                is KagariProfileEditRoute -> {
-                    KagariProfileEditScreenRoute(accountKey = deeplinkRoute.accountKey)
-                }
-
-                is KagariSendViaChatRoute -> {
-                    KagariSendViaChatScreenRoute(
-                        accountKey = deeplinkRoute.accountKey,
-                        uri = deeplinkRoute.uri,
-                        cid = deeplinkRoute.cid,
-                    )
-                }
-
-                is KagariStarterPackRoute -> {
-                    KagariStarterPackScreenRoute(
-                        accountKey = deeplinkRoute.accountKey,
-                        uri = deeplinkRoute.uri,
-                    )
-                }
-
-                is KagariFeedRoute -> {
-                    Bluesky.FeedDetail(
-                        accountType = AccountType.Specific(deeplinkRoute.accountKey),
-                        feedId = deeplinkRoute.uri,
-                    )
-                }
-
-                is KagariListRoute -> {
-                    Lists.Detail(
-                        accountType = AccountType.Specific(deeplinkRoute.accountKey),
-                        listId = deeplinkRoute.uri,
-                        title = deeplinkRoute.title,
-                    )
-                }
-
-                is KagariDetachQuoteRoute -> {
-                    KagariDetachQuoteDialogRoute(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                        quotedUri = deeplinkRoute.quotedUri,
-                        detach = deeplinkRoute.detach,
-                    )
-                }
-
-                is KagariVerificationRoute -> {
-                    KagariVerificationDialogRoute(
-                        accountType = AccountType.Specific(deeplinkRoute.accountKey),
-                        userKey = deeplinkRoute.userKey,
-                    )
-                }
-
-                is KagariInteractionGateRoute -> {
-                    KagariInteractionGateDialogRoute(
-                        statusKey = deeplinkRoute.statusKey,
-                        accountType = deeplinkRoute.accountType,
-                    )
+                is KagariDeeplink -> {
+                    deeplinkRoute.toKagariRoute()
                 }
 
                 is DeeplinkRoute.Status.BlueskyReport -> {

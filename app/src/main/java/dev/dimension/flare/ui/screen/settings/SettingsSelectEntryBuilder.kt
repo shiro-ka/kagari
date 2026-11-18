@@ -352,31 +352,6 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
         )
     }
 
-    entry<KagariMuteWordsRoute>(
-        metadata =
-            ListDetailSceneStrategy.detailPane(
-                sceneKey = "Settings",
-            ),
-    ) { args ->
-        KagariMuteWordsScreen(
-            accountKey = args.accountKey,
-            onBack = onBack,
-        )
-    }
-
-    entry<KagariModerationListRoute>(
-        metadata =
-            ListDetailSceneStrategy.detailPane(
-                sceneKey = "Settings",
-            ),
-    ) { args ->
-        KagariModerationListScreen(
-            accountKey = args.accountKey,
-            kind = args.kind,
-            onBack = onBack,
-        )
-    }
-
     entry<Route.Settings.NostrRelays>(
         metadata =
             ListDetailSceneStrategy.detailPane(

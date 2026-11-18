@@ -502,18 +502,7 @@ internal sealed interface Route : NavKey {
                     AltText(text = deeplinkRoute.text)
                 }
 
-                is KagariInteractionGateRoute,
-                is KagariHideReplyRoute,
-                is KagariPinPostRoute,
-                is KagariMuteThreadRoute,
-                is KagariVerificationRoute,
-                is KagariDetachQuoteRoute,
-                is KagariProfileEditRoute,
-                is KagariFeedRoute,
-                is KagariListRoute,
-                is KagariStarterPackRoute,
-                is KagariSendViaChatRoute,
-                -> {
+                is KagariDeeplink -> {
                     null
                 }
 

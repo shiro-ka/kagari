@@ -49,6 +49,7 @@ import dev.dimension.flare.ui.screen.misskey.misskeyEntryBuilder
 import dev.dimension.flare.ui.screen.profile.profileEntryBuilder
 import dev.dimension.flare.ui.screen.rss.rssEntryBuilder
 import dev.dimension.flare.ui.screen.serviceselect.serviceSelectEntryBuilder
+import dev.dimension.flare.ui.screen.settings.kagariSettingsEntryBuilder
 import dev.dimension.flare.ui.screen.settings.settingsSelectEntryBuilder
 import dev.dimension.flare.ui.screen.status.kagariEntryBuilder
 import dev.dimension.flare.ui.screen.status.statusEntryBuilder
@@ -106,6 +107,7 @@ internal fun Router(
                 settingsSelectEntryBuilder(stableNavigate, stableOnBack)
                 statusEntryBuilder(stableNavigate, stableOnBack)
                 kagariEntryBuilder(stableOnBack)
+                kagariSettingsEntryBuilder(stableOnBack)
                 misskeyEntryBuilder(stableNavigate, stableOnBack)
             }
         }

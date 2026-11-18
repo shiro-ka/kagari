@@ -79,3 +79,87 @@ internal data class KagariSendViaChatScreenRoute(
     val uri: String,
     val cid: String,
 ) : Route.DM
+
+internal fun KagariDeeplink.toKagariRoute(): Route =
+    when (this) {
+        is KagariHideReplyRoute -> {
+            KagariHideReplyDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+            )
+        }
+
+        is KagariPinPostRoute -> {
+            KagariPinPostDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+                pin = pin,
+            )
+        }
+
+        is KagariMuteThreadRoute -> {
+            KagariMuteThreadDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+                rootUri = rootUri,
+                mute = mute,
+            )
+        }
+
+        is KagariProfileEditRoute -> {
+            KagariProfileEditScreenRoute(accountKey = accountKey)
+        }
+
+        is KagariSendViaChatRoute -> {
+            KagariSendViaChatScreenRoute(
+                accountKey = accountKey,
+                uri = uri,
+                cid = cid,
+            )
+        }
+
+        is KagariStarterPackRoute -> {
+            KagariStarterPackScreenRoute(
+                accountKey = accountKey,
+                uri = uri,
+            )
+        }
+
+        is KagariFeedRoute -> {
+            Route.Bluesky.FeedDetail(
+                accountType = AccountType.Specific(accountKey),
+                feedId = uri,
+            )
+        }
+
+        is KagariListRoute -> {
+            Route.Lists.Detail(
+                accountType = AccountType.Specific(accountKey),
+                listId = uri,
+                title = title,
+            )
+        }
+
+        is KagariDetachQuoteRoute -> {
+            KagariDetachQuoteDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+                quotedUri = quotedUri,
+                detach = detach,
+            )
+        }
+
+        is KagariVerificationRoute -> {
+            KagariVerificationDialogRoute(
+                accountType = AccountType.Specific(accountKey),
+                userKey = userKey,
+            )
+        }
+
+        is KagariInteractionGateRoute -> {
+            KagariInteractionGateDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+            )
+        }
+    }
