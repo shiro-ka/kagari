@@ -62,3 +62,9 @@ public data class KagariListRoute(
     val uri: String,
     val title: String,
 ) : DeeplinkRoute.Status()
+
+@Serializable
+public data class KagariStarterPackRoute(
+    val accountKey: MicroBlogKey,
+    val uri: String,
+) : DeeplinkRoute.Status()

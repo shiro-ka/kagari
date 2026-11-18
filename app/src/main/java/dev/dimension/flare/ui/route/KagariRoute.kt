@@ -61,3 +61,9 @@ internal data class KagariProfileEditScreenRoute(
 internal data class KagariMuteWordsRoute(
     val accountKey: MicroBlogKey,
 ) : Route.Settings
+
+@Serializable
+internal data class KagariStarterPackScreenRoute(
+    val accountKey: MicroBlogKey,
+    val uri: String,
+) : Route.Profile

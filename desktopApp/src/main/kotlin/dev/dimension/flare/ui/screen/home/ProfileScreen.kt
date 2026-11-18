@@ -603,8 +603,12 @@ private fun presenter(
 
     val tabs =
         state.tabs.map {
-            it.map {
+            it.mapNotNull {
                 when (it) {
+                    is ProfileState.Tab.KagariList -> {
+                        null
+                    }
+
                     is ProfileState.Tab.Timeline -> {
                         ProfileTabItem.Timeline(
                             name = it.name,

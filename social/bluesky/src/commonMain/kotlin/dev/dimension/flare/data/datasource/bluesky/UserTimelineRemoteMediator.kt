@@ -18,6 +18,7 @@ internal class UserTimelineRemoteMediator(
     private val userKey: MicroBlogKey,
     private val onlyMedia: Boolean = false,
     private val withReplies: Boolean = false,
+    private val kagariOnlyVideo: Boolean = false,
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val pagingKey =
         buildString {
@@ -27,6 +28,9 @@ internal class UserTimelineRemoteMediator(
             }
             if (withReplies) {
                 append("replies")
+            }
+            if (kagariOnlyVideo) {
+                append("video")
             }
             append(accountKey.toString())
             append(userKey.toString())
@@ -39,6 +43,7 @@ internal class UserTimelineRemoteMediator(
         val service = getService()
         val filter =
             when {
+                kagariOnlyVideo -> GetAuthorFeedFilter.PostsWithVideo
                 onlyMedia -> GetAuthorFeedFilter.PostsWithMedia
                 withReplies -> GetAuthorFeedFilter.PostsWithReplies
                 else -> GetAuthorFeedFilter.PostsAndAuthorThreads

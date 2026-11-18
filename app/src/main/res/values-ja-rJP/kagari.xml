@@ -120,4 +120,14 @@
     <string name="kagari_mute_words_expired">期限切れ</string>
     <string name="kagari_mute_words_days_left">あと %1$d 日</string>
     <string name="kagari_mute_words_hours_left">あと %1$d 時間</string>
+    <string name="kagari_starter_pack_title">スターターパック</string>
+    <string name="kagari_starter_pack_failed">スターターパックを読み込めませんでした</string>
+    <string name="kagari_starter_pack_by">%1$s によるスターターパック</string>
+    <string name="kagari_starter_pack_follow_all">すべてフォロー</string>
+    <string name="kagari_starter_pack_follow_all_confirm">%1$d人をフォローします</string>
+    <string name="kagari_starter_pack_follow">フォロー</string>
+    <string name="kagari_starter_pack_following">フォロー中</string>
+    <string name="kagari_starter_pack_follow_failed">フォローできなかった人がいます</string>
+    <string name="kagari_starter_pack_members">入っている人 %1$d</string>
+    <string name="kagari_starter_pack_feeds">フィード %1$d</string>
 </resources>

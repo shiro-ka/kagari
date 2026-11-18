@@ -7,10 +7,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import dev.dimension.flare.common.collectAsState
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.KagariProfileListSource
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.accountKeyOrNull
 import dev.dimension.flare.data.datasource.microblog.accountProfileFlow
 import dev.dimension.flare.data.datasource.microblog.capabilities
+import dev.dimension.flare.data.datasource.microblog.kagariTabName
 import dev.dimension.flare.data.datasource.microblog.loader.RelationActionType
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.repository.AccountRepository
@@ -174,8 +176,28 @@ public class ProfilePresenter(
                                         )
                                     }
                                 }
-                            }.toImmutableList()
-                    flowOf(UiState.Success(tabs))
+                            }
+                    val kagariTabs =
+                        (service as? KagariProfileListSource)
+                            ?.takeIf { service.accountKeyOrNull != null }
+                            ?.let { source ->
+                                val kagariAccountKey = requireNotNull(service.accountKeyOrNull)
+                                runCatching { source.kagariProfileListKinds(actualUserKey) }
+                                    .getOrDefault(emptyList())
+                                    .map { kind ->
+                                        ProfileState.Tab.KagariList(
+                                            id = "${accountType}_${actualUserKey}_kagari_$kind",
+                                            name = kind.kagariTabName,
+                                            presenter =
+                                                KagariProfileListPresenter(
+                                                    kind = kind,
+                                                    accountKey = kagariAccountKey,
+                                                    source = source.kagariProfileList(actualUserKey, kind),
+                                                ),
+                                        )
+                                    }
+                            }.orEmpty()
+                    flowOf(UiState.Success((tabs + kagariTabs).toImmutableList()))
                 }
         }
     }
@@ -481,6 +503,13 @@ public abstract class ProfileState(
             override val id: String,
             override val name: UiText,
             val presenter: ProfileMediaPresenter,
+        ) : Tab()
+
+        @Immutable
+        public data class KagariList(
+            override val id: String,
+            override val name: UiText,
+            val presenter: KagariProfileListPresenter,
         ) : Tab()
     }
 }

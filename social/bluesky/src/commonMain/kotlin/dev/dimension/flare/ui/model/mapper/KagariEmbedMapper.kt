@@ -12,6 +12,7 @@ import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.KagariFeedRoute
 import dev.dimension.flare.ui.route.KagariListRoute
+import dev.dimension.flare.ui.route.KagariStarterPackRoute
 import dev.dimension.flare.ui.route.toUri
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -94,11 +95,7 @@ internal fun kagariFindEmbed(
                 creatorHandle = handle,
                 avatar = null,
                 likeCount = null,
-                url =
-                    DeeplinkRoute
-                        .OpenLinkDirectly(
-                            "https://bsky.app/starter-pack/$handle/${pack.uri.atUri.substringAfterLast("/")}",
-                        ).toUri(),
+                url = KagariStarterPackRoute(accountKey = accountKey, uri = pack.uri.atUri).toUri(),
             )
         }
 

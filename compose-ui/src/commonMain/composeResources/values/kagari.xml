@@ -36,4 +36,6 @@
     <string name="kagari_embed_blocked">Blocked</string>
     <string name="kagari_embed_removed_by_author">Removed by author</string>
     <string name="kagari_embed_removed_by_you">Removed by you</string>
+    <string name="kagari_profile_tab_videos">Videos</string>
+    <string name="kagari_profile_tab_starter_packs">Starter packs</string>
 </resources>

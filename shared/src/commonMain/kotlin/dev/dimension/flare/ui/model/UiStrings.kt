@@ -86,6 +86,8 @@ public enum class UiStrings {
     LikedBy,
     Reactions,
     AllReactions,
+    KagariVideos,
+    KagariStarterPacks,
 }
 
 public fun UiStrings.asText(): UiText = UiText.Localized(this)

@@ -81,6 +81,8 @@ import dev.dimension.flare.compose.ui.service_select_next_button
 import dev.dimension.flare.compose.ui.settings_title
 import dev.dimension.flare.compose.ui.social_title
 import dev.dimension.flare.compose.ui.status_detail_all_reactions
+import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
+import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.status_detail_by_popularity
 import dev.dimension.flare.compose.ui.status_detail_by_time
 import dev.dimension.flare.compose.ui.status_detail_comments
@@ -402,6 +404,10 @@ internal val UiStrings.res: StringResource
             UiStrings.Reactions -> Res.string.status_detail_reactions
 
             UiStrings.AllReactions -> Res.string.status_detail_all_reactions
+
+            UiStrings.KagariVideos -> Res.string.kagari_profile_tab_videos
+
+            UiStrings.KagariStarterPacks -> Res.string.kagari_profile_tab_starter_packs
 
             UiStrings.Articles -> Res.string.profile_tab_articles
 

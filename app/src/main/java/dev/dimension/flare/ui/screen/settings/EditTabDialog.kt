@@ -257,6 +257,7 @@ private val UiStrings.androidStringRes: Int
             UiStrings.Quotes, UiStrings.Relevance, UiStrings.Recency, UiStrings.Likes, UiStrings.Oldest,
             UiStrings.RepostedBy, UiStrings.LikedBy, UiStrings.Reactions, UiStrings.AllReactions,
             UiStrings.QrLoginNewCode, UiStrings.QrLoginRetrySave,
+            UiStrings.KagariVideos, UiStrings.KagariStarterPacks,
             -> R.string.login_button
 
             UiStrings.CredentialImport -> R.string.login_button

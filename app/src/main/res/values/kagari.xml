@@ -121,4 +121,14 @@
     <string name="kagari_mute_words_expired">Expired</string>
     <string name="kagari_mute_words_days_left">%1$d days left</string>
     <string name="kagari_mute_words_hours_left">%1$d hours left</string>
+    <string name="kagari_starter_pack_title">Starter pack</string>
+    <string name="kagari_starter_pack_failed">Could not load the starter pack</string>
+    <string name="kagari_starter_pack_by">Starter pack by %1$s</string>
+    <string name="kagari_starter_pack_follow_all">Follow all</string>
+    <string name="kagari_starter_pack_follow_all_confirm">Follow %1$d people?</string>
+    <string name="kagari_starter_pack_follow">Follow</string>
+    <string name="kagari_starter_pack_following">Following</string>
+    <string name="kagari_starter_pack_follow_failed">Some follows failed</string>
+    <string name="kagari_starter_pack_members">People %1$d</string>
+    <string name="kagari_starter_pack_feeds">Feeds %1$d</string>
 </resources>

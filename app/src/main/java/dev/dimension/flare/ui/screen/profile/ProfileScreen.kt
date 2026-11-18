@@ -115,6 +115,7 @@ import dev.dimension.flare.ui.presenter.home.TimelinePresenter
 import dev.dimension.flare.ui.presenter.home.TimelineState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.profile.ProfileMedia
+import dev.dimension.flare.ui.presenter.profile.KagariProfileListPresenter
 import dev.dimension.flare.ui.presenter.profile.ProfileMediaPresenter
 import dev.dimension.flare.ui.presenter.profile.ProfileMediaState
 import dev.dimension.flare.ui.presenter.profile.ProfilePresenter
@@ -579,6 +580,14 @@ internal fun ProfileScreen(
                                         ) { index ->
                                             val tab = tabs[index]
                                             when (tab) {
+                                                is ProfileTabItem.KagariList -> {
+                                                    KagariProfileListTab(
+                                                        id = tab.id,
+                                                        presenter = tab.presenter,
+                                                        bottomPadding = it.calculateBottomPadding(),
+                                                    )
+                                                }
+
                                                 is ProfileTabItem.Media -> {
                                                     val tabState = rememberProfileMediaTabState(tab)
                                                     val data = tabState.mediaState
@@ -892,6 +901,14 @@ private fun profilePresenter(
                             presenter = it.presenter,
                         )
                     }
+
+                    is ProfileState.Tab.KagariList -> {
+                        ProfileTabItem.KagariList(
+                            id = it.id,
+                            name = it.name,
+                            presenter = it.presenter,
+                        )
+                    }
                 }
             }
         }
@@ -922,5 +939,11 @@ private sealed interface ProfileTabItem {
         override val id: String,
         override val name: UiText,
         val presenter: ProfileMediaPresenter,
+    ) : ProfileTabItem
+
+    data class KagariList(
+        override val id: String,
+        override val name: UiText,
+        val presenter: KagariProfileListPresenter,
     ) : ProfileTabItem
 }

@@ -18,6 +18,7 @@ app.bsky.embed.images
 app.bsky.embed.record
 app.bsky.embed.recordWithMedia
 app.bsky.feed.defs
+app.bsky.feed.getActorFeeds
 app.bsky.feed.getActorLikes
 app.bsky.feed.getAuthorFeed
 app.bsky.feed.getFeed
@@ -38,12 +39,14 @@ app.bsky.feed.threadgate
 app.bsky.graph.block
 app.bsky.graph.defs
 app.bsky.graph.follow
+app.bsky.graph.getActorStarterPacks
 app.bsky.graph.getBlocks
 app.bsky.graph.getFollowers
 app.bsky.graph.getFollows
 app.bsky.graph.getList
 app.bsky.graph.getLists
 app.bsky.graph.getMutes
+app.bsky.graph.getStarterPack
 app.bsky.graph.list
 app.bsky.graph.listitem
 app.bsky.graph.muteActor

@@ -511,6 +511,7 @@ internal sealed interface Route : NavKey {
                 is KagariProfileEditRoute,
                 is KagariFeedRoute,
                 is KagariListRoute,
+                is KagariStarterPackRoute,
                 -> {
                     null
                 }

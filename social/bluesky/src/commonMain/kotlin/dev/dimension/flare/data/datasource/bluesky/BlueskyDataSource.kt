@@ -69,6 +69,8 @@ import dev.dimension.flare.data.datasource.microblog.loader.ListMemberLoader
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
+import dev.dimension.flare.data.datasource.microblog.KagariProfileListKind
+import dev.dimension.flare.data.datasource.microblog.KagariProfileListSource
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.ShortcutSpec
@@ -154,6 +156,7 @@ internal class BlueskyDataSource(
     TimelineTabConfigurationDataSource,
     RelationDataSource,
     DirectMessageDataSource,
+    KagariProfileListSource,
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
@@ -165,6 +168,13 @@ internal class BlueskyDataSource(
     private val mutex = Mutex(locked = false)
 
     internal suspend fun kagariService(): BlueskyService = pdsService()
+
+    override suspend fun kagariProfileListKinds(userKey: MicroBlogKey): List<KagariProfileListKind> = kagariLoadProfileListKinds(userKey)
+
+    override fun kagariProfileList(
+        userKey: MicroBlogKey,
+        kind: KagariProfileListKind,
+    ): Flow<PagingData<UiList>> = kagariProfileListPager(userKey, kind)
 
     private suspend fun pdsService(): BlueskyService =
         mutex.withLock {
@@ -1105,6 +1115,17 @@ internal class BlueskyDataSource(
                 name = UiStrings.Media,
                 displayType = ProfileTab.DisplayType.Gallery,
                 loader = userTimeline(userKey, mediaOnly = true),
+            ),
+            ProfileTab(
+                name = UiStrings.KagariVideos,
+                displayType = ProfileTab.DisplayType.Gallery,
+                loader =
+                    UserTimelineRemoteMediator(
+                        getService = this::pdsService,
+                        accountKey = accountKey,
+                        userKey = userKey,
+                        kagariOnlyVideo = true,
+                    ),
             ),
             if (userKey == accountKey) {
                 ProfileTab(

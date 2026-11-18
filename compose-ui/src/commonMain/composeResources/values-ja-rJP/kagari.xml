@@ -36,4 +36,6 @@
     <string name="kagari_embed_blocked">ブロックされています</string>
     <string name="kagari_embed_removed_by_author">投稿者が削除しました</string>
     <string name="kagari_embed_removed_by_you">あなたが削除しました</string>
+    <string name="kagari_profile_tab_videos">ビデオ</string>
+    <string name="kagari_profile_tab_starter_packs">スターターパック</string>
 </resources>
