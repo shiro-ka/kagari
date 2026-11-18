@@ -6,10 +6,14 @@ import app.bsky.richtext.Facet
 import chat.bsky.convo.AcceptConvoRequest
 import chat.bsky.convo.AddReactionRequest
 import chat.bsky.convo.GetConvoQueryParams
+import chat.bsky.convo.GetLogResponseLogUnion
 import chat.bsky.convo.ListConvosQueryParams
 import chat.bsky.convo.ListConvosStatus
+import chat.bsky.convo.LogAddReactionMessageUnion
+import chat.bsky.convo.LogRemoveReactionMessageUnion
 import chat.bsky.convo.MessageInput
 import chat.bsky.convo.MessageInputEmbedUnion
+import chat.bsky.convo.MessageView
 import chat.bsky.convo.MuteConvoRequest
 import chat.bsky.convo.RemoveReactionRequest
 import chat.bsky.convo.SendMessageRequest
@@ -125,3 +129,10 @@ internal suspend fun BlueskyService.kagariSendPostMessage(
         ).requireResponse()
     return Bluesky.messages(accountKey = accountKey, roomKey = roomKey, data = listOf(message)).single()
 }
+
+internal fun kagariReactionLogMessage(log: GetLogResponseLogUnion): MessageView? =
+    when (log) {
+        is GetLogResponseLogUnion.AddReaction -> (log.value.message as? LogAddReactionMessageUnion.MessageView)?.value
+        is GetLogResponseLogUnion.RemoveReaction -> (log.value.message as? LogRemoveReactionMessageUnion.MessageView)?.value
+        else -> null
+    }

@@ -145,4 +145,7 @@
     <string name="kagari_dm_send_via_chat_hint">一言（なくてもよい）</string>
     <string name="kagari_dm_send">送る</string>
     <string name="kagari_dm_send_to">送り先: %1$s</string>
+    <string name="kagari_profile_list_empty_feeds">フィードはまだありません</string>
+    <string name="kagari_profile_list_empty_starter_packs">まだスターターパックはありません</string>
+    <string name="kagari_profile_list_empty_lists">リストはまだありません</string>
 </resources>

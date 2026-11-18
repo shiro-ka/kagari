@@ -241,6 +241,12 @@ internal class BlueskyDirectMessageLoader(
                     }
                 }
 
+                is GetLogResponseLogUnion.AddReaction, is GetLogResponseLogUnion.RemoveReaction -> {
+                    kagariReactionLogMessage(it)?.let { message ->
+                        messages += Bluesky.messages(accountKey, roomKey, listOf(message))
+                    }
+                }
+
                 else -> {}
             }
         }

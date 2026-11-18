@@ -146,4 +146,7 @@
     <string name="kagari_dm_send_via_chat_hint">Add a message (optional)</string>
     <string name="kagari_dm_send">Send</string>
     <string name="kagari_dm_send_to">To: %1$s</string>
+    <string name="kagari_profile_list_empty_feeds">No feeds yet</string>
+    <string name="kagari_profile_list_empty_starter_packs">No starter packs yet</string>
+    <string name="kagari_profile_list_empty_lists">No lists yet</string>
 </resources>
