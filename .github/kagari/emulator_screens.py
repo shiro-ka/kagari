@@ -25,10 +25,10 @@ def record(name):
 
 
 def open_drawer():
-    if not e.tap("Open navigation menu", timeout=10):
+    if not e.tap("ナビゲーションメニューを開く", timeout=10):
         return False
     time.sleep(2)
-    if e.find("Me", timeout=3, exact=True) is None:
+    if e.find("自分", timeout=3, exact=True) is None:
         e.tap(e.HANDLE.lstrip("@"), timeout=5)
         time.sleep(2)
     record("drawer")
@@ -36,11 +36,11 @@ def open_drawer():
 
 
 def notifications():
-    if not e.tap("Notifications", timeout=10, exact=True):
+    if not e.tap("通知", timeout=10, exact=True):
         return
     time.sleep(6)
     record("notifications")
-    if e.tap("Mentions", timeout=5):
+    if e.tap("メンション", timeout=5):
         time.sleep(6)
         record("notifications-mentions")
 
@@ -48,15 +48,15 @@ def notifications():
 def profile_tabs():
     if not open_drawer():
         return
-    if not e.tap("Me", timeout=5, exact=True):
+    if not e.tap("自分", timeout=5, exact=True):
         return
     time.sleep(8)
     record("profile")
     for label, name in (
-        ("Videos", "profile-videos"),
-        ("Feeds", "profile-feeds"),
-        ("Starter packs", "profile-starter-packs"),
-        ("Lists", "profile-lists"),
+        ("ビデオ", "profile-videos"),
+        ("フィード", "profile-feeds"),
+        ("スターターパック", "profile-starter-packs"),
+        ("リスト", "profile-lists"),
     ):
         node = e.find(label, timeout=4, exact=True)
         if node is None:
@@ -69,7 +69,7 @@ def profile_tabs():
         e.adb("shell", "input", "tap", str(x), str(y))
         time.sleep(6)
         record(name)
-    if e.tap("Edit profile", timeout=5, exact=True):
+    if e.tap("プロフィールを編集", timeout=5, exact=True):
         time.sleep(6)
         record("profile-edit")
         back()
@@ -80,14 +80,14 @@ def profile_tabs():
 def account_menu(item, name):
     if not open_drawer():
         return False
-    if not e.tap("Settings", timeout=5, exact=True):
+    if not e.tap("設定", timeout=5, exact=True):
         return False
     time.sleep(3)
-    if not e.tap("Accounts", timeout=5, exact=True):
+    if not e.tap("アカウント", timeout=5, exact=True):
         return False
     time.sleep(3)
     record(f"{name}-accounts")
-    if not e.tap("More", timeout=5, exact=True):
+    if not e.tap("その他", timeout=5, exact=True):
         return False
     time.sleep(2)
     record(f"{name}-menu")
@@ -99,11 +99,11 @@ def account_menu(item, name):
 
 
 def muted_words():
-    if not account_menu("Muted words", "muted-words"):
+    if not account_menu("ミュートワード", "muted-words"):
         return
     word = "kagaritest"
-    if e.type_into("Word or #tag", word):
-        if e.tap("Add", timeout=5, exact=True):
+    if e.type_into("言葉か #タグ", word):
+        if e.tap("追加", timeout=5, exact=True):
             time.sleep(6)
             record("muted-words-added")
             node = e.find(word, timeout=5, exact=True)
@@ -122,16 +122,16 @@ def muted_words():
 
 
 def moderation_lists():
-    if account_menu("Muted accounts", "muted-accounts"):
+    if account_menu("ミュートしたアカウント", "muted-accounts"):
         reset_home()
-    if account_menu("Blocked accounts", "blocked-accounts"):
+    if account_menu("ブロックしたアカウント", "blocked-accounts"):
         pass
 
 
 def direct_messages():
     if not open_drawer():
         return
-    if not e.tap("Direct Messages", timeout=5):
+    if not e.tap("メッセージ", timeout=5, exact=True):
         return
     time.sleep(8)
     record("dm-list")
@@ -152,6 +152,8 @@ def direct_messages():
 
 def main():
     os.makedirs(e.OUT, exist_ok=True)
+    e.adb("shell", "cmd", "locale", "set-app-locales", PACKAGE, "--locales", "ja-JP")
+    e.adb("shell", "am", "force-stop", PACKAGE)
     reset_home()
     for step in (notifications, profile_tabs, muted_words, moderation_lists, direct_messages):
         try:
