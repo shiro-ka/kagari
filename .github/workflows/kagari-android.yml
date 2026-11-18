@@ -142,8 +142,10 @@ jobs:
       - name: Run on emulator
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
-          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          BSKY_HANDLE: ${{ secrets.BSKY_SUB_HANDLE || secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_SUB_APP_PASSWORD || secrets.BSKY_APP_PASSWORD }}
+          BSKY_MAIN_HANDLE: ${{ secrets.BSKY_MAIN_HANDLE }}
+          BSKY_MAIN_APP_PASSWORD: ${{ secrets.BSKY_MAIN_APP_PASSWORD }}
           KAGARI_TEST_POST: ${{ contains(github.event.head_commit.message, '[test-post]') && '1' || '' }}
         with:
           api-level: 36
