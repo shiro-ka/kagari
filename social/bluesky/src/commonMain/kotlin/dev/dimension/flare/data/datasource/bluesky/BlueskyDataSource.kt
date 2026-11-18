@@ -1008,8 +1008,8 @@ internal class BlueskyDataSource(
             CommonTimelineSpecs.home
                 .candidate(
                     data = TimelineSpec.AccountBasedData(accountKey),
-                    icon = IconType.FavIcon(accountKey.host),
-                    title = UiText.Raw("Bluesky"),
+                    icon = IconType.Mixed(UiIcon.Bluesky, accountKey),
+                    title = UiStrings.Following.asText(),
                     filterConfig = TimelineFilterConfig(excludedKinds = listOf(TimelinePostKind.Reply)),
                 ),
         )
