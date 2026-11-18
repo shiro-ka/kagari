@@ -8,8 +8,8 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.screen.status.action.AddReactionSheet
 import dev.dimension.flare.ui.screen.status.action.AltTextSheet
-import dev.dimension.flare.ui.screen.status.action.BlueskyReportStatusDialog
 import dev.dimension.flare.ui.screen.status.action.DeleteStatusConfirmDialog
+import dev.dimension.flare.ui.screen.status.action.KagariReportDialog
 import dev.dimension.flare.ui.screen.status.action.MastodonReportDialog
 import dev.dimension.flare.ui.screen.status.action.MisskeyReportDialog
 import dev.dimension.flare.ui.screen.status.action.StatusInsightSheet
@@ -66,7 +66,7 @@ internal fun EntryProviderScope<NavKey>.statusEntryBuilder(
     entry<Route.Status.BlueskyReport>(
         metadata = DialogSceneStrategy.dialog()
     ) { args ->
-        BlueskyReportStatusDialog(
+        KagariReportDialog(
             statusKey = args.statusKey,
             accountType = args.accountType,
             onBack = onBack

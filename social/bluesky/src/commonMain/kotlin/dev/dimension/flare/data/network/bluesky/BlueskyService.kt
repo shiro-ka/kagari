@@ -55,9 +55,11 @@ internal data class BlueskyService private constructor(
     private val accountKey: MicroBlogKey? = null,
     private val authTokenFlow: Flow<BlueskyCredential>? = null,
     private val onCredentialRefreshed: suspend (BlueskyCredential) -> Unit = {},
+    private val kagariLabelerProxy: String? = null,
 ) : BlueskyApi by XrpcBlueskyApi(
         ktorClient(ProxyRef.forAccount(accountKey)) {
             install(AtprotoProxyPlugin)
+            install(KagariLabelerProxyPlugin) { labelerProxy = kagariLabelerProxy }
             install(BlueskyAuthPlugin) {
                 this.baseUrlFlow = baseUrlFlow
                 this.accountKey = accountKey
@@ -115,6 +117,8 @@ internal data class BlueskyService private constructor(
     }
 
     fun newBaseUrlService(baseUrl: String): BlueskyService = copy(baseUrlFlow = flowOf(baseUrl))
+
+    fun kagariForLabeler(did: String): BlueskyService = copy(kagariLabelerProxy = "$did#atproto_labeler")
 }
 
 internal class AtprotoProxyPlugin {

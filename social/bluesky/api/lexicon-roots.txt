@@ -53,6 +53,7 @@ app.bsky.graph.muteActor
 app.bsky.graph.muteThread
 app.bsky.graph.unmuteActor
 app.bsky.graph.unmuteThread
+app.bsky.labeler.getServices
 app.bsky.notification.listNotifications
 app.bsky.notification.updateSeen
 app.bsky.richtext.facet
