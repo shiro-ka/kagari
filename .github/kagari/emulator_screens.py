@@ -87,7 +87,7 @@ def account_menu(item, name):
         return False
     time.sleep(3)
     record(f"{name}-accounts")
-    if not e.tap("その他", timeout=5, exact=True):
+    if not e.tap("さらに表示", timeout=5, exact=True):
         return False
     time.sleep(2)
     record(f"{name}-menu")
