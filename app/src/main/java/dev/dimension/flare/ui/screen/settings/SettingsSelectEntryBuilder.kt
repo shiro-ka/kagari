@@ -6,6 +6,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.ui.route.KagariModerationListRoute
+import dev.dimension.flare.ui.route.KagariMuteWordsRoute
 import dev.dimension.flare.ui.route.Route
 import dev.dimension.flare.ui.screen.agent.AgentChatHistoryScreen
 import kotlin.time.Clock
@@ -94,6 +95,9 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             },
             toKagariModerationList = { accountKey, kind ->
                 navigate(KagariModerationListRoute(accountKey, kind))
+            },
+            toKagariMuteWords = { accountKey ->
+                navigate(KagariMuteWordsRoute(accountKey))
             },
             toPlugins = {
                 navigate(Route.Settings.Plugins)
@@ -344,6 +348,18 @@ internal fun EntryProviderScope<NavKey>.settingsSelectEntryBuilder(
             ),
     ) {
         AppLoggingScreen(
+            onBack = onBack,
+        )
+    }
+
+    entry<KagariMuteWordsRoute>(
+        metadata =
+            ListDetailSceneStrategy.detailPane(
+                sceneKey = "Settings",
+            ),
+    ) { args ->
+        KagariMuteWordsScreen(
+            accountKey = args.accountKey,
             onBack = onBack,
         )
     }

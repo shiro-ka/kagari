@@ -64,6 +64,8 @@ import dev.dimension.flare.ui.model.withProxy
 import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
 import dev.dimension.flare.ui.render.RenderTextStyle
+import dev.dimension.flare.data.datasource.bluesky.kagariMatchMuteWord
+import dev.dimension.flare.data.datasource.bluesky.kagariMuteWordsFor
 import dev.dimension.flare.ui.render.UiRichText
 import dev.dimension.flare.ui.render.toUi
 import dev.dimension.flare.ui.render.toUiPlainText
@@ -909,6 +911,12 @@ internal fun PostView.render(
     val sourceLanguages = record.sourceLanguages()
     val quote = findQuote(accountKey, this, downloadUrls)
     return UiTimelineV2.Post(
+        kagariMutedWord =
+            if (isFromMe) {
+                null
+            } else {
+                kagariMatchMuteWord(kagariMuteWordsFor(accountKey), record, sourceLanguages, author.viewer?.following != null)
+            },
         platformId = BLUESKY_PLATFORM_ID,
         user = user,
         images = findMedias(this, downloadUrls),

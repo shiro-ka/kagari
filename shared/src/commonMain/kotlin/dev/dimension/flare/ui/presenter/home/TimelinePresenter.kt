@@ -195,7 +195,14 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                                 mxgaEnabledFlow,
                                 mxgaRepository.snapshot,
                             ) { filters, config, mxgaEnabled, snapshot ->
-                                TimelineVisibility(filters, config, mxgaEnabled, snapshot, platformRegistry)
+                                TimelineVisibility(
+                                    filters,
+                                    config,
+                                    mxgaEnabled,
+                                    snapshot,
+                                    platformRegistry,
+                                    kagariHideMutedWords = remoteLoader !is PostContextLoader,
+                                )
                             }.shareIn(sourceScope, SharingStarted.Lazily, replay = 1)
                         viewport.value?.deactivate()
                         viewport.value = null

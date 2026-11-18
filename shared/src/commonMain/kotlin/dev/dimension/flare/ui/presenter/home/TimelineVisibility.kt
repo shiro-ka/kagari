@@ -13,11 +13,20 @@ internal data class TimelineVisibility(
     private val mxgaEnabled: Boolean,
     private val mxgaSnapshot: MxgaSnapshot,
     private val platformRegistry: PlatformRegistry,
+    private val kagariHideMutedWords: Boolean = true,
 ) {
     fun isVisible(item: UiTimelineV2): Boolean =
         item is UiTimelineV2.Gap ||
             (
                 item.matchesKeywordFilters(filters) && item.matchesTimelineFilter(config) &&
-                    (!mxgaEnabled || !item.isMxgaMatch(mxgaSnapshot, platformRegistry))
+                    (!mxgaEnabled || !item.isMxgaMatch(mxgaSnapshot, platformRegistry)) &&
+                    !(kagariHideMutedWords && item.kagariMutedByWord())
             )
 }
+
+internal fun UiTimelineV2.kagariMutedByWord(): Boolean =
+    when (this) {
+        is UiTimelineV2.Post -> kagariMutedWord != null
+        is UiTimelineV2.TimelinePostItem -> post.kagariMutedWord != null
+        else -> false
+    }

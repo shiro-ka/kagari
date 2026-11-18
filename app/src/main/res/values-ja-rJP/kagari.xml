@@ -103,4 +103,21 @@
     <string name="kagari_crop_avatar">アイコンを切り抜く</string>
     <string name="kagari_crop_banner">ヘッダー画像を切り抜く</string>
     <string name="kagari_crop_done">決定</string>
+    <string name="kagari_mute_words_title">ミュートワード</string>
+    <string name="kagari_mute_words_input">言葉か #タグ</string>
+    <string name="kagari_mute_words_target">どこを見るか</string>
+    <string name="kagari_mute_words_content_and_tags">本文とタグ</string>
+    <string name="kagari_mute_words_tags_only">タグだけ</string>
+    <string name="kagari_mute_words_duration">期間</string>
+    <string name="kagari_mute_words_forever">ずっと</string>
+    <string name="kagari_mute_words_24h">24時間</string>
+    <string name="kagari_mute_words_7d">7日</string>
+    <string name="kagari_mute_words_30d">30日</string>
+    <string name="kagari_mute_words_exclude_following">フォローしている人の投稿は隠さない</string>
+    <string name="kagari_mute_words_add">追加</string>
+    <string name="kagari_mute_words_empty">ミュートワードはありません</string>
+    <string name="kagari_mute_words_failed">ミュートワードを変えられませんでした。もう一度お試しください</string>
+    <string name="kagari_mute_words_expired">期限切れ</string>
+    <string name="kagari_mute_words_days_left">あと %1$d 日</string>
+    <string name="kagari_mute_words_hours_left">あと %1$d 時間</string>
 </resources>

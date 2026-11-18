@@ -206,6 +206,16 @@ public fun CommonStatusComponent(
         PlatformTextStyle provides PlatformTheme.typography.postBody,
         PlatformContentColor provides StatusComponentDefaults.contentColor,
     ) {
+        val kagariMutedWord = item.kagariMutedWord
+        var kagariRevealed by remember(item.statusKey) { mutableStateOf(false) }
+        if (kagariMutedWord != null && !kagariRevealed && !isDetail) {
+            KagariMutedWordPlaceholder(
+                word = kagariMutedWord,
+                onShow = { kagariRevealed = true },
+                modifier = modifier,
+            )
+            return@CompositionLocalProvider
+        }
         val uriHandler = LocalUriHandler.current
         val openPostLabel = stringResource(Res.string.status_open_post)
         val appearanceSettings = LocalTimelineAppearance.current

@@ -23,4 +23,6 @@
     <string name="kagari_acting_as">As %1$s</string>
     <string name="kagari_viewing_as">Viewing as %1$s</string>
     <string name="kagari_profile_edit">Edit profile</string>
+    <string name="kagari_muted_word_hidden">Post with your muted word “%1$s”</string>
+    <string name="kagari_muted_word_show">Show</string>
 </resources>

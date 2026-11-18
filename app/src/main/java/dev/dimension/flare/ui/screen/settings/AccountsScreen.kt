@@ -115,6 +115,7 @@ internal fun AccountsScreen(
     toNostrRelays: (MicroBlogKey) -> Unit,
     toPlugins: () -> Unit,
     toKagariModerationList: (MicroBlogKey, KagariModerationListKind) -> Unit = { _, _ -> },
+    toKagariMuteWords: (MicroBlogKey) -> Unit = {},
 ) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val state by producePresenter {
@@ -347,6 +348,21 @@ internal fun AccountsScreen(
                                                     leadingIcon = {
                                                         FAIcon(
                                                             imageVector = FontAwesomeIcons.Solid.UserSlash,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(text = stringResource(id = R.string.kagari_mute_words_title))
+                                                    },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        toKagariMuteWords(account.accountKey)
+                                                    },
+                                                    leadingIcon = {
+                                                        FAIcon(
+                                                            imageVector = FontAwesomeIcons.Solid.VolumeXmark,
                                                             contentDescription = null,
                                                         )
                                                     },

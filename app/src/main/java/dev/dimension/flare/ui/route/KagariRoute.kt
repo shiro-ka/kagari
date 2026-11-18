@@ -56,3 +56,8 @@ internal data class KagariDetachQuoteDialogRoute(
 internal data class KagariProfileEditScreenRoute(
     val accountKey: MicroBlogKey,
 ) : Route.Profile
+
+@Serializable
+internal data class KagariMuteWordsRoute(
+    val accountKey: MicroBlogKey,
+) : Route.Settings

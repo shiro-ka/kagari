@@ -104,4 +104,21 @@
     <string name="kagari_crop_avatar">Crop avatar</string>
     <string name="kagari_crop_banner">Crop banner</string>
     <string name="kagari_crop_done">Done</string>
+    <string name="kagari_mute_words_title">Muted words</string>
+    <string name="kagari_mute_words_input">Word or #tag</string>
+    <string name="kagari_mute_words_target">Mute in</string>
+    <string name="kagari_mute_words_content_and_tags">Text and tags</string>
+    <string name="kagari_mute_words_tags_only">Tags only</string>
+    <string name="kagari_mute_words_duration">Duration</string>
+    <string name="kagari_mute_words_forever">Forever</string>
+    <string name="kagari_mute_words_24h">24 hours</string>
+    <string name="kagari_mute_words_7d">7 days</string>
+    <string name="kagari_mute_words_30d">30 days</string>
+    <string name="kagari_mute_words_exclude_following">Don\'t hide posts from people you follow</string>
+    <string name="kagari_mute_words_add">Add</string>
+    <string name="kagari_mute_words_empty">No muted words</string>
+    <string name="kagari_mute_words_failed">Failed to update your muted words, please try again</string>
+    <string name="kagari_mute_words_expired">Expired</string>
+    <string name="kagari_mute_words_days_left">%1$d days left</string>
+    <string name="kagari_mute_words_hours_left">%1$d hours left</string>
 </resources>

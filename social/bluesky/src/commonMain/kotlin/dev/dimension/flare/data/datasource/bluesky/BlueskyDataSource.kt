@@ -1129,6 +1129,7 @@ internal class BlueskyDataSource(
     init {
         coroutineScope.launch {
             runCatching { blueskyInteractionGateConfig(accountKey, this@BlueskyDataSource::pdsService).loadDefault() }
+            runCatching { pdsService().kagariLoadMuteWords(accountKey) }
         }
     }
 }
