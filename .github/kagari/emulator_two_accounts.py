@@ -1,4 +1,5 @@
 import os
+import re
 import time
 
 import emulator_login as e
@@ -10,7 +11,8 @@ def record(name):
 
 
 def long_press(node, ms=900):
-    x, y = e.center(node)
+    x1, y1, _, _ = map(int, re.findall(r"\d+", node.get("bounds")))
+    x, y = x1 + 24, y1 + 24
     e.adb("shell", "input", "swipe", str(x), str(y), str(x), str(y), str(ms))
     time.sleep(2)
 
@@ -68,6 +70,8 @@ def detach_quote(stamp):
     if not e.tap("通知", timeout=10, exact=True):
         return
     time.sleep(8)
+    e.tap("メンション", timeout=5, exact=True)
+    time.sleep(8)
     record("two-notifications")
     if not menu_for(f"kagari quote test {stamp}"):
         return
@@ -84,6 +88,8 @@ def detach_quote(stamp):
 def hide_reply(stamp):
     if not e.tap("通知", timeout=10, exact=True):
         return
+    time.sleep(8)
+    e.tap("メンション", timeout=5, exact=True)
     time.sleep(8)
     if not menu_for(f"kagari reply test {stamp}"):
         return
