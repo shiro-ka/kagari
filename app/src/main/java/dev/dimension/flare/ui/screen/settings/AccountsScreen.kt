@@ -1,5 +1,7 @@
 package dev.dimension.flare.ui.screen.settings
 
+import dev.dimension.flare.ui.presenter.kagariAccountLabel
+import dev.dimension.flare.ui.presenter.KagariCachedProfilePresenter
 import androidx.compose.animation.core.AnimationConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -535,6 +537,13 @@ fun AccountItem(
                         is RequireReLoginException -> ReloginTarget(throwable.accountKey, throwable.platformId)
                         else -> null
                     }
+                val kagariLabel =
+                    reloginTarget?.let { target ->
+                        val cached by producePresenter("kagari_cached_${target.accountKey}") {
+                            remember(target.accountKey) { KagariCachedProfilePresenter(target.accountKey) }.invoke()
+                        }
+                        cached.kagariAccountLabel(target.accountKey)
+                    }
                 SegmentedListItem(
                     selected = selected,
                     onClick = {},
@@ -550,7 +559,7 @@ fun AccountItem(
                                 text =
                                     stringResource(
                                         id = R.string.login_expired,
-                                        reloginTarget.accountKey.toString(),
+                                        kagariLabel ?: reloginTarget.accountKey.toString(),
                                     ),
                             )
                         } else {
@@ -577,7 +586,7 @@ fun AccountItem(
                         if (throwable is UnsupportedPlatformException) {
                             Text(text = throwable.accountKey?.toString() ?: throwable.platformId)
                         } else if (reloginTarget != null) {
-                            Text(text = reloginTarget.accountKey.toString())
+                            Text(text = kagariLabel ?: reloginTarget.accountKey.toString())
                         } else {
                             Text(text = stringResource(id = R.string.account_item_error_message))
                         }

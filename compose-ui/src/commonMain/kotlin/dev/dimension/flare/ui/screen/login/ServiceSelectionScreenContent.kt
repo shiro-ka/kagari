@@ -1,5 +1,7 @@
 package dev.dimension.flare.ui.screen.login
 
+import dev.dimension.flare.ui.presenter.KagariCachedProfilePresenter
+import dev.dimension.flare.ui.presenter.kagariAccountLabel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -308,6 +310,9 @@ public fun ReloginScreenContent(
     contentPadding: PaddingValues,
     listState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
 ) {
+    val kagariCached by producePresenter("kagari_cached_${target.accountKey}") {
+        remember(target.accountKey) { KagariCachedProfilePresenter(target.accountKey) }.body()
+    }
     val state by producePresenter("relogin_${target.accountKey}_${target.platformId}") {
         remember(target) { ReloginPresenter(target, onBack) }.body()
     }
@@ -376,7 +381,7 @@ public fun ReloginScreenContent(
                     textAlign = TextAlign.Center,
                 )
                 PlatformText(
-                    text = "${target.accountKey.id}@${target.accountKey.host}",
+                    text = kagariCached.kagariAccountLabel(target.accountKey),
                     textAlign = TextAlign.Center,
                     style = PlatformTheme.typography.title,
                 )
