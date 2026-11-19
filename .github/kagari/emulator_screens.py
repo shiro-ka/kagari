@@ -165,6 +165,7 @@ def main():
     os.makedirs(e.OUT, exist_ok=True)
     e.adb("shell", "cmd", "locale", "set-app-locales", PACKAGE, "--locales", "ja-JP")
     e.adb("shell", "am", "force-stop", PACKAGE)
+    e.disable_ime()
     reset_home()
     for step in (notifications, profile_tabs, muted_words, moderation_lists, direct_messages):
         try:
