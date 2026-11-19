@@ -102,7 +102,18 @@ def muted_words():
     if not account_menu("ミュートワード", "muted-words"):
         return
     word = "kagaritest"
-    if e.type_into("言葉か #タグ", word):
+    root = e.dump()
+    fields = [n for n in root.iter("node") if n.get("class") == "android.widget.EditText"] if root is not None else []
+    if not fields:
+        return
+    x, y = e.center(fields[0])
+    e.adb("shell", "input", "tap", str(x), str(y))
+    time.sleep(1)
+    e.type_text(word, 0.2)
+    time.sleep(1)
+    e.hide_ime()
+    record("muted-words-typed")
+    if word in e.field_texts():
         if e.tap("追加", timeout=5, exact=True):
             time.sleep(6)
             record("muted-words-added")
