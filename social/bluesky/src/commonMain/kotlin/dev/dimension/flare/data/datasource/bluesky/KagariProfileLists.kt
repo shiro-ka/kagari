@@ -91,5 +91,6 @@ private fun StarterPackViewBasic.kagariRender(accountKey: MicroBlogKey): UiList.
         id = uri.atUri,
         title = record.kagariStarterPackName() ?: creator.handle.handle,
         description = record.kagariStarterPackDescription(),
+        avatar = "https://ogcard.cdn.bsky.app/start/${creator.did.did}/${uri.atUri.substringAfterLast("/")}",
         creator = creator.render(accountKey),
     )

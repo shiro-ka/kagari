@@ -12,7 +12,7 @@ public sealed interface KagariEmbed {
         val kind: Kind,
         val title: String,
         val creatorHandle: String,
-        val avatar: String?,
+        val avatar: UiMedia.Image?,
         val likeCount: Long?,
         val url: String,
     ) : KagariEmbed

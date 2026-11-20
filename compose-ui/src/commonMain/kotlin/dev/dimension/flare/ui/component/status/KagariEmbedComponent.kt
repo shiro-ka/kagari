@@ -35,7 +35,6 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.KagariMadoVoice
-import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.theme.PlatformTheme
 import org.jetbrains.compose.resources.stringResource
 
@@ -95,15 +94,7 @@ private fun KagariEmbedCard(
         ) {
             if (avatar != null) {
                 NetworkImage(
-                    model =
-                        UiMedia.Image(
-                            url = avatar,
-                            previewUrl = avatar,
-                            description = null,
-                            width = 0f,
-                            height = 0f,
-                            sensitive = false,
-                        ),
+                    model = avatar,
                     contentDescription = null,
                     modifier = Modifier.size(44.dp),
                 )
