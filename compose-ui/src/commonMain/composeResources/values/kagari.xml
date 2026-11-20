@@ -39,4 +39,13 @@
     <string name="kagari_profile_tab_videos">Videos</string>
     <string name="kagari_profile_tab_starter_packs">Starter packs</string>
     <string name="kagari_menu_send_via_chat">Send via chat</string>
+    <string name="kagari_mado_boxes">Boxes</string>
+    <string name="kagari_mado_answered_voices">Answered voices</string>
+    <string name="kagari_mado_voice">Voice</string>
+    <string name="kagari_mado_answer">Answer</string>
+    <string name="kagari_mado_open">Open</string>
+    <string name="kagari_mado_closed">Closed</string>
+    <string name="kagari_mado_send_voice">Send a voice</string>
+    <string name="kagari_mado_no_answered_voices">No answered voices yet</string>
+    <string name="kagari_mado_name">Mado</string>
 </resources>

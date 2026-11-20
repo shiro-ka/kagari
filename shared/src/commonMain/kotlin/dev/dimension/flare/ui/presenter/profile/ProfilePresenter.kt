@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import dev.dimension.flare.common.collectAsState
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.KagariMadoSource
 import dev.dimension.flare.data.datasource.microblog.KagariProfileListSource
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.accountKeyOrNull
@@ -197,7 +198,19 @@ public class ProfilePresenter(
                                         )
                                     }
                             }.orEmpty()
-                    flowOf(UiState.Success((tabs + kagariTabs).toImmutableList()))
+                    val kagariMadoTabs =
+                        (service as? KagariMadoSource)
+                            ?.takeIf { source -> runCatching { source.kagariMadoHasBoxes(actualUserKey) }.getOrDefault(false) }
+                            ?.let { source ->
+                                listOf(
+                                    ProfileState.Tab.KagariMado(
+                                        id = "${accountType}_${actualUserKey}_kagari_mado",
+                                        name = UiText.Raw("Mado"),
+                                        presenter = KagariMadoPresenter(source = source, userKey = actualUserKey),
+                                    ),
+                                )
+                            }.orEmpty()
+                    flowOf(UiState.Success((tabs + kagariTabs + kagariMadoTabs).toImmutableList()))
                 }
         }
     }
@@ -510,6 +523,13 @@ public abstract class ProfileState(
             override val id: String,
             override val name: UiText,
             val presenter: KagariProfileListPresenter,
+        ) : Tab()
+
+        @Immutable
+        public data class KagariMado(
+            override val id: String,
+            override val name: UiText,
+            val presenter: KagariMadoPresenter,
         ) : Tab()
     }
 }

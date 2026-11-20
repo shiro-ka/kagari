@@ -15,6 +15,7 @@ import dev.dimension.flare.ui.route.KagariFeedRoute
 import dev.dimension.flare.ui.route.KagariListRoute
 import dev.dimension.flare.ui.route.KagariStarterPackRoute
 import dev.dimension.flare.ui.route.toUri
+import io.ktor.http.decodeURLPart
 
 internal fun kagariFindEmbed(
     accountKey: MicroBlogKey,
@@ -24,7 +25,7 @@ internal fun kagariFindEmbed(
         when (val embed = postView.embed) {
             is PostViewEmbedUnion.RecordView -> embed.value.record
             is PostViewEmbedUnion.RecordWithMediaView -> embed.value.record.record
-            else -> return null
+            else -> return kagariFindMadoVoice(postView)
         }
     return when (record) {
         is RecordViewRecordUnion.ViewNotFound -> {
@@ -104,9 +105,51 @@ internal fun kagariFindEmbed(
         }
 
         else -> {
-            null
+            kagariFindMadoVoice(postView)
         }
     }
+}
+
+private fun kagariFindMadoVoice(postView: PostView): KagariEmbed.MadoVoice? {
+    val url =
+        when (val embed = postView.embed) {
+            is PostViewEmbedUnion.ExternalView -> embed.value.external.uri.uri
+            is PostViewEmbedUnion.RecordWithMediaView ->
+                (embed.value.media as? RecordWithMediaViewMediaUnion.ExternalView)
+                    ?.value
+                    ?.external
+                    ?.uri
+                    ?.uri
+            else -> null
+        } ?: return null
+    val rest = url.substringAfter("://", "").takeIf { url.startsWith("https://", ignoreCase = true) } ?: return null
+    if (!rest.substringBefore('/').equals("mado.blue", ignoreCase = true)) {
+        return null
+    }
+    val segments =
+        rest
+            .substringAfter('/', "")
+            .substringBefore('#')
+            .substringBefore('?')
+            .split('/')
+            .filter { it.isNotEmpty() }
+            .map { runCatching { it.decodeURLPart() }.getOrNull() ?: return null }
+    if (segments.size != 3) {
+        return null
+    }
+    val handle = segments[0].takeIf { it.startsWith("@") }?.removePrefix("@")?.takeIf { it.isNotBlank() } ?: return null
+    val rkey = segments[2].takeIf { key -> key.all { it.isLetterOrDigit() || it in "._:~-" } } ?: return null
+    val author = postView.author
+    val ownerDid =
+        author.did.did.takeIf {
+            handle.equals(author.handle.handle, ignoreCase = true) || handle == it
+        }
+    return KagariEmbed.MadoVoice(
+        handle = handle,
+        rkey = rkey,
+        url = url,
+        ownerDid = ownerDid,
+    )
 }
 
 internal fun kagariFindCardBesideQuote(postView: PostView): UiCard? {

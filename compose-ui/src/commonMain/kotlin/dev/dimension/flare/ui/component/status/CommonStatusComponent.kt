@@ -161,6 +161,7 @@ import dev.dimension.flare.ui.component.platform.PlatformTextButton
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
 import dev.dimension.flare.ui.component.toImageVector
 import dev.dimension.flare.ui.model.ClickContext
+import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.TranslationDisplayState
 import dev.dimension.flare.ui.model.UiCard
 import dev.dimension.flare.ui.model.UiPoll
@@ -246,9 +247,12 @@ public fun CommonStatusComponent(
         val hasBodyAfterReply = hasBodyContent || showsDetailTranslation
         val hasPreMediaBody = replyToHandle != null || hasBodyAfterReply
         val showsImages = item.images.isNotEmpty() && showMedia
-        val showsCard = item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() && (quotes.isEmpty() || item.kagariCardWithQuote)
+        val kagariMadoVoice = kagariRememberMadoVoice(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
+        val showsCard =
+            item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() &&
+                (quotes.isEmpty() || item.kagariCardWithQuote) && kagariMadoVoice == null
         val showsQuotes = quotes.isNotEmpty() && !isQuote
-        val kagariEmbed = item.kagariEmbed?.takeIf { !isQuote }
+        val kagariEmbed = item.kagariEmbed?.takeIf { !isQuote && (it !is KagariEmbed.MadoVoice || kagariMadoVoice != null) }
         val showsAttachments = showsImages || showsCard || showsQuotes || kagariEmbed != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
@@ -581,7 +585,7 @@ public fun CommonStatusComponent(
                     Spacer(
                         modifier = Modifier.height(if (showsImages || showsCard) 8.dp else firstAttachmentSpacing),
                     )
-                    KagariEmbedComponent(embed = kagariEmbed)
+                    KagariEmbedComponent(embed = kagariEmbed, madoVoice = kagariMadoVoice)
                 }
 
                 if (showsReactions) {

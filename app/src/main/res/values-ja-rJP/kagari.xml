@@ -229,4 +229,13 @@
     <string name="kagari_report_reason_rule_ban_evasion">BANされたユーザーの帰還</string>
     <string name="kagari_report_reason_rule_other">その他のネットワーク規約違反</string>
     <string name="kagari_report_reason_other">その他</string>
+    <string name="kagari_mado_boxes">窓</string>
+    <string name="kagari_mado_answered_voices">回答した声</string>
+    <string name="kagari_mado_voice">声</string>
+    <string name="kagari_mado_answer">回答</string>
+    <string name="kagari_mado_open">受付中</string>
+    <string name="kagari_mado_closed">受付停止中</string>
+    <string name="kagari_mado_send_voice">声を送る</string>
+    <string name="kagari_mado_no_answered_voices">回答した声はまだありません</string>
+    <string name="kagari_mado_name">Mado</string>
 </resources>

@@ -115,6 +115,7 @@ import dev.dimension.flare.ui.presenter.home.TimelinePresenter
 import dev.dimension.flare.ui.presenter.home.TimelineState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.presenter.profile.ProfileMedia
+import dev.dimension.flare.ui.presenter.profile.KagariMadoPresenter
 import dev.dimension.flare.ui.presenter.profile.KagariProfileListPresenter
 import dev.dimension.flare.ui.presenter.profile.ProfileMediaPresenter
 import dev.dimension.flare.ui.presenter.profile.ProfileMediaState
@@ -588,6 +589,14 @@ internal fun ProfileScreen(
                                                     )
                                                 }
 
+                                                is ProfileTabItem.KagariMado -> {
+                                                    KagariMadoTab(
+                                                        id = tab.id,
+                                                        presenter = tab.presenter,
+                                                        bottomPadding = it.calculateBottomPadding(),
+                                                    )
+                                                }
+
                                                 is ProfileTabItem.Media -> {
                                                     val tabState = rememberProfileMediaTabState(tab)
                                                     val data = tabState.mediaState
@@ -909,6 +918,14 @@ private fun profilePresenter(
                             presenter = it.presenter,
                         )
                     }
+
+                    is ProfileState.Tab.KagariMado -> {
+                        ProfileTabItem.KagariMado(
+                            id = it.id,
+                            name = it.name,
+                            presenter = it.presenter,
+                        )
+                    }
                 }
             }
         }
@@ -945,5 +962,11 @@ private sealed interface ProfileTabItem {
         override val id: String,
         override val name: UiText,
         val presenter: KagariProfileListPresenter,
+    ) : ProfileTabItem
+
+    data class KagariMado(
+        override val id: String,
+        override val name: UiText,
+        val presenter: KagariMadoPresenter,
     ) : ProfileTabItem
 }

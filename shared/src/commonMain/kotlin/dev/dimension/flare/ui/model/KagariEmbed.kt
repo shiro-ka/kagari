@@ -24,6 +24,15 @@ public sealed interface KagariEmbed {
     ) : KagariEmbed
 
     @Serializable
+    @Immutable
+    public data class MadoVoice public constructor(
+        val handle: String,
+        val rkey: String,
+        val url: String,
+        val ownerDid: String?,
+    ) : KagariEmbed
+
+    @Serializable
     public enum class Kind {
         Feed,
         UserList,

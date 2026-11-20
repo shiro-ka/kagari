@@ -609,6 +609,10 @@ private fun presenter(
                         null
                     }
 
+                    is ProfileState.Tab.KagariMado -> {
+                        null
+                    }
+
                     is ProfileState.Tab.Timeline -> {
                         ProfileTabItem.Timeline(
                             name = it.name,

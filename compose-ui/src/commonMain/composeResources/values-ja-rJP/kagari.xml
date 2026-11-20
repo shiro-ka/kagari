@@ -39,4 +39,13 @@
     <string name="kagari_profile_tab_videos">ビデオ</string>
     <string name="kagari_profile_tab_starter_packs">スターターパック</string>
     <string name="kagari_menu_send_via_chat">チャットで送信</string>
+    <string name="kagari_mado_boxes">窓</string>
+    <string name="kagari_mado_answered_voices">回答した声</string>
+    <string name="kagari_mado_voice">声</string>
+    <string name="kagari_mado_answer">回答</string>
+    <string name="kagari_mado_open">受付中</string>
+    <string name="kagari_mado_closed">受付停止中</string>
+    <string name="kagari_mado_send_voice">声を送る</string>
+    <string name="kagari_mado_no_answered_voices">回答した声はまだありません</string>
+    <string name="kagari_mado_name">Mado</string>
 </resources>

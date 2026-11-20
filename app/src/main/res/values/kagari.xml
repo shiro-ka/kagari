@@ -230,4 +230,13 @@
     <string name="kagari_report_reason_rule_ban_evasion">Banned user returning</string>
     <string name="kagari_report_reason_rule_other">Other network rule-breaking</string>
     <string name="kagari_report_reason_other">Other</string>
+    <string name="kagari_mado_boxes">Boxes</string>
+    <string name="kagari_mado_answered_voices">Answered voices</string>
+    <string name="kagari_mado_voice">Voice</string>
+    <string name="kagari_mado_answer">Answer</string>
+    <string name="kagari_mado_open">Open</string>
+    <string name="kagari_mado_closed">Closed</string>
+    <string name="kagari_mado_send_voice">Send a voice</string>
+    <string name="kagari_mado_no_answered_voices">No answered voices yet</string>
+    <string name="kagari_mado_name">Mado</string>
 </resources>

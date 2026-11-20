@@ -57,6 +57,7 @@ def profile_tabs():
         ("フィード", "profile-feeds"),
         ("スターターパック", "profile-starter-packs"),
         ("リスト", "profile-lists"),
+        ("Mado", "profile-mado"),
     ):
         node = e.find(label, timeout=4, exact=True)
         if node is None:

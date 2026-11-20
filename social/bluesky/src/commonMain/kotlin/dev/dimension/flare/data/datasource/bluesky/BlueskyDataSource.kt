@@ -73,6 +73,7 @@ import dev.dimension.flare.data.datasource.microblog.loader.ListMemberLoader
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
+import dev.dimension.flare.data.datasource.microblog.KagariMadoSource
 import dev.dimension.flare.data.datasource.microblog.KagariProfileListKind
 import dev.dimension.flare.data.datasource.microblog.KagariProfileListSource
 import dev.dimension.flare.data.datasource.microblog.KagariSortableSearch
@@ -97,6 +98,7 @@ import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.shared.image.ImageCompressor
+import dev.dimension.flare.ui.model.KagariMadoProfile
 import dev.dimension.flare.ui.model.UiHashtag
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiList
@@ -166,6 +168,7 @@ internal class BlueskyDataSource(
     RelationDataSource,
     DirectMessageDataSource,
     KagariProfileListSource,
+    KagariMadoSource,
     KagariSortableSearch,
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
@@ -185,6 +188,10 @@ internal class BlueskyDataSource(
         userKey: MicroBlogKey,
         kind: KagariProfileListKind,
     ): Flow<PagingData<UiList>> = kagariProfileListPager(userKey, kind)
+
+    override suspend fun kagariMadoHasBoxes(userKey: MicroBlogKey): Boolean = kagariLoadMadoHasBoxes(userKey)
+
+    override suspend fun kagariMadoProfile(userKey: MicroBlogKey): KagariMadoProfile = kagariLoadMadoProfile(userKey)
 
     private suspend fun pdsService(): BlueskyService =
         mutex.withLock {
