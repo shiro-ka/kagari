@@ -1,6 +1,5 @@
 package dev.dimension.flare.ui.model.mapper
 
-import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.ui.model.toUiImage
 import app.bsky.embed.RecordViewRecordUnion
 import app.bsky.embed.RecordWithMediaViewMediaUnion
@@ -57,7 +56,7 @@ internal fun kagariFindEmbed(
                 kind = KagariEmbed.Kind.Feed,
                 title = feed.displayName,
                 creatorHandle = feed.creator.handle.handle,
-                avatar = feed.avatar?.uri.toUiImage(proxy = ProxyRef.forAccount(accountKey)),
+                avatar = feed.avatar?.uri.toUiImage(),
                 likeCount = feed.likeCount,
                 url = KagariFeedRoute(accountKey = accountKey, uri = feed.uri.atUri).toUri(),
             )
@@ -74,7 +73,7 @@ internal fun kagariFindEmbed(
                     },
                 title = list.name,
                 creatorHandle = list.creator.handle.handle,
-                avatar = list.avatar?.uri.toUiImage(proxy = ProxyRef.forAccount(accountKey)),
+                avatar = list.avatar?.uri.toUiImage(),
                 likeCount = null,
                 url = KagariListRoute(accountKey = accountKey, uri = list.uri.atUri, title = list.name).toUri(),
             )
@@ -87,7 +86,7 @@ internal fun kagariFindEmbed(
                 kind = KagariEmbed.Kind.StarterPack,
                 title = pack.record.kagariStarterPackName() ?: handle,
                 creatorHandle = handle,
-                avatar = "https://ogcard.cdn.bsky.app/start/${pack.creator.did.did}/${pack.uri.atUri.substringAfterLast("/")}".toUiImage(proxy = ProxyRef.forAccount(accountKey)),
+                avatar = "https://ogcard.cdn.bsky.app/start/${pack.creator.did.did}/${pack.uri.atUri.substringAfterLast("/")}".toUiImage(),
                 likeCount = null,
                 url = KagariStarterPackRoute(accountKey = accountKey, uri = pack.uri.atUri).toUri(),
             )
@@ -100,7 +99,7 @@ internal fun kagariFindEmbed(
                 kind = KagariEmbed.Kind.Labeler,
                 title = labeler.creator.displayName?.takeIf { it.isNotBlank() } ?: handle,
                 creatorHandle = handle,
-                avatar = labeler.creator.avatar?.uri.toUiImage(proxy = ProxyRef.forAccount(accountKey)),
+                avatar = labeler.creator.avatar?.uri.toUiImage(),
                 likeCount = labeler.likeCount,
                 url = DeeplinkRoute.OpenLinkDirectly("https://bsky.app/profile/$handle").toUri(),
             )

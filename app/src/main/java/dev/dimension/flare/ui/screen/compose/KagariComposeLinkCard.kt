@@ -38,7 +38,6 @@ import dev.dimension.flare.data.datasource.microblog.KagariComposeLinks
 import dev.dimension.flare.data.datasource.microblog.KagariLinkCardPreview
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.NetworkImage
-import dev.dimension.flare.ui.model.toUiImage
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.CancellationException
@@ -157,9 +156,9 @@ internal fun KagariComposeLinkCard(
     ) {
         Box {
             Column {
-                card.imageUrl?.let { image ->
+                card.image?.let { image ->
                     NetworkImage(
-                        model = image.toUiImage(),
+                        model = image,
                         contentDescription = card.title,
                         modifier =
                             Modifier

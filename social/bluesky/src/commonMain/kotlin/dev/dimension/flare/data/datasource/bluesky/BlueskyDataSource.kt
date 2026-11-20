@@ -883,7 +883,7 @@ internal class BlueskyDataSource(
                 KagariComposeLinks(
                     highlights = ::kagariBlueskyHighlights,
                     firstLink = ::kagariBlueskyFirstLink,
-                    linkCard = { url -> linkCardResolver.kagariPreview(url) },
+                    linkCard = { url -> linkCardResolver.kagariPreview(url, accountKey) },
                 ),
         )
 

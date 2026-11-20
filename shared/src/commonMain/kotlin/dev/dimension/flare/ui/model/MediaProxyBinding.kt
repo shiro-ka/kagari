@@ -17,6 +17,12 @@ public fun UiMedia.withProxy(proxy: ProxyRef): UiMedia =
         is UiMedia.Ugoira -> copy(proxy = proxy)
     }
 
+private fun KagariEmbed.withProxy(proxy: ProxyRef): KagariEmbed =
+    when (this) {
+        is KagariEmbed.Card -> copy(avatar = avatar?.copy(proxy = proxy))
+        is KagariEmbed.Unavailable, is KagariEmbed.MadoVoice -> this
+    }
+
 @HiddenFromObjC
 public fun UiRichText.withProxy(proxy: ProxyRef): UiRichText =
     copy(
@@ -100,6 +106,7 @@ public fun <T : UiTimelineV2> T.bindMediaProxy(): T {
                     contentWarning = post.contentWarning?.withProxy(proxy),
                     card = post.card?.let { it.copy(media = it.media?.withProxy(proxy)) },
                     emojiReactions = post.emojiReactions.map { it.copy(proxy = proxy) }.toImmutableList(),
+                    kagariEmbed = post.kagariEmbed?.withProxy(proxy),
                 )
             }
         }
