@@ -1,5 +1,8 @@
 package dev.dimension.flare.data.datasource.bluesky
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
+import dev.dimension.flare.ui.model.mapper.kagariShortenBlueskyLinkText
 import app.bsky.actor.SearchActorsTypeaheadQueryParams
 
 import androidx.paging.ExperimentalPagingApi
@@ -839,12 +842,15 @@ internal class BlueskyDataSource(
     override fun composeConfig(type: ComposeType): ComposeConfig =
         ComposeConfig(
             text =
-                ComposeConfig.Text.withValidation(300) { content, _ ->
-                    val remaining = 300 - content.graphemeCount()
-                    ComposeConfig.Text.Check(
-                        remainingLength = remaining,
-                        isValid = remaining >= 0 && content.encodeToByteArray().size <= 3000,
-                    )
+                ComposeConfig.Text.withValidation(flowOf(300)) { raw, _ ->
+                    kagariSettingsRepository.globalAppearance.map { it.kagariShortenLinks }.distinctUntilChanged().map { shorten ->
+                        val content = if (shorten) kagariShortenBlueskyLinkText(raw) else raw
+                        val remaining = 300 - content.graphemeCount()
+                        ComposeConfig.Text.Check(
+                            remainingLength = remaining,
+                            isValid = remaining >= 0 && content.encodeToByteArray().size <= 3000,
+                        )
+                    }
                 },
             media =
                 ComposeConfig.Media(

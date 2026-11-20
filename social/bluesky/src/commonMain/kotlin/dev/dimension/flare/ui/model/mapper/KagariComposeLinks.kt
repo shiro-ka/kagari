@@ -159,3 +159,8 @@ private fun String.kagariPercentEncoded(): String {
     }
     return builder.toString()
 }
+
+internal fun kagariShortenBlueskyLinkText(text: String): String =
+    parser.parse(text).joinToString("") { token ->
+        if (token is UrlToken && normalizeHttpUrl(token.value) != null) kagariToShortUrl(token.value) else token.value
+    }
