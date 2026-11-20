@@ -59,11 +59,11 @@ def profile_tabs():
         ("リスト", "profile-lists"),
         ("Mado", "profile-mado"),
     ):
-        node = e.find(label, timeout=4, exact=True)
+        node = e.find(label, last=True, timeout=4, exact=True)
         if node is None:
             e.adb("shell", "input", "swipe", "900", "1000", "200", "1000", "300")
             time.sleep(1)
-            node = e.find(label, timeout=4, exact=True)
+            node = e.find(label, last=True, timeout=4, exact=True)
         if node is None:
             continue
         x, y = e.center(node)
