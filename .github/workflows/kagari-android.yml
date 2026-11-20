@@ -17,7 +17,7 @@ concurrency:
 jobs:
   check:
     name: Compile check
-    if: ${{ !(github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]')) }}
+    if: ${{ !(github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]') || contains(github.event.head_commit.message, '[two-accounts]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -44,7 +44,7 @@ jobs:
 
   apk:
     name: Signed APK
-    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]') }}
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[emulator]') || contains(github.event.head_commit.message, '[two-accounts]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -147,6 +147,7 @@ jobs:
           BSKY_MAIN_HANDLE: ${{ secrets.BSKY_MAIN_HANDLE }}
           BSKY_MAIN_APP_PASSWORD: ${{ secrets.BSKY_MAIN_APP_PASSWORD }}
           KAGARI_TEST_POST: ${{ contains(github.event.head_commit.message, '[test-post]') && '1' || '' }}
+          KAGARI_TWO_ACCOUNTS: ${{ contains(github.event.head_commit.message, '[two-accounts]') && '1' || '' }}
         with:
           api-level: 36
           target: google_apis

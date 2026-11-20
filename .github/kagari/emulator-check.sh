@@ -31,7 +31,7 @@ sleep 15
 if [ -n "${BSKY_HANDLE:-}" ]; then
   python3 .github/kagari/emulator_login.py "$out/login" || echo "login script failed" > "$out/login-failed.txt"
   python3 .github/kagari/emulator_screens.py "$out/screens" || echo "screens script failed" > "$out/screens-failed.txt"
-  if [ -n "${BSKY_MAIN_HANDLE:-}" ]; then
+  if [ -n "${BSKY_MAIN_HANDLE:-}" ] && [ "${KAGARI_TWO_ACCOUNTS:-}" = "1" ]; then
     mkdir -p "$out/two"
     if python3 .github/kagari/bsky_test_data.py setup "$out/two" > "$out/two/setup.txt" 2>&1; then
       sleep 15
