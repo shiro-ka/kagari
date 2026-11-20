@@ -13,7 +13,7 @@ internal class XQTMediaUploader(
 ) {
     suspend fun upload(media: UploadMedia): String {
         media.validate(
-            platform = "X",
+            platform = "Twitter",
             acceptedTypes = listOf("image/jpeg", "image/png", "image/gif", "video/mp4", "video/quicktime"),
             // Video limits depend on the account. INIT validates them before any chunks are sent.
             maxBytes =

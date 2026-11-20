@@ -35,7 +35,7 @@ public data object XqtPlatformSpec :
     public override val platformId: String = XQT_PLATFORM_ID
     public override val metadata: PlatformMetadata =
         PlatformMetadata(
-            displayName = "X",
+            displayName = "Twitter",
             icon = UiIcon.X.asType(),
             agentAliases = listOf("x", "x.com", "twitter", "twitter.com", "推特"),
         )

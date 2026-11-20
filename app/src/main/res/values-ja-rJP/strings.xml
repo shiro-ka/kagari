@@ -737,7 +737,7 @@
     <string name="settings_auto_refresh_thirty_minutes">30分ごと</string>
     <string name="settings_home_timeline_auto_refresh_interval">ホームタイムラインを自動更新</string>
     <string name="settings_home_timeline_auto_refresh_interval_description">ホーム画面が開いている間、現在選択されているタイムラインを更新</string>
-    <string name="settings_mxga_filter_description">MXGAの公開アカウントリストとテキストルールを使用して、一致するX投稿を非表示にします。有効にすると、24時間ごとに更新がチェックされます。</string>
+    <string name="settings_mxga_filter_description">MXGAの公開アカウントリストとテキストルールを使用して、一致するツイートを非表示にします。有効にすると、24時間ごとに更新がチェックされます。</string>
     <string name="settings_mxga_filter_title">MXGA フィルター</string>
     <string name="settings_mxga_last_refreshed">前回更新された %1$s</string>
     <string name="settings_mxga_learn_more">MXGAとは?</string>

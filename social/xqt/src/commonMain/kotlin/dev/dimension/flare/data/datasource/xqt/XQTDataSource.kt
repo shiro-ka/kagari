@@ -353,7 +353,7 @@ internal class XQTDataSource(
                 .candidate(
                     data = TimelineSpec.AccountBasedData(accountKey),
                     icon = IconType.FavIcon(accountKey.host),
-                    title = UiText.Raw("X"),
+                    title = UiText.Raw("Twitter"),
                 ),
             XqtPlatformSpec.featuredTimelineSpec.candidate(
                 data = TimelineSpec.AccountBasedData(accountKey),

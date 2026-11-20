@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
-import compose.icons.fontawesomeicons.brands.Twitter
 import dev.dimension.flare.model.xqtHost
 import dev.dimension.flare.model.xqtOldHost
 import dev.dimension.flare.ui.component.FAIcon
@@ -28,7 +27,6 @@ import dev.dimension.flare.ui.theme.PlatformTheme
 
 private fun UiInstance.kagariIcon(): ImageVector? =
     when (domain) {
-        xqtHost -> FontAwesomeIcons.Brands.Twitter
         "misskey.io" -> FontAwesomeIcons.Brands.KagariMisskeyIo
         "fanbox.cc" -> FontAwesomeIcons.Brands.KagariFanbox
         else -> null

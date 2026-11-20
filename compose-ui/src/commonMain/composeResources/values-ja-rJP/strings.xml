@@ -353,7 +353,7 @@
     <string name="mastodon_local_timeline">ローカルタイムライン</string>
     <string name="service_select_welcome_title">Flareへようこそ</string>
     <string name="service_select_welcome_message">サーバーを入力して始めましょう。</string>
-    <string name="service_select_welcome_hint">FlareはMastodon, Misskey, Bluesky, Nostr, Xをサポートしています。</string>
+    <string name="service_select_welcome_hint">FlareはMastodon, Misskey, Bluesky, Nostr, Twitterをサポートしています。</string>
     <string name="service_select_welcome_list_hint">または以下のサーバーから選択してください</string>
     <string name="bluesky_login_username_hint">ユーザー名</string>
     <string name="bluesky_login_password_hint">パスワード</string>

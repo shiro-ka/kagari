@@ -10,7 +10,6 @@ import compose.icons.fontawesomeicons.brands.Mastodon
 import compose.icons.fontawesomeicons.brands.Pixiv
 import compose.icons.fontawesomeicons.brands.Twitter
 import compose.icons.fontawesomeicons.brands.Weibo
-import compose.icons.fontawesomeicons.brands.XTwitter
 import compose.icons.fontawesomeicons.regular.Bookmark
 import compose.icons.fontawesomeicons.regular.CommentDots
 import compose.icons.fontawesomeicons.regular.Heart
@@ -112,7 +111,7 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.Fanbox -> FontAwesomeIcons.Brands.Pixiv
         UiIcon.Nostr -> FontAwesomeIcons.Brands.Nostr
         UiIcon.Twitter -> FontAwesomeIcons.Brands.Twitter
-        UiIcon.X -> FontAwesomeIcons.Brands.XTwitter
+        UiIcon.X -> FontAwesomeIcons.Brands.Twitter
         UiIcon.Weibo -> FontAwesomeIcons.Brands.Weibo
         UiIcon.Translate -> FontAwesomeIcons.Solid.Language
         UiIcon.KagariGateSettings -> FontAwesomeIcons.Solid.Sliders

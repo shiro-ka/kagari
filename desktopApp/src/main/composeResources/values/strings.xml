@@ -252,7 +252,7 @@
     <string name="settings_auto_refresh_thirty_minutes">Every 30 minutes</string>
     <string name="settings_auto_refresh_one_hour">Every hour</string>
     <string name="settings_mxga_filter_title">MXGA filtering</string>
-    <string name="settings_mxga_filter_description">Hide matching X posts using MXGA’s public account list and text rules. When enabled, updates are checked every 24 hours.</string>
+    <string name="settings_mxga_filter_description">Hide matching tweets using MXGA’s public account list and text rules. When enabled, updates are checked every 24 hours.</string>
     <string name="settings_mxga_refresh_title">Refresh MXGA rules</string>
     <string name="settings_mxga_refreshing">Refreshing…</string>
     <string name="settings_mxga_last_refreshed">Last refreshed %1$s</string>

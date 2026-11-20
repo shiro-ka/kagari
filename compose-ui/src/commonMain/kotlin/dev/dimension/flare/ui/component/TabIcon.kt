@@ -19,6 +19,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import compose.icons.FontAwesomeIcons
+import compose.icons.fontawesomeicons.Brands
+import compose.icons.fontawesomeicons.brands.Twitter
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.all_rss_feeds_title
 import dev.dimension.flare.compose.ui.antenna_title
@@ -46,6 +49,8 @@ import dev.dimension.flare.compose.ui.home_tab_me_title
 import dev.dimension.flare.compose.ui.home_tab_notifications_title
 import dev.dimension.flare.compose.ui.home_tab_popular_title
 import dev.dimension.flare.compose.ui.illustrations_title
+import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
+import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.liked_title
 import dev.dimension.flare.compose.ui.login_button
 import dev.dimension.flare.compose.ui.manga_title
@@ -81,8 +86,6 @@ import dev.dimension.flare.compose.ui.service_select_next_button
 import dev.dimension.flare.compose.ui.settings_title
 import dev.dimension.flare.compose.ui.social_title
 import dev.dimension.flare.compose.ui.status_detail_all_reactions
-import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
-import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.status_detail_by_popularity
 import dev.dimension.flare.compose.ui.status_detail_by_time
 import dev.dimension.flare.compose.ui.status_detail_comments
@@ -103,6 +106,7 @@ import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
 import dev.dimension.flare.model.AccountType
+import dev.dimension.flare.model.xqtHost
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
 import dev.dimension.flare.ui.model.UiStrings
@@ -292,6 +296,15 @@ public fun FavIcon(
     title: UiText? = null,
     size: Dp = 24.dp,
 ) {
+    if (host == xqtHost) {
+        FAIcon(
+            imageVector = FontAwesomeIcons.Brands.Twitter,
+            contentDescription = title?.resolveText(),
+            modifier = modifier.size(size),
+            tint = Color(0xFF1D9BF0),
+        )
+        return
+    }
     val iconState by producePresenter(key = "fav:$host") {
         remember(host) {
             FavIconPresenter(

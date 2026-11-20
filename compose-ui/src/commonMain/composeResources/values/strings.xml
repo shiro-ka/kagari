@@ -494,7 +494,7 @@
 
     <string name="service_select_welcome_title">Welcome to Flare</string>
     <string name="service_select_welcome_message">Enter a server to get started.</string>
-    <string name="service_select_welcome_hint">Flare supports Mastodon, Misskey, Bluesky, Nostr, and X.</string>
+    <string name="service_select_welcome_hint">Flare supports Mastodon, Misskey, Bluesky, Nostr, and Twitter.</string>
     <string name="service_select_welcome_list_hint">Or choose from these servers</string>
     <string name="service_select_search">Search for server</string>
     <string name="service_select_clear">Clear server</string>
@@ -616,7 +616,7 @@
     <string name="status_detail_reactions">Reactions</string>
     <string name="status_detail_all_reactions">All reactions</string>
     <string name="status_detail_filter_empty">No results for this filter</string>
-    <string name="compose_x_reply_restriction">Who can reply on X</string>
+    <string name="compose_x_reply_restriction">Who can reply on Twitter</string>
     <string name="compose_x_reply_everyone">Everyone</string>
     <string name="compose_x_reply_following">Accounts you follow</string>
     <string name="compose_x_reply_mentioned">Only mentioned accounts</string>
