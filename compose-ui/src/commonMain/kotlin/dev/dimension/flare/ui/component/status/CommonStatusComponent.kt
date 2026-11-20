@@ -1128,8 +1128,8 @@ internal fun StatusActions(
         horizontalArrangement =
             when (appearanceSettings.postActionStyle) {
                 PostActionStyle.Hidden -> Arrangement.spacedBy(4.dp, Alignment.Start)
-                PostActionStyle.LeftAligned -> Arrangement.spacedBy(4.dp, Alignment.Start)
-                PostActionStyle.RightAligned -> Arrangement.spacedBy(4.dp, Alignment.End)
+                PostActionStyle.LeftAligned -> Arrangement.spacedBy(12.dp, Alignment.Start)
+                PostActionStyle.RightAligned -> Arrangement.spacedBy(12.dp, Alignment.End)
                 PostActionStyle.Stretch -> Arrangement.Start
             },
     ) {
