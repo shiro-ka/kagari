@@ -30,6 +30,7 @@ public data class GlobalAppearance(
     val kagariVerifiedBadge: KagariVerifiedBadge = AppearanceKeys.KagariVerifiedBadge.default,
     val kagariShowHiddenReplies: Boolean = AppearanceKeys.KagariShowHiddenReplies.default,
     val kagariSearchTop: Boolean = AppearanceKeys.KagariSearchTop.default,
+    val kagariShortenLinks: Boolean = AppearanceKeys.KagariShortenLinks.default,
 ) {
     public companion object {
         public val Default: GlobalAppearance = GlobalAppearance()
@@ -92,6 +93,7 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         kagariVerifiedBadge = get(AppearanceKeys.KagariVerifiedBadge),
         kagariShowHiddenReplies = get(AppearanceKeys.KagariShowHiddenReplies),
         kagariSearchTop = get(AppearanceKeys.KagariSearchTop),
+        kagariShortenLinks = get(AppearanceKeys.KagariShortenLinks),
     )
 
 public fun AppearancePatch.toTimelineAppearance(): TimelineAppearance = toTimelineAppearance(override = null)

@@ -81,6 +81,7 @@ internal fun DraftContent.toComposeData(
             },
         interactionGate = interactionGate,
         selfLabels = selfLabels,
+        kagariNoLinkCard = kagariNoLinkCard,
     )
 
 internal fun DraftContent.DraftReference.toComposeStatus(): ComposeStatus =

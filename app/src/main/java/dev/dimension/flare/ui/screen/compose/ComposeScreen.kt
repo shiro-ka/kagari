@@ -457,6 +457,7 @@ internal fun ComposeScreen(
                 TextField(
                     state = state.textFieldState,
                     keyboardOptions = composeKeyboardOptions,
+                    outputTransformation = rememberKagariLinkHighlight(state.kagariComposeLinks),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -492,6 +493,12 @@ internal fun ComposeScreen(
             KagariMentionSuggestions(
                 textFieldState = state.textFieldState,
                 search = state.state.composeConfig.takeSuccess()?.kagariMentionSearch,
+            )
+            KagariComposeLinkCard(
+                links = state.kagariComposeLinks,
+                url = state.kagariLinkCardUrl,
+                dismissed = state.kagariLinkCard.isDismissed(state.kagariLinkCardUrl),
+                onDismiss = { state.kagariLinkCard.dismissedUrl = state.kagariLinkCardUrl },
             )
             state.mediaState.onSuccess { mediaState ->
                 AnimatedVisibility(mediaState.medias.isNotEmpty()) {
@@ -1286,6 +1293,9 @@ private fun composePresenter(
 
     val interactionGate = rememberKagariInteractionGateState(state.composeConfig.takeSuccess()?.interactionGate)
     val selfLabels = rememberKagariSelfLabelState()
+    val kagariLinkCard = rememberKagariLinkCardState()
+    val kagariComposeLinks = state.composeConfig.takeSuccess()?.kagariComposeLinks
+    val kagariLinkCardUrl = kagariComposeLinks.kagariCardUrl(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
     val languageState =
         state.composeConfig
             .mapNotNull {
@@ -1322,6 +1332,7 @@ private fun composePresenter(
             media.replaceMedias(draft.medias)
             media.setMediaSensitive(draft.data.sensitive)
             selfLabels.labels = draft.data.selfLabels
+            kagariLinkCard.restore(composeConfig?.kagariComposeLinks, draft.data)
             pollState.setPoll(draft.data.poll)
             contentWarningState.takeSuccess()?.setText(draft.data.spoilerText)
             languageState.takeSuccess()?.setSelectedLanguages(draft.data.language)
@@ -1373,8 +1384,15 @@ private fun composePresenter(
             selfLabels =
                 selfLabels.composeValue(
                     state.composeConfig.takeSuccess()?.selfLabels == true &&
-                        (media.medias.isNotEmpty() || kagariHasLinkCard(textFieldState.text, false, state.composeStatus)),
+                        (
+                            media.medias.isNotEmpty() ||
+                                (
+                                    kagariHasLinkCard(textFieldState.text, false, state.composeStatus) &&
+                                        !kagariLinkCard.isDismissed(kagariLinkCardUrl)
+                                )
+                        ),
                 ),
+            kagariNoLinkCard = kagariLinkCard.isDismissed(kagariLinkCardUrl),
         )
     }
     val currentState by rememberUpdatedState(state)
@@ -1399,7 +1417,12 @@ private fun composePresenter(
         val selfLabels = selfLabels
         val kagariSelfLabelsEnabled = state.composeConfig.takeSuccess()?.selfLabels == true
         val kagariLinkCardWarning =
-            kagariSelfLabelsEnabled && kagariHasLinkCard(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
+            kagariSelfLabelsEnabled &&
+                kagariHasLinkCard(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus) &&
+                !kagariLinkCard.isDismissed(kagariLinkCardUrl)
+        val kagariComposeLinks = kagariComposeLinks
+        val kagariLinkCard = kagariLinkCard
+        val kagariLinkCardUrl = kagariLinkCardUrl
         val hasTextContent =
             textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports || pollEnabled
 

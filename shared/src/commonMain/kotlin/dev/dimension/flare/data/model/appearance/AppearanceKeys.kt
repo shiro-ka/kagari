@@ -69,6 +69,8 @@ public object AppearanceKeys {
 
     public object KagariSearchTop : Global<Boolean>("app.kagari_search_top", false, Boolean.serializer())
 
+    public object KagariShortenLinks : Global<Boolean>("app.kagari_shorten_links", true, Boolean.serializer())
+
     public object ShowSensitiveContent : PerTimeline<Boolean>("timeline.show_sensitive_content", false, Boolean.serializer())
 
     public object ExpandContentWarning : PerTimeline<Boolean>("timeline.expand_content_warning", false, Boolean.serializer())
@@ -153,6 +155,7 @@ public object AppearanceKeys {
             KagariVerifiedBadge,
             KagariShowHiddenReplies,
             KagariSearchTop,
+            KagariShortenLinks,
             ShowSensitiveContent,
             ExpandContentWarning,
             ExpandMediaSize,

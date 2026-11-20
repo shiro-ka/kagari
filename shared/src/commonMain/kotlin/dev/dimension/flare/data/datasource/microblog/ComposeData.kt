@@ -19,6 +19,7 @@ public data class ComposeData(
     val interactionGate: InteractionGate? = null,
     val selfLabels: List<String> = emptyList(),
     val replyRestriction: ComposeReplyRestriction? = null,
+    val kagariNoLinkCard: Boolean = false,
 ) {
     public val type: ComposeType
         get() =

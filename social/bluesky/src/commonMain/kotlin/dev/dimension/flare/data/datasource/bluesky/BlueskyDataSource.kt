@@ -33,6 +33,7 @@ import dev.dimension.flare.common.graphemeCount
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.ComposeConfig
+import dev.dimension.flare.data.datasource.microblog.KagariComposeLinks
 import dev.dimension.flare.data.datasource.microblog.KagariMentionSearch
 import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
@@ -80,6 +81,7 @@ import dev.dimension.flare.data.model.tab.TimelinePostKind
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.network.bluesky.BlueskyLinkCardResolver
 import dev.dimension.flare.data.network.bluesky.BlueskyService
+import dev.dimension.flare.data.network.bluesky.kagariPreview
 import dev.dimension.flare.data.network.bluesky.model.DidDoc
 import dev.dimension.flare.data.network.bluesky.toExternalEmbed
 import dev.dimension.flare.data.platform.BlueskyCredential
@@ -103,6 +105,9 @@ import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.model.mapper.blueskyLike
 import dev.dimension.flare.ui.model.mapper.blueskyReblog
 import dev.dimension.flare.ui.model.mapper.bskyJson
+import dev.dimension.flare.ui.model.mapper.kagariBlueskyFirstLink
+import dev.dimension.flare.ui.model.mapper.kagariBlueskyHighlights
+import dev.dimension.flare.ui.model.mapper.kagariShortenBlueskyLinks
 import dev.dimension.flare.ui.model.mapper.parseBskyFacets
 import dev.dimension.flare.ui.model.mapper.render
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
@@ -497,7 +502,7 @@ internal class BlueskyDataSource(
                 uploadedImages.toBlueskyMediaEmbed()
             }
         val externalEmbed =
-            if (quoteId == null && data.medias.isEmpty()) {
+            if (quoteId == null && data.medias.isEmpty() && !data.kagariNoLinkCard) {
                 facets
                     .asSequence()
                     .flatMap { it.features.asSequence() }
@@ -510,10 +515,16 @@ internal class BlueskyDataSource(
             } else {
                 null
             }
+        val kagariText =
+            if (kagariSettingsRepository.globalAppearance.first().kagariShortenLinks) {
+                kagariShortenBlueskyLinks(data.content, facets)
+            } else {
+                null
+            }
         val post =
             Post(
-                text = data.content,
-                facets = facets,
+                text = kagariText?.text ?: data.content,
+                facets = kagariText?.facets ?: facets,
                 createdAt = Clock.System.now(),
                 embed =
                     buildBlueskyPostEmbed(
@@ -855,6 +866,12 @@ internal class BlueskyDataSource(
                         .actors
                         .map { it.render(accountKey) }
                 },
+            kagariComposeLinks =
+                KagariComposeLinks(
+                    highlights = ::kagariBlueskyHighlights,
+                    firstLink = ::kagariBlueskyFirstLink,
+                    linkCard = { url -> linkCardResolver.kagariPreview(url) },
+                ),
         )
 
     private val myFeedsKey = "my_feeds_$accountKey"

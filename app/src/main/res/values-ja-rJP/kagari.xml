@@ -152,6 +152,9 @@
     <string name="kagari_search_latest">最新</string>
     <string name="kagari_settings_search_top">検索をトップで開く</string>
     <string name="kagari_settings_search_top_description">Bluesky の投稿の検索を、最新ではなくトップの並びで開きます</string>
+    <string name="kagari_settings_shorten_links">投稿するときにリンクを短くする</string>
+    <string name="kagari_settings_shorten_links_description">Bluesky の投稿の本文の長いリンクを、ドメインとパスの先頭だけに縮めます。押したときの行き先は元のリンクのままです</string>
+    <string name="kagari_compose_remove_link_card">リンクのカードを外す</string>
     <string name="kagari_report_post_title">この投稿を報告</string>
     <string name="kagari_report_user_title">このユーザーを報告</string>
     <string name="kagari_report_post_question">なぜこの投稿をレビューする必要がありますか？</string>

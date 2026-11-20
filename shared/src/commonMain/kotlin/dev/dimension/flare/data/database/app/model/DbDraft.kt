@@ -29,6 +29,7 @@ internal data class DraftContent(
     val interactionGate: dev.dimension.flare.data.datasource.microblog.InteractionGate? = null,
     val selfLabels: List<String> = emptyList(),
     val replyRestriction: ComposeReplyRestriction? = null,
+    val kagariNoLinkCard: Boolean = false,
 ) {
     @Serializable
     data class DraftPoll(

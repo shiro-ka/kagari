@@ -153,6 +153,9 @@
     <string name="kagari_search_latest">Latest</string>
     <string name="kagari_settings_search_top">Open search in Top</string>
     <string name="kagari_settings_search_top_description">Bluesky post search starts with Top instead of Latest</string>
+    <string name="kagari_settings_shorten_links">Shorten links when posting</string>
+    <string name="kagari_settings_shorten_links_description">Long links in the text of a Bluesky post are shortened to the domain and the start of the path. Tapping one still opens the original link</string>
+    <string name="kagari_compose_remove_link_card">Remove link card</string>
     <string name="kagari_report_post_title">Report this post</string>
     <string name="kagari_report_user_title">Report this user</string>
     <string name="kagari_report_post_question">Why should this post be reviewed?</string>

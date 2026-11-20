@@ -110,7 +110,7 @@ private val sensitiveLabels =
         "nudity",
     )
 
-private val parser =
+internal val parser =
     TwitterParser(
         validMarkInUserName = listOf('.', '-'),
         enableEscapeInUrl = true,
