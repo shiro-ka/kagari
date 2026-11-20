@@ -317,7 +317,7 @@ private val UiStrings.desktopStringResource: StringResource
             UiStrings.Quotes, UiStrings.Relevance, UiStrings.Recency, UiStrings.Likes, UiStrings.Oldest,
             UiStrings.RepostedBy, UiStrings.LikedBy, UiStrings.Reactions, UiStrings.AllReactions,
             UiStrings.QrLoginNewCode, UiStrings.QrLoginRetrySave,
-            UiStrings.KagariVideos, UiStrings.KagariStarterPacks,
+            UiStrings.KagariVideos, UiStrings.KagariStarterPacks, UiStrings.KagariBlueskyDiscover,
             -> Res.string.ok
 
             UiStrings.CredentialImport -> Res.string.ok

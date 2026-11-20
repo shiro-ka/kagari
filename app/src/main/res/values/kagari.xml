@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kagari_app_name" translatable="false">kagari</string>
+    <string name="kagari_tab_bluesky_discover">Discover</string>
     <string name="kagari_gate_reply_title">Who can reply</string>
     <string name="kagari_gate_reply_label">Replies: %1$s</string>
     <string name="kagari_gate_anyone">Anyone</string>

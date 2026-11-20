@@ -260,6 +260,8 @@ private val UiStrings.androidStringRes: Int
             UiStrings.KagariVideos, UiStrings.KagariStarterPacks,
             -> R.string.login_button
 
+            UiStrings.KagariBlueskyDiscover -> R.string.kagari_tab_bluesky_discover
+
             UiStrings.CredentialImport -> R.string.login_button
 
             UiStrings.ExternalSigner -> R.string.login_button

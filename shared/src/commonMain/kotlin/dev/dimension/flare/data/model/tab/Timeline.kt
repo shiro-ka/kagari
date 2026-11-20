@@ -463,16 +463,21 @@ public data class TimelineCandidate<T : TimelineSpec.Data>(
     val icon: IconType = target.spec.icon,
     val appearancePatch: AppearancePatch? = null,
     val filterConfig: TimelineFilterConfig = TimelineFilterConfig(),
+    val enabled: Boolean = true,
 ) {
     public val id: String get() = target.spec.itemId(target.data)
+
+    internal val presentation: TimelinePresentation
+        get() =
+            TimelinePresentation(
+                appearanceOverride = appearancePatch?.takeUnless { it == AppearancePatch.EMPTY }?.toBag(),
+                enabled = enabled,
+                filterConfig = filterConfig,
+            )
 }
 
 public fun TimelineCandidate<*>.toUiTimelineTabItem(): UiSourceTimelineTabItem {
     val source = target.toSource(title, icon)
-    val presentation =
-        appearancePatch?.takeUnless { it == AppearancePatch.EMPTY }?.let {
-            TimelinePresentation(appearanceOverride = it.toBag(), filterConfig = filterConfig)
-        } ?: TimelinePresentation(filterConfig = filterConfig)
     return UiSourceTimelineTabItem(
         id = id,
         source = source,
@@ -525,12 +530,14 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
         title: UiText = this.title,
         icon: IconType = this.icon,
         filterConfig: TimelineFilterConfig = TimelineFilterConfig(),
+        enabled: Boolean = true,
     ): TimelineCandidate<T> =
         TimelineCandidate(
             target = target(data),
             title = title,
             icon = icon,
             filterConfig = filterConfig,
+            enabled = enabled,
         )
 
     public fun galleryCandidate(
@@ -645,14 +652,8 @@ internal class TimelineResolver(
 
     fun toTabItem(loaderKey: String): UiTimelineTabItem = toTabItem(decodeTimelineLoaderKey(loaderKey))
 
-    fun toSlot(candidate: TimelineCandidate<*>): TimelineSlot {
-        val source = candidate.target.toSource(candidate.title, candidate.icon)
-        val presentation =
-            candidate.appearancePatch?.takeUnless { it == AppearancePatch.EMPTY }?.let {
-                TimelinePresentation(appearanceOverride = it.toBag())
-            } ?: TimelinePresentation()
-        return source.toSlot(presentation = presentation)
-    }
+    fun toSlot(candidate: TimelineCandidate<*>): TimelineSlot =
+        candidate.target.toSource(candidate.title, candidate.icon).toSlot(presentation = candidate.presentation)
 
     fun toSlot(item: UiTimelineTabItem): TimelineSlot =
         when (item) {

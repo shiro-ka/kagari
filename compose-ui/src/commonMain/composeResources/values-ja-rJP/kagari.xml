@@ -37,6 +37,7 @@
     <string name="kagari_embed_removed_by_author">投稿者が削除しました</string>
     <string name="kagari_embed_removed_by_you">あなたが削除しました</string>
     <string name="kagari_profile_tab_videos">ビデオ</string>
+    <string name="kagari_tab_bluesky_discover">みつけよう</string>
     <string name="kagari_profile_tab_starter_packs">スターターパック</string>
     <string name="kagari_menu_send_via_chat">チャットで送信</string>
     <string name="kagari_mado_boxes">窓</string>

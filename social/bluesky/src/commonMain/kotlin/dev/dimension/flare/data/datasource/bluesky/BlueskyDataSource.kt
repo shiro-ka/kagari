@@ -1035,10 +1035,17 @@ internal class BlueskyDataSource(
 
     override val defaultTabs by lazy {
         persistentListOf(
+            BlueskyPlatformSpec.feedTimelineSpec
+                .candidate(
+                    data = TimelineSpec.AccountResourceData(accountKey, KAGARI_DISCOVER_FEED_URI),
+                    icon = IconType.Mixed(UiIcon.Bluesky, accountKey),
+                    title = UiStrings.KagariBlueskyDiscover.asText(),
+                    enabled = false,
+                ),
             CommonTimelineSpecs.home
                 .candidate(
                     data = TimelineSpec.AccountBasedData(accountKey),
-                    icon = IconType.Mixed(UiIcon.Bluesky, accountKey),
+                    icon = IconType.Mixed(UiIcon.Home, accountKey),
                     title = UiStrings.Following.asText(),
                     filterConfig = TimelineFilterConfig(excludedKinds = listOf(TimelinePostKind.Reply)),
                 ),
@@ -1198,3 +1205,5 @@ internal class BlueskyDataSource(
 }
 
 internal inline fun <reified T : Any> T.bskyJson(): JsonContent = bskyJson.encodeAsJsonContent(this)
+
+private const val KAGARI_DISCOVER_FEED_URI = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"

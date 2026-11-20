@@ -51,6 +51,7 @@ import dev.dimension.flare.compose.ui.home_tab_popular_title
 import dev.dimension.flare.compose.ui.illustrations_title
 import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
 import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
+import dev.dimension.flare.compose.ui.kagari_tab_bluesky_discover
 import dev.dimension.flare.compose.ui.liked_title
 import dev.dimension.flare.compose.ui.login_button
 import dev.dimension.flare.compose.ui.manga_title
@@ -421,6 +422,8 @@ internal val UiStrings.res: StringResource
             UiStrings.KagariVideos -> Res.string.kagari_profile_tab_videos
 
             UiStrings.KagariStarterPacks -> Res.string.kagari_profile_tab_starter_packs
+
+            UiStrings.KagariBlueskyDiscover -> Res.string.kagari_tab_bluesky_discover
 
             UiStrings.Articles -> Res.string.profile_tab_articles
 

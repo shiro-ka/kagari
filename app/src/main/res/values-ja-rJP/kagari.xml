@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kagari_tab_bluesky_discover">みつけよう</string>
     <string name="kagari_gate_reply_title">返信できる人</string>
     <string name="kagari_gate_reply_label">返信: %1$s</string>
     <string name="kagari_gate_anyone">誰でも</string>
