@@ -4,6 +4,7 @@ import com.atproto.server.RefreshSessionResponse
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.platform.BLUESKY_PLATFORM_ID
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.repository.KagariLoginExpiredReasons
 import dev.dimension.flare.data.repository.LoginExpiredException
 import dev.dimension.flare.model.MicroBlogKey
 import io.ktor.client.HttpClient
@@ -39,6 +40,7 @@ import sh.christian.ozone.api.response.StatusCode
 import sh.christian.ozone.oauth.OAuthApi
 import sh.christian.ozone.oauth.OAuthToken
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Clock
 
 /**
  * Appends the `Authorization` header to XRPC requests, as well as automatically refreshing and
@@ -53,7 +55,7 @@ internal class BlueskyAuthPlugin(
     private val authTokenFlow: Flow<BlueskyCredential>?,
     private val onAuthTokensChanged: suspend (BlueskyCredential) -> Unit,
 ) {
-    private val credentialMutex = Mutex()
+    private val credentialMutex = KagariCredentialLocks.forAccount(accountKey)
     private val oauthPdsMigrationMutex = Mutex()
     private var oauthPdsMigration: OAuthPdsMigration? = null
 
@@ -135,7 +137,7 @@ internal class BlueskyAuthPlugin(
                                         error == "ExpiredToken" || error == "InvalidToken" || error == "invalid_token"
                                 ) -> {
                                 hasRefreshedTokens = true
-                                plugin.refreshExpiredTokenLocked(currentCredential, oAuthApi, scope)
+                                plugin.refreshExpiredTokenLocked(currentCredential, oAuthApi, scope, context.url.encodedPath.substringAfterLast('/'))
                             }
 
                             else -> {
@@ -359,6 +361,7 @@ internal class BlueskyAuthPlugin(
         credential: BlueskyCredential,
         oAuthApi: OAuthApi,
         scope: HttpClient,
+        requestName: String,
     ): BlueskyCredential? =
         credentialMutex.withLock {
             val latestCredential = currentCredential()
@@ -386,6 +389,13 @@ internal class BlueskyAuthPlugin(
                                 }
                             }
                         if (invalidRefreshToken) {
+                            val key = accountKey ?: MicroBlogKey("unknown", "unknown")
+                            val kind = if (latestCredential is BlueskyCredential.OAuthCredential) "OAuth" else "Password"
+                            val detail = listOfNotNull(error.error?.error, error.error?.message).joinToString(": ")
+                            KagariLoginExpiredReasons.record(
+                                key,
+                                "$detail ($kind, $requestName, ${Clock.System.now().toString().take(19)}Z)",
+                            )
                             throw LoginExpiredException(
                                 accountKey ?: MicroBlogKey("unknown", "unknown"),
                                 BLUESKY_PLATFORM_ID,

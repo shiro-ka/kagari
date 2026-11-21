@@ -149,5 +149,6 @@ private fun LoginExpiredError(
         PlatformText(
             text = error.accountKey.toString(),
         )
+        KagariLoginExpiredReason(accountKey = error.accountKey)
     }
 }

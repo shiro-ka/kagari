@@ -84,6 +84,7 @@ import dev.dimension.flare.compose.ui.service_select_welcome_title
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.NetworkImage
+import dev.dimension.flare.ui.component.KagariLoginExpiredReason
 import dev.dimension.flare.ui.component.TabIcon
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.PlatformCircularProgressIndicator
@@ -390,6 +391,7 @@ public fun ReloginScreenContent(
                     textAlign = TextAlign.Center,
                     style = PlatformTheme.typography.caption,
                 )
+                KagariLoginExpiredReason(accountKey = target.accountKey)
                 if (methods.size > 1) {
                     LoginMethodPicker(
                         methods = methods,

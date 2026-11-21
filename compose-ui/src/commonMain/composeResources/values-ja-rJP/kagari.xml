@@ -49,4 +49,5 @@
     <string name="kagari_mado_send_voice">声を送る</string>
     <string name="kagari_mado_no_answered_voices">回答した声はまだありません</string>
     <string name="kagari_mado_name">Mado</string>
+    <string name="kagari_login_expired_reason">理由: %1$s</string>
 </resources>
