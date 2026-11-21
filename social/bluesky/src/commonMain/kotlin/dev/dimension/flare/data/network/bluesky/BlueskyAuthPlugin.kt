@@ -137,7 +137,7 @@ internal class BlueskyAuthPlugin(
                                         error == "ExpiredToken" || error == "InvalidToken" || error == "invalid_token"
                                 ) -> {
                                 hasRefreshedTokens = true
-                                plugin.refreshExpiredTokenLocked(currentCredential, oAuthApi, scope, context.url.encodedPath.substringAfterLast('/'))
+                                plugin.refreshExpiredTokenLocked(currentCredential, oAuthApi, scope, context.url.pathSegments.lastOrNull().orEmpty())
                             }
 
                             else -> {
