@@ -28,19 +28,15 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Brands
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.brands.Discord
 import compose.icons.fontawesomeicons.brands.Github
-import compose.icons.fontawesomeicons.brands.Telegram
-import compose.icons.fontawesomeicons.solid.Language
-import compose.icons.fontawesomeicons.solid.Lock
+import compose.icons.fontawesomeicons.solid.CodeFork
+import compose.icons.fontawesomeicons.solid.ScaleBalanced
 import dev.dimension.flare.BuildConfig
 import dev.dimension.flare.R
-import dev.dimension.flare.model.ilink
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
@@ -78,28 +74,15 @@ internal fun AboutScreen(onBack: () -> Unit) {
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = stringResource(id = R.string.app_name),
+                contentDescription = stringResource(id = R.string.kagari_app_name),
                 modifier =
                     Modifier
                         .height(128.dp),
             )
             Spacer(Modifier.height(16.dp))
-            Icon(
-                painter = painterResource(id = R.drawable.ic_logo_text),
-                contentDescription = stringResource(id = R.string.app_name),
-                modifier =
-                    Modifier
-                        .height(32.dp),
-            )
-            Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(id = R.string.settings_about_description),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodySmall,
-                modifier =
-                    Modifier
-                        .padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = stringResource(id = R.string.kagari_app_name),
+                style = MaterialTheme.typography.headlineSmall,
             )
             Text(
                 text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
@@ -112,105 +95,57 @@ internal fun AboutScreen(onBack: () -> Unit) {
             ) {
                 SegmentedListItem(
                     content = {
-                        Text(text = stringResource(id = R.string.settings_about_source_code))
+                        Text(text = "Source code")
                     },
                     supportingContent = {
-                        Text(
-                            text = "https://github.com/flaresocialapp/Flare",
+                        Text(text = "https://github.com/shiro-ka/kagari")
+                    },
+                    onClick = {
+                        uriHandler.openUri("https://github.com/shiro-ka/kagari")
+                    },
+                    shapes = ListItemDefaults.segmentedShapes2(0, 3),
+                    leadingContent = {
+                        Icon(
+                            imageVector = FontAwesomeIcons.Brands.Github,
+                            contentDescription = "Source code",
+                            modifier = Modifier.size(24.dp),
                         )
+                    },
+                )
+                SegmentedListItem(
+                    content = {
+                        Text(text = "License")
+                    },
+                    supportingContent = {
+                        Text(text = "AGPL-3.0 · No warranty")
+                    },
+                    onClick = {
+                        uriHandler.openUri("https://github.com/shiro-ka/kagari/blob/main/LICENSE")
+                    },
+                    shapes = ListItemDefaults.segmentedShapes2(1, 3),
+                    leadingContent = {
+                        Icon(
+                            imageVector = FontAwesomeIcons.Solid.ScaleBalanced,
+                            contentDescription = "License",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    },
+                )
+                SegmentedListItem(
+                    content = {
+                        Text(text = "Based on Flare")
+                    },
+                    supportingContent = {
+                        Text(text = "https://github.com/flaresocialapp/Flare")
                     },
                     onClick = {
                         uriHandler.openUri("https://github.com/flaresocialapp/Flare")
                     },
-                    shapes = ListItemDefaults.segmentedShapes2(0, 5),
+                    shapes = ListItemDefaults.segmentedShapes2(2, 3),
                     leadingContent = {
                         Icon(
-                            imageVector = FontAwesomeIcons.Brands.Github,
-                            contentDescription = "GitHub",
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_telegram))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_telegram_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri(ilink)
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(1, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Brands.Telegram,
-                            contentDescription = stringResource(id = R.string.settings_about_telegram),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_discord))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_discord_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://discord.gg/De9NhXBryT")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(2, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Brands.Discord,
-                            contentDescription = stringResource(id = R.string.settings_about_discord),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_about_localization))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = stringResource(id = R.string.settings_about_localization_description),
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://crowdin.com/project/flareapp")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(3, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Solid.Language,
-                            contentDescription = stringResource(id = R.string.settings_about_localization),
-                            modifier = Modifier.size(24.dp),
-                        )
-                    },
-                )
-                SegmentedListItem(
-                    content = {
-                        Text(text = stringResource(id = R.string.settings_privacy_policy))
-                    },
-                    supportingContent = {
-                        Text(
-                            text = "https://legal.mask.io/maskbook",
-                        )
-                    },
-                    onClick = {
-                        uriHandler.openUri("https://legal.mask.io/maskbook/")
-                    },
-                    shapes = ListItemDefaults.segmentedShapes2(4, 5),
-                    leadingContent = {
-                        Icon(
-                            imageVector = FontAwesomeIcons.Solid.Lock,
-                            contentDescription = stringResource(id = R.string.settings_privacy_policy),
+                            imageVector = FontAwesomeIcons.Solid.CodeFork,
+                            contentDescription = "Based on Flare",
                             modifier = Modifier.size(24.dp),
                         )
                     },
