@@ -27,10 +27,12 @@ import io.ktor.http.auth.parseAuthorizationHeaders
 import io.ktor.http.isSuccess
 import io.ktor.util.AttributeKey
 import io.ktor.utils.io.InternalAPI
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import sh.christian.ozone.BlueskyJson
 import sh.christian.ozone.api.response.AtpErrorDescription
@@ -364,46 +366,48 @@ internal class BlueskyAuthPlugin(
         requestName: String,
     ): BlueskyCredential? =
         credentialMutex.withLock {
-            val latestCredential = currentCredential()
-            if (latestCredential == null || !latestCredential.hasSameTokens(credential)) {
-                latestCredential
-            } else {
-                val refreshed =
-                    try {
-                        refreshExpiredToken(
-                            credential = latestCredential,
-                            oAuthApi = oAuthApi,
-                            scope = scope,
-                        )
-                    } catch (error: AtpException) {
-                        val invalidRefreshToken =
-                            when (latestCredential) {
-                                is BlueskyCredential.Password -> {
-                                    error.statusCode == StatusCode.AuthenticationRequired ||
-                                        error.error?.error == "ExpiredToken" ||
-                                        error.error?.error == "InvalidToken"
-                                }
+            withContext(NonCancellable) {
+                val latestCredential = currentCredential()
+                if (latestCredential == null || !latestCredential.hasSameTokens(credential)) {
+                    latestCredential
+                } else {
+                    val refreshed =
+                        try {
+                            refreshExpiredToken(
+                                credential = latestCredential,
+                                oAuthApi = oAuthApi,
+                                scope = scope,
+                            )
+                        } catch (error: AtpException) {
+                            val invalidRefreshToken =
+                                when (latestCredential) {
+                                    is BlueskyCredential.Password -> {
+                                        error.statusCode == StatusCode.AuthenticationRequired ||
+                                            error.error?.error == "ExpiredToken" ||
+                                            error.error?.error == "InvalidToken"
+                                    }
 
-                                is BlueskyCredential.OAuthCredential -> {
-                                    error.error?.error == "invalid_grant"
+                                    is BlueskyCredential.OAuthCredential -> {
+                                        error.error?.error == "invalid_grant"
+                                    }
                                 }
+                            if (invalidRefreshToken) {
+                                val key = accountKey ?: MicroBlogKey("unknown", "unknown")
+                                val kind = if (latestCredential is BlueskyCredential.OAuthCredential) "OAuth" else "Password"
+                                val detail = listOfNotNull(error.error?.error, error.error?.message).joinToString(": ")
+                                KagariLoginExpiredReasons.record(
+                                    key,
+                                    "$detail ($kind, $requestName, ${Clock.System.now().toString().take(19)}Z)",
+                                )
+                                throw LoginExpiredException(
+                                    accountKey ?: MicroBlogKey("unknown", "unknown"),
+                                    BLUESKY_PLATFORM_ID,
+                                )
                             }
-                        if (invalidRefreshToken) {
-                            val key = accountKey ?: MicroBlogKey("unknown", "unknown")
-                            val kind = if (latestCredential is BlueskyCredential.OAuthCredential) "OAuth" else "Password"
-                            val detail = listOfNotNull(error.error?.error, error.error?.message).joinToString(": ")
-                            KagariLoginExpiredReasons.record(
-                                key,
-                                "$detail ($kind, $requestName, ${Clock.System.now().toString().take(19)}Z)",
-                            )
-                            throw LoginExpiredException(
-                                accountKey ?: MicroBlogKey("unknown", "unknown"),
-                                BLUESKY_PLATFORM_ID,
-                            )
+                            throw error
                         }
-                        throw error
-                    }
-                refreshed.also { cacheCredential(it) }
+                    refreshed.also { cacheCredential(it) }
+                }
             }
         }
 
