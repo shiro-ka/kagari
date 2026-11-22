@@ -63,7 +63,7 @@ public class KagariTokimekiPollPresenter(
             override val failure: KagariTokimekiPollFailure? = lastFailure
 
             override fun select(index: Int) {
-                if (votable && !isBusy && currentPoll != null && index in currentPoll.options.indices) {
+                if (votable && !isBusy && index in currentPoll.options.indices) {
                     selectedIndex = index
                 }
             }
