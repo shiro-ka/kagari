@@ -80,7 +80,7 @@ internal suspend fun createBlueskyPostWithGate(
     accountKey: MicroBlogKey,
     post: JsonContent,
     gate: InteractionGate,
-) {
+): String {
     val tid = newTid()
     val rkey = RKey(tid)
     val postUri = AtUri("at://${accountKey.id}/app.bsky.feed.post/$tid")
@@ -119,6 +119,7 @@ internal suspend fun createBlueskyPostWithGate(
                     writes = writes.toImmutableList(),
                 ),
         ).requireResponse()
+    return postUri.atUri
 }
 
 internal data class BlueskyStoredGate(
@@ -364,7 +365,7 @@ private fun create(
 
 private const val TID_CHARS = "234567abcdefghijklmnopqrstuvwxyz"
 
-private fun newTid(): String {
+internal fun newTid(): String {
     val now = Clock.System.now()
     val micros = now.epochSeconds * 1_000_000 + now.nanosecondsOfSecond / 1_000
     var value = (micros shl 10) or Random.nextLong(0, 1024)

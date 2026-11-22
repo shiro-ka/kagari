@@ -15,6 +15,7 @@ import app.bsky.actor.GetProfileQueryParams
 import app.bsky.bookmark.CreateBookmarkRequest
 import app.bsky.bookmark.DeleteBookmarkRequest
 import app.bsky.embed.ImagesImage
+import app.bsky.embed.ExternalExternal
 import app.bsky.embed.Record
 import app.bsky.feed.GetPostsQueryParams
 import app.bsky.feed.GetQuotesSort
@@ -30,6 +31,7 @@ import com.atproto.moderation.Token
 import com.atproto.repo.CreateRecordRequest
 import com.atproto.repo.CreateRecordResponse
 import com.atproto.repo.DeleteRecordRequest
+import com.atproto.repo.GetRecordQueryParams
 import com.atproto.repo.StrongRef
 import dev.dimension.flare.common.BasePagingSource
 import dev.dimension.flare.common.graphemeCount
@@ -85,6 +87,7 @@ import dev.dimension.flare.data.model.tab.TimelinePostKind
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.network.bluesky.BlueskyLinkCardResolver
 import dev.dimension.flare.data.network.bluesky.BlueskyService
+import dev.dimension.flare.data.network.bluesky.KagariTokimekiPollClient
 import dev.dimension.flare.data.network.bluesky.kagariPreview
 import dev.dimension.flare.data.network.bluesky.model.DidDoc
 import dev.dimension.flare.data.network.bluesky.toExternalEmbed
@@ -123,6 +126,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
@@ -137,8 +142,10 @@ import sh.christian.ozone.api.Handle
 import sh.christian.ozone.api.Language
 import sh.christian.ozone.api.Nsid
 import sh.christian.ozone.api.RKey
+import sh.christian.ozone.api.Uri
 import sh.christian.ozone.api.model.JsonContent
 import sh.christian.ozone.api.model.JsonContent.Companion.encodeAsJsonContent
+import app.bsky.embed.External as ExternalEmbed
 import kotlin.time.Clock
 
 private const val AT_PROTO_PERSONAL_DATA_SERVER = "AtprotoPersonalDataServer"
@@ -414,6 +421,7 @@ internal class BlueskyDataSource(
         require(data.medias.size <= BLUESKY_GALLERY_AUTHOR_LIMIT) {
             "Bluesky supports at most $BLUESKY_GALLERY_AUTHOR_LIMIT images when authoring a post"
         }
+        require(data.kagariTokimekiPoll == null || data.medias.isEmpty()) { "A TOKIMEKI poll cannot be posted with media" }
         val uploads = data.medias.map { it.file.uploadMedia() }
         uploads.forEach { upload ->
             upload.validate("Bluesky")
@@ -511,8 +519,12 @@ internal class BlueskyDataSource(
             } else {
                 uploadedImages.toBlueskyMediaEmbed()
             }
+        val tokimekiPoll = data.kagariTokimekiPoll
+        val tokimekiRkey = newTid()
         val externalEmbed =
-            if (quoteId == null && data.medias.isEmpty() && !data.kagariNoLinkCard) {
+            if (tokimekiPoll != null) {
+                createKagariTokimekiPollEmbed(service, tokimekiPoll, tokimekiRkey)
+            } else if (quoteId == null && data.medias.isEmpty() && !data.kagariNoLinkCard) {
                 facets
                     .asSequence()
                     .flatMap { it.features.asSequence() }
@@ -579,17 +591,104 @@ internal class BlueskyDataSource(
             )
         val gate = data.interactionGate
         if (post.reply == null && gate != null && gate.needsBlueskyRecords()) {
-            createBlueskyPostWithGate(service, accountKey, post.bskyJson(), gate)
+            val postUri = createBlueskyPostWithGate(service, accountKey, post.bskyJson(), gate)
+            if (tokimekiPoll != null) {
+                val postCid =
+                    runCatching {
+                        service
+                            .getRecord(
+                                GetRecordQueryParams(
+                                    repo = Did(did = accountKey.id),
+                                    collection = Nsid("app.bsky.feed.post"),
+                                    rkey = RKey(postUri.substringAfterLast('/')),
+                                ),
+                            ).requireResponse()
+                            .cid
+                            ?.cid
+                    }.getOrNull()
+                kagariCreateTokimekiPollOrDeletePost(service, tokimekiPoll, tokimekiRkey, postUri, postCid)
+            }
             return
         }
-        service
-            .createRecord(
-                CreateRecordRequest(
-                    repo = Did(did = accountKey.id),
-                    collection = Nsid("app.bsky.feed.post"),
-                    record = post.bskyJson(),
-                ),
-            ).requireResponse()
+        val created =
+            service
+                .createRecord(
+                    CreateRecordRequest(
+                        repo = Did(did = accountKey.id),
+                        collection = Nsid("app.bsky.feed.post"),
+                        record = post.bskyJson(),
+                    ),
+                ).requireResponse()
+        if (tokimekiPoll != null) {
+            kagariCreateTokimekiPollOrDeletePost(service, tokimekiPoll, tokimekiRkey, created.uri.atUri, created.cid.cid)
+        }
+    }
+
+    private suspend fun kagariCreateTokimekiPollOrDeletePost(
+        service: BlueskyService,
+        poll: ComposeData.KagariTokimekiPoll,
+        rkey: String,
+        postUri: String,
+        postCid: String?,
+    ) {
+        try {
+            service.kagariTokimekiCreatePoll(
+                accountKey = accountKey,
+                rkey = rkey,
+                postUri = postUri,
+                postCid = requireNotNull(postCid) { "Unable to read the Bluesky post for the poll" },
+                options = poll.options,
+                durationMillis = poll.durationMillis,
+            )
+        } catch (cause: Throwable) {
+            withContext(NonCancellable) {
+                runCatching {
+                    service.deleteRecord(
+                        DeleteRecordRequest(
+                            repo = Did(did = accountKey.id),
+                            collection = Nsid("app.bsky.feed.post"),
+                            rkey = RKey(postUri.substringAfterLast('/')),
+                        ),
+                    )
+                }
+            }
+            throw cause
+        }
+    }
+
+    private suspend fun createKagariTokimekiPollEmbed(
+        service: BlueskyService,
+        poll: ComposeData.KagariTokimekiPoll,
+        rkey: String,
+    ): PostEmbedUnion.External {
+        val thumb =
+            try {
+                KagariTokimekiPollClient
+                    .ogPreview(poll.options)
+                    ?.let { imageBytes ->
+                        imageCompressor
+                            .compress(
+                                imageBytes = imageBytes,
+                                maxSize = LINK_CARD_THUMB_MAX_BYTES,
+                                maxDimensions = MEDIA_COMPRESSION.maxWidth to MEDIA_COMPRESSION.maxHeight,
+                            ).takeIf { it.isNotEmpty() && it.size.toLong() <= LINK_CARD_THUMB_MAX_BYTES }
+                    }?.let { service.uploadBlob(it).maybeResponse()?.blob }
+            } catch (cause: CancellationException) {
+                throw cause
+            } catch (_: Exception) {
+                null
+            }
+        return PostEmbedUnion.External(
+            ExternalEmbed(
+                external =
+                    ExternalExternal(
+                        uri = Uri(kagariTokimekiPollUrl(accountKey, rkey, poll.options.size)),
+                        title = "${poll.label}: ${poll.options.take(2).joinToString(" / ")}",
+                        description = poll.options.joinToString(" / ") + "\nPowered by TOKIMEKI",
+                        thumb = thumb,
+                    ),
+            ),
+        )
     }
 
     private suspend fun createExternalEmbed(
@@ -885,6 +984,7 @@ internal class BlueskyDataSource(
                     firstLink = ::kagariBlueskyFirstLink,
                     linkCard = { url -> linkCardResolver.kagariPreview(url, accountKey) },
                 ),
+            kagariTokimekiPoll = true,
         )
 
     private val myFeedsKey = "my_feeds_$accountKey"

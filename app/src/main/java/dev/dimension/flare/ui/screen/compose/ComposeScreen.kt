@@ -500,6 +500,13 @@ internal fun ComposeScreen(
                 dismissed = state.kagariLinkCard.isDismissed(state.kagariLinkCardUrl),
                 onDismiss = { state.kagariLinkCard.dismissedUrl = state.kagariLinkCardUrl },
             )
+            if (state.kagariTokimekiPollEnabled) {
+                KagariTokimekiPollPreview(
+                    state = state.kagariTokimekiPoll,
+                    hasMedia = state.kagariHasMedia,
+                )
+                KagariTokimekiPollDialog(state.kagariTokimekiPoll)
+            }
             state.mediaState.onSuccess { mediaState ->
                 AnimatedVisibility(mediaState.medias.isNotEmpty()) {
                     Column(
@@ -844,6 +851,9 @@ internal fun ComposeScreen(
                     }
                 }
                 KagariQuoteToggleButton(state.interactionGate)
+                if (state.kagariTokimekiPollEnabled) {
+                    KagariTokimekiPollButton(state.kagariTokimekiPoll)
+                }
                 state.pollState.takeIf { it.isSupported || it.enabled }?.let {
                     IconButton(
                         onClick = {
@@ -1294,8 +1304,14 @@ private fun composePresenter(
     val interactionGate = rememberKagariInteractionGateState(state.composeConfig.takeSuccess()?.interactionGate)
     val selfLabels = rememberKagariSelfLabelState()
     val kagariLinkCard = rememberKagariLinkCardState()
+    val kagariTokimekiPoll = rememberKagariTokimekiPollState()
+    val kagariTokimekiPollEnabled = state.composeConfig.takeSuccess()?.kagariTokimekiPoll == true
+    val kagariTokimekiPollActive = kagariTokimekiPollEnabled && kagariTokimekiPoll.poll != null
     val kagariComposeLinks = state.composeConfig.takeSuccess()?.kagariComposeLinks
-    val kagariLinkCardUrl = kagariComposeLinks.kagariCardUrl(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
+    val kagariLinkCardUrl =
+        kagariComposeLinks
+            .kagariCardUrl(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus)
+            ?.takeIf { !kagariTokimekiPollActive }
     val languageState =
         state.composeConfig
             .mapNotNull {
@@ -1333,6 +1349,7 @@ private fun composePresenter(
             media.setMediaSensitive(draft.data.sensitive)
             selfLabels.labels = draft.data.selfLabels
             kagariLinkCard.restore(composeConfig?.kagariComposeLinks, draft.data)
+            kagariTokimekiPoll.restore(draft.data.kagariTokimekiPoll)
             pollState.setPoll(draft.data.poll)
             contentWarningState.takeSuccess()?.setText(draft.data.spoilerText)
             languageState.takeSuccess()?.setSelectedLanguages(draft.data.language)
@@ -1388,11 +1405,17 @@ private fun composePresenter(
                             media.medias.isNotEmpty() ||
                                 (
                                     kagariHasLinkCard(textFieldState.text, false, state.composeStatus) &&
-                                        !kagariLinkCard.isDismissed(kagariLinkCardUrl)
+                                        !kagariLinkCard.isDismissed(kagariLinkCardUrl) &&
+                                        !kagariTokimekiPollActive
                                 )
                         ),
                 ),
             kagariNoLinkCard = kagariLinkCard.isDismissed(kagariLinkCardUrl),
+            kagariTokimekiPoll =
+                kagariTokimekiPoll.composeValue(
+                    enabled = kagariTokimekiPollEnabled,
+                    label = context.getString(R.string.kagari_tokimeki_compose_title),
+                ),
         )
     }
     val currentState by rememberUpdatedState(state)
@@ -1402,7 +1425,9 @@ private fun composePresenter(
                 it.toString()
             }
         val textFieldState = textFieldState
-        val canSend = state.canSend && pollState.canSend && !hasPollMediaConflict && !interactionGate.blocksSend
+        val canSend =
+            state.canSend && pollState.canSend && !hasPollMediaConflict && !interactionGate.blocksSend &&
+                !(kagariTokimekiPollActive && media.medias.isNotEmpty())
         val canPoll = canPoll
         val canMedia = canMedia
         val pollState = pollState
@@ -1419,12 +1444,17 @@ private fun composePresenter(
         val kagariLinkCardWarning =
             kagariSelfLabelsEnabled &&
                 kagariHasLinkCard(textFieldState.text, media.medias.isNotEmpty(), state.composeStatus) &&
-                !kagariLinkCard.isDismissed(kagariLinkCardUrl)
+                !kagariLinkCard.isDismissed(kagariLinkCardUrl) &&
+                !kagariTokimekiPollActive
         val kagariComposeLinks = kagariComposeLinks
+        val kagariTokimekiPoll = kagariTokimekiPoll
+        val kagariTokimekiPollEnabled = kagariTokimekiPollEnabled
+        val kagariHasMedia = media.medias.isNotEmpty()
         val kagariLinkCard = kagariLinkCard
         val kagariLinkCardUrl = kagariLinkCardUrl
         val hasTextContent =
-            textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports || pollEnabled
+            textFieldState.text.toString().isNotBlank() || media.medias.isNotEmpty() || media.hasPendingImports || pollEnabled ||
+                kagariTokimekiPollActive
 
         fun selectEmoji(emoji: UiEmoji) {
             textFieldState.edit {

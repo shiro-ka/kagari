@@ -4,14 +4,21 @@ import dev.dimension.flare.common.JSON
 import dev.dimension.flare.data.network.ktorClient
 import dev.dimension.flare.ui.model.KagariTokimekiPoll
 import dev.dimension.flare.ui.model.KagariTokimekiPollOption
+import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
 import io.ktor.http.appendPathSegments
+import io.ktor.http.content.TextContent
+import io.ktor.http.isSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,6 +26,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 internal object KagariTokimekiPollClient {
@@ -104,6 +112,19 @@ internal object KagariTokimekiPollClient {
         pollCache.update { it + (cacheKey to (result to now)) }
         return result
     }
+
+    suspend fun ogPreview(options: List<String>): ByteArray? =
+        withTimeoutOrNull(15.seconds) {
+            val body = JsonObject(mapOf("options" to JsonArray(options.map { JsonPrimitive(it) })))
+            val response =
+                client.post("$ORIGIN/api/og-preview") {
+                    setBody(TextContent(body.toString(), ContentType.Application.Json))
+                }
+            if (!response.status.isSuccess()) {
+                return@withTimeoutOrNull null
+            }
+            response.body<ByteArray>().takeIf { it.isNotEmpty() }
+        }
 
     fun localVoteKey(
         viewer: String,

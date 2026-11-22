@@ -62,4 +62,12 @@ internal fun dev.dimension.flare.data.datasource.microblog.ComposeData.toDraftCo
         interactionGate = interactionGate,
         selfLabels = selfLabels,
         kagariNoLinkCard = kagariNoLinkCard,
+        kagariTokimekiPoll =
+            kagariTokimekiPoll?.let {
+                DraftContent.DraftKagariTokimekiPoll(
+                    options = it.options,
+                    durationMillis = it.durationMillis,
+                    label = it.label,
+                )
+            },
     )

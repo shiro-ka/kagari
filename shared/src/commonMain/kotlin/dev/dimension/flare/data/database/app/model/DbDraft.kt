@@ -30,12 +30,20 @@ internal data class DraftContent(
     val selfLabels: List<String> = emptyList(),
     val replyRestriction: ComposeReplyRestriction? = null,
     val kagariNoLinkCard: Boolean = false,
+    val kagariTokimekiPoll: DraftKagariTokimekiPoll? = null,
 ) {
     @Serializable
     data class DraftPoll(
         val options: List<String>,
         val expiredAfter: Long,
         val multiple: Boolean,
+    )
+
+    @Serializable
+    data class DraftKagariTokimekiPoll(
+        val options: List<String>,
+        val durationMillis: Long,
+        val label: String,
     )
 
     @Serializable

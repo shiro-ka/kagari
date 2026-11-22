@@ -20,6 +20,7 @@ public data class ComposeData(
     val selfLabels: List<String> = emptyList(),
     val replyRestriction: ComposeReplyRestriction? = null,
     val kagariNoLinkCard: Boolean = false,
+    val kagariTokimekiPoll: KagariTokimekiPoll? = null,
 ) {
     public val type: ComposeType
         get() =
@@ -34,6 +35,12 @@ public data class ComposeData(
         // Poll duration in milliseconds.
         val expiredAfter: Long,
         val multiple: Boolean,
+    )
+
+    public data class KagariTokimekiPoll(
+        val options: List<String>,
+        val durationMillis: Long,
+        val label: String,
     )
 
     public data class Media(

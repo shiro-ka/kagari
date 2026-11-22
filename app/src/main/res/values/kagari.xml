@@ -240,4 +240,20 @@
     <string name="kagari_mado_send_voice">Send a voice</string>
     <string name="kagari_mado_no_answered_voices">No answered voices yet</string>
     <string name="kagari_mado_name">Mado</string>
+    <string name="kagari_tokimeki_compose_poll">Poll</string>
+    <string name="kagari_tokimeki_compose_add_poll">Add poll</string>
+    <string name="kagari_tokimeki_compose_option">Option %1$d</string>
+    <string name="kagari_tokimeki_compose_add_option">Add option</string>
+    <string name="kagari_tokimeki_compose_duration">Poll length</string>
+    <string name="kagari_tokimeki_compose_duration_value">Poll length: %1$s</string>
+    <string name="kagari_tokimeki_compose_1_hour">1 hour</string>
+    <string name="kagari_tokimeki_compose_6_hours">6 hours</string>
+    <string name="kagari_tokimeki_compose_12_hours">12 hours</string>
+    <string name="kagari_tokimeki_compose_1_day">1 day</string>
+    <string name="kagari_tokimeki_compose_3_days">3 days</string>
+    <string name="kagari_tokimeki_compose_7_days">7 days</string>
+    <string name="kagari_tokimeki_compose_done">Done</string>
+    <string name="kagari_tokimeki_compose_edit">Edit</string>
+    <string name="kagari_tokimeki_compose_media_conflict">A poll can\'t be posted with images or videos</string>
+    <string name="kagari_tokimeki_compose_title">Let\'s poll</string>
 </resources>

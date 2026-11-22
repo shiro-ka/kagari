@@ -98,6 +98,15 @@ internal fun buildBlueskyPostEmbed(
             )
         }
 
+        quote != null && external != null -> {
+            PostEmbedUnion.RecordWithMedia(
+                RecordWithMedia(
+                    record = quote,
+                    media = RecordWithMediaMediaUnion.External(external.value),
+                ),
+            )
+        }
+
         quote != null -> {
             PostEmbedUnion.Record(quote)
         }

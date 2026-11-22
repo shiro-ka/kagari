@@ -82,6 +82,14 @@ internal fun DraftContent.toComposeData(
         interactionGate = interactionGate,
         selfLabels = selfLabels,
         kagariNoLinkCard = kagariNoLinkCard,
+        kagariTokimekiPoll =
+            kagariTokimekiPoll?.let {
+                dev.dimension.flare.data.datasource.microblog.ComposeData.KagariTokimekiPoll(
+                    options = it.options,
+                    durationMillis = it.durationMillis,
+                    label = it.label,
+                )
+            },
     )
 
 internal fun DraftContent.DraftReference.toComposeStatus(): ComposeStatus =
