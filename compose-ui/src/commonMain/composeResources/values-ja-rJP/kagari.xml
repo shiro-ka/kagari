@@ -56,4 +56,8 @@
     <string name="kagari_tokimeki_hours_left">残り%1$d時間</string>
     <string name="kagari_tokimeki_minutes_left">残り%1$d分</string>
     <string name="kagari_tokimeki_ended">投票終了</string>
+    <string name="kagari_tokimeki_vote">投票する</string>
+    <string name="kagari_tokimeki_cancel">投票を取り消す</string>
+    <string name="kagari_tokimeki_vote_failed">投票に失敗しました</string>
+    <string name="kagari_tokimeki_cancel_failed">投票の取り消しに失敗しました</string>
 </resources>

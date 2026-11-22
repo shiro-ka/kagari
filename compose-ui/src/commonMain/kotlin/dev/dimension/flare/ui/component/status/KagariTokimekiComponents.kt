@@ -19,24 +19,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_embed_separator
+import dev.dimension.flare.compose.ui.kagari_tokimeki_cancel
+import dev.dimension.flare.compose.ui.kagari_tokimeki_cancel_failed
 import dev.dimension.flare.compose.ui.kagari_tokimeki_days_left
 import dev.dimension.flare.compose.ui.kagari_tokimeki_ended
 import dev.dimension.flare.compose.ui.kagari_tokimeki_hours_left
 import dev.dimension.flare.compose.ui.kagari_tokimeki_minutes_left
+import dev.dimension.flare.compose.ui.kagari_tokimeki_vote
+import dev.dimension.flare.compose.ui.kagari_tokimeki_vote_failed
 import dev.dimension.flare.compose.ui.kagari_tokimeki_voted
 import dev.dimension.flare.compose.ui.kagari_tokimeki_votes
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.component.FlareDividerDefaults
+import dev.dimension.flare.ui.component.platform.PlatformFilledTonalButton
+import dev.dimension.flare.ui.component.platform.PlatformRadioButton
 import dev.dimension.flare.ui.component.platform.PlatformText
+import dev.dimension.flare.ui.component.platform.PlatformTextButton
 import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.KagariTokimekiPoll
 import dev.dimension.flare.ui.model.KagariTokimekiPollOption
-import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.presenter.KagariTokimekiPollFailure
 import dev.dimension.flare.ui.presenter.KagariTokimekiPollPresenter
+import dev.dimension.flare.ui.presenter.KagariTokimekiPollState
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.toUri
@@ -50,19 +60,20 @@ import kotlin.time.Clock
 internal fun kagariRememberTokimekiPoll(
     accountType: AccountType,
     embed: KagariEmbed?,
-): KagariTokimekiPoll? {
+): KagariTokimekiPollState? {
     val tokimeki = embed as? KagariEmbed.TokimekiPoll ?: return null
     val state by producePresenter(key = "kagari_tokimeki_${accountType}_${tokimeki.url}") {
         remember(accountType, tokimeki) { KagariTokimekiPollPresenter(accountType, tokimeki) }.invoke()
     }
-    return state.takeSuccess()
+    return state.takeIf { it.poll != null }
 }
 
 @Composable
 internal fun KagariTokimekiPollCard(
-    poll: KagariTokimekiPoll,
+    state: KagariTokimekiPollState,
     modifier: Modifier = Modifier,
 ) {
+    val poll = state.poll ?: return
     val uriHandler = LocalUriHandler.current
     Column(
         modifier =
@@ -77,25 +88,64 @@ internal fun KagariTokimekiPollCard(
                 .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        poll.options.forEach { option ->
+        poll.options.forEachIndexed { index, option ->
             KagariTokimekiPollOptionRow(
                 option = option,
                 totalVotes = poll.totalVotes,
                 showsResults = poll.showsResults,
+                isMine = poll.myVote == index,
+                canVote = state.canVote,
+                selected = state.selected == index,
+                onSelect = { state.select(index) },
             )
         }
-        PlatformText(
-            text =
-                listOfNotNull(
-                    stringResource(Res.string.kagari_tokimeki_votes, poll.totalVotes),
-                    kagariTokimekiRemaining(poll),
-                ).joinToString(stringResource(Res.string.kagari_embed_separator)),
-            style = PlatformTheme.typography.caption,
-            color = PlatformTheme.colorScheme.caption,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Row(
             modifier = Modifier.padding(top = 2.dp),
-        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlatformText(
+                text =
+                    listOfNotNull(
+                        stringResource(Res.string.kagari_tokimeki_votes, poll.totalVotes),
+                        kagariTokimekiRemaining(poll),
+                    ).joinToString(stringResource(Res.string.kagari_embed_separator)),
+                style = PlatformTheme.typography.caption,
+                color = PlatformTheme.colorScheme.caption,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (state.canVote) {
+                PlatformFilledTonalButton(
+                    onClick = { state.vote() },
+                    enabled = state.selected != null && !state.busy,
+                ) {
+                    PlatformText(text = stringResource(Res.string.kagari_tokimeki_vote))
+                }
+            } else if (!poll.isEnded && poll.myVote != null) {
+                PlatformTextButton(
+                    onClick = { state.cancel() },
+                    enabled = state.canCancel,
+                ) {
+                    PlatformText(text = stringResource(Res.string.kagari_tokimeki_cancel))
+                }
+            }
+        }
+        val failure = state.failure
+        if (failure != null) {
+            PlatformText(
+                text =
+                    stringResource(
+                        when (failure) {
+                            KagariTokimekiPollFailure.Vote -> Res.string.kagari_tokimeki_vote_failed
+                            KagariTokimekiPollFailure.Cancel -> Res.string.kagari_tokimeki_cancel_failed
+                        },
+                    ),
+                style = PlatformTheme.typography.caption,
+                color = PlatformTheme.colorScheme.error,
+            )
+        }
     }
 }
 
@@ -104,6 +154,10 @@ private fun KagariTokimekiPollOptionRow(
     option: KagariTokimekiPollOption,
     totalVotes: Int,
     showsResults: Boolean,
+    isMine: Boolean,
+    canVote: Boolean,
+    selected: Boolean,
+    onSelect: () -> Unit,
 ) {
     val percent = if (totalVotes > 0) (option.count * 100.0 / totalVotes).roundToInt() else 0
     Box(
@@ -112,10 +166,11 @@ private fun KagariTokimekiPollOptionRow(
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
                 .border(
-                    width = FlareDividerDefaults.thickness,
-                    color = FlareDividerDefaults.color,
+                    width = if (selected) 2.dp else FlareDividerDefaults.thickness,
+                    color = if (selected) PlatformTheme.colorScheme.primary else FlareDividerDefaults.color,
                     shape = PlatformTheme.shapes.small,
-                ).clip(PlatformTheme.shapes.small),
+                ).clip(PlatformTheme.shapes.small)
+                .clickable(enabled = canVote, onClick = onSelect),
     ) {
         if (showsResults) {
             Box(
@@ -124,18 +179,25 @@ private fun KagariTokimekiPollOptionRow(
                         .fillMaxHeight()
                         .fillMaxWidth(percent.coerceIn(0, 100) / 100f)
                         .background(
-                            PlatformTheme.colorScheme.primary.copy(alpha = if (option.isMine) 0.28f else 0.12f),
+                            PlatformTheme.colorScheme.primary.copy(alpha = if (isMine) 0.28f else 0.12f),
                         ),
             )
         }
         Row(
             modifier =
                 Modifier
+                    .zIndex(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (canVote) {
+                PlatformRadioButton(
+                    selected = selected,
+                    onClick = null,
+                )
+            }
             Row(
                 modifier = Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -147,7 +209,7 @@ private fun KagariTokimekiPollOptionRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
-                if (option.isMine) {
+                if (isMine) {
                     PlatformText(
                         text = stringResource(Res.string.kagari_tokimeki_voted),
                         style = PlatformTheme.typography.caption,
@@ -165,7 +227,8 @@ private fun KagariTokimekiPollOptionRow(
                 PlatformText(
                     text = "$percent%",
                     style = PlatformTheme.typography.caption,
-                    color = PlatformTheme.colorScheme.caption,
+                    color = PlatformTheme.colorScheme.text,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
             }

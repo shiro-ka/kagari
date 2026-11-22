@@ -29,6 +29,13 @@ internal object KagariTokimekiPollClient {
     private val client by lazy { ktorClient() }
     private val pollCache = MutableStateFlow<Map<String, Pair<KagariTokimekiPoll, Instant>>>(emptyMap())
 
+    data class LocalVote(
+        val index: Int?,
+        val uri: String?,
+    )
+
+    val localVotes = MutableStateFlow<Map<String, LocalVote>>(emptyMap())
+
     private data class Option(
         val index: Int,
         val text: String,
@@ -68,33 +75,46 @@ internal object KagariTokimekiPollClient {
         if (options.isEmpty()) {
             return null
         }
-        val myVote = root.kagariTokimekiInt("myVote")
+        val cid = poll.kagariTokimekiString("cid") ?: return null
+        val myVote =
+            root.kagariTokimekiInt("myVote")?.let { vote ->
+                options.indexOfFirst { it.index == vote }.takeIf { it >= 0 }
+            }
         val totalVotes = root.kagariTokimekiInt("totalVotes") ?: options.sumOf { it.count }
         val endsAt = poll.kagariTokimekiString("endsAt")?.let { runCatching { Instant.parse(it) }.getOrNull() }
         val isEnded =
             (root["isEnded"] as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull == true ||
                 (endsAt != null && endsAt <= now)
-        val authorDid = poll.kagariTokimekiString("authorDid")
         val result =
             KagariTokimekiPoll(
                 uri = uri,
+                cid = cid,
                 url = url,
                 options =
                     options
-                        .map { option ->
-                            KagariTokimekiPollOption(
-                                text = option.text,
-                                count = option.count,
-                                isMine = option.index == myVote,
-                            )
-                        }.toImmutableList(),
+                        .map { option -> KagariTokimekiPollOption(index = option.index, text = option.text, count = option.count) }
+                        .toImmutableList(),
                 totalVotes = totalVotes,
                 isEnded = isEnded,
                 endsAt = endsAt,
-                showsResults = isEnded || myVote != null || authorDid == viewer,
+                isAuthor = poll.kagariTokimekiString("authorDid") == viewer,
+                myVote = myVote,
+                myVoteUri = root.kagariTokimekiString("myVoteUri")?.takeIf { myVote != null },
             )
         pollCache.update { it + (cacheKey to (result to now)) }
         return result
+    }
+
+    fun localVoteKey(
+        viewer: String,
+        pollUri: String,
+    ): String = "$viewer $pollUri"
+
+    fun setLocalVote(
+        key: String,
+        vote: LocalVote?,
+    ) {
+        localVotes.update { if (vote == null) it - key else it + (key to vote) }
     }
 
     private fun JsonObject.toOption(): Option? {
@@ -107,4 +127,20 @@ internal object KagariTokimekiPollClient {
     private fun JsonObject.kagariTokimekiString(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
 
     private fun JsonObject.kagariTokimekiInt(key: String): Int? = (this[key] as? JsonPrimitive)?.takeIf { !it.isString }?.intOrNull
+}
+
+internal fun KagariTokimekiPoll.kagariWithVote(vote: KagariTokimekiPollClient.LocalVote): KagariTokimekiPoll {
+    val index = vote.index?.takeIf { it in options.indices }
+    val serverVote = myVote
+    return copy(
+        options =
+            options
+                .mapIndexed { i, option ->
+                    val count = option.count - (if (i == serverVote) 1 else 0) + (if (i == index) 1 else 0)
+                    option.copy(count = count.coerceAtLeast(0))
+                }.toImmutableList(),
+        totalVotes = (totalVotes - (if (serverVote != null) 1 else 0) + (if (index != null) 1 else 0)).coerceAtLeast(0),
+        myVote = index,
+        myVoteUri = vote.uri.takeIf { index != null },
+    )
 }

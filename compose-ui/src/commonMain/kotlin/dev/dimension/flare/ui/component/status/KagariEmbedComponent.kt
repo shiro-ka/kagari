@@ -35,7 +35,7 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.KagariMadoVoice
-import dev.dimension.flare.ui.model.KagariTokimekiPoll
+import dev.dimension.flare.ui.presenter.KagariTokimekiPollState
 import dev.dimension.flare.ui.theme.PlatformTheme
 import org.jetbrains.compose.resources.stringResource
 
@@ -44,7 +44,7 @@ internal fun KagariEmbedComponent(
     embed: KagariEmbed,
     modifier: Modifier = Modifier,
     madoVoice: KagariMadoVoice? = null,
-    tokimekiPoll: KagariTokimekiPoll? = null,
+    tokimekiPoll: KagariTokimekiPollState? = null,
 ) {
     when (embed) {
         is KagariEmbed.Card -> KagariEmbedCard(embed, modifier)

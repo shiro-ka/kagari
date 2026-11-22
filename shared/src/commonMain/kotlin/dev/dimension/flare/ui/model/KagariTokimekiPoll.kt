@@ -6,18 +6,24 @@ import kotlin.time.Instant
 
 @Immutable
 public data class KagariTokimekiPollOption(
+    val index: Int,
     val text: String,
     val count: Int,
-    val isMine: Boolean,
 )
 
 @Immutable
 public data class KagariTokimekiPoll(
     val uri: String,
+    val cid: String,
     val url: String,
     val options: ImmutableList<KagariTokimekiPollOption>,
     val totalVotes: Int,
     val isEnded: Boolean,
     val endsAt: Instant?,
-    val showsResults: Boolean,
-)
+    val isAuthor: Boolean,
+    val myVote: Int?,
+    val myVoteUri: String?,
+) {
+    val showsResults: Boolean
+        get() = isEnded || isAuthor || myVote != null
+}

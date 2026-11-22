@@ -56,4 +56,8 @@
     <string name="kagari_tokimeki_hours_left">%1$dh left</string>
     <string name="kagari_tokimeki_minutes_left">%1$dm left</string>
     <string name="kagari_tokimeki_ended">Final results</string>
+    <string name="kagari_tokimeki_vote">Vote</string>
+    <string name="kagari_tokimeki_cancel">Remove vote</string>
+    <string name="kagari_tokimeki_vote_failed">Couldn\'t submit your vote</string>
+    <string name="kagari_tokimeki_cancel_failed">Couldn\'t remove your vote</string>
 </resources>
