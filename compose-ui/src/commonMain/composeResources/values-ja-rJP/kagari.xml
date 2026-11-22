@@ -50,4 +50,10 @@
     <string name="kagari_mado_no_answered_voices">回答した声はまだありません</string>
     <string name="kagari_mado_name">Mado</string>
     <string name="kagari_login_expired_reason">理由: %1$s</string>
+    <string name="kagari_tokimeki_voted">投票済み</string>
+    <string name="kagari_tokimeki_votes">%1$d票</string>
+    <string name="kagari_tokimeki_days_left">残り%1$d日</string>
+    <string name="kagari_tokimeki_hours_left">残り%1$d時間</string>
+    <string name="kagari_tokimeki_minutes_left">残り%1$d分</string>
+    <string name="kagari_tokimeki_ended">投票終了</string>
 </resources>

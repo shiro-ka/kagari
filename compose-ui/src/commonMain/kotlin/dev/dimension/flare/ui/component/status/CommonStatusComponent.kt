@@ -248,11 +248,17 @@ public fun CommonStatusComponent(
         val hasPreMediaBody = replyToHandle != null || hasBodyAfterReply
         val showsImages = item.images.isNotEmpty() && showMedia
         val kagariMadoVoice = kagariRememberMadoVoice(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
+        val kagariTokimekiPoll = kagariRememberTokimekiPoll(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
         val showsCard =
             item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() &&
-                (quotes.isEmpty() || item.kagariCardWithQuote) && kagariMadoVoice == null
+                (quotes.isEmpty() || item.kagariCardWithQuote) && kagariMadoVoice == null && kagariTokimekiPoll == null
         val showsQuotes = quotes.isNotEmpty() && !isQuote
-        val kagariEmbed = item.kagariEmbed?.takeIf { !isQuote && (it !is KagariEmbed.MadoVoice || kagariMadoVoice != null) }
+        val kagariEmbed =
+            item.kagariEmbed?.takeIf {
+                !isQuote &&
+                    (it !is KagariEmbed.MadoVoice || kagariMadoVoice != null) &&
+                    (it !is KagariEmbed.TokimekiPoll || kagariTokimekiPoll != null)
+            }
         val showsAttachments = showsImages || showsCard || showsQuotes || kagariEmbed != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
@@ -585,7 +591,7 @@ public fun CommonStatusComponent(
                     Spacer(
                         modifier = Modifier.height(if (showsImages || showsCard) 8.dp else firstAttachmentSpacing),
                     )
-                    KagariEmbedComponent(embed = kagariEmbed, madoVoice = kagariMadoVoice)
+                    KagariEmbedComponent(embed = kagariEmbed, madoVoice = kagariMadoVoice, tokimekiPoll = kagariTokimekiPoll)
                 }
 
                 if (showsReactions) {

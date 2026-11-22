@@ -20,7 +20,7 @@ public fun UiMedia.withProxy(proxy: ProxyRef): UiMedia =
 private fun KagariEmbed.withProxy(proxy: ProxyRef): KagariEmbed =
     when (this) {
         is KagariEmbed.Card -> copy(avatar = avatar?.copy(proxy = proxy))
-        is KagariEmbed.Unavailable, is KagariEmbed.MadoVoice -> this
+        is KagariEmbed.Unavailable, is KagariEmbed.MadoVoice, is KagariEmbed.TokimekiPoll -> this
     }
 
 @HiddenFromObjC

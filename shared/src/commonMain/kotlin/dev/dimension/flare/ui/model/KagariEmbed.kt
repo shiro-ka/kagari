@@ -33,6 +33,15 @@ public sealed interface KagariEmbed {
     ) : KagariEmbed
 
     @Serializable
+    @Immutable
+    public data class TokimekiPoll public constructor(
+        val did: String,
+        val rkey: String,
+        val url: String,
+        val optionCount: Int?,
+    ) : KagariEmbed
+
+    @Serializable
     public enum class Kind {
         Feed,
         UserList,

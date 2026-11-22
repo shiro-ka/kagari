@@ -26,7 +26,7 @@ internal fun kagariFindEmbed(
         when (val embed = postView.embed) {
             is PostViewEmbedUnion.RecordView -> embed.value.record
             is PostViewEmbedUnion.RecordWithMediaView -> embed.value.record.record
-            else -> return kagariFindMadoVoice(postView)
+            else -> return kagariFindLinkEmbed(postView)
         }
     return when (record) {
         is RecordViewRecordUnion.ViewNotFound -> {
@@ -106,23 +106,65 @@ internal fun kagariFindEmbed(
         }
 
         else -> {
-            kagariFindMadoVoice(postView)
+            kagariFindLinkEmbed(postView)
         }
     }
 }
 
-private fun kagariFindMadoVoice(postView: PostView): KagariEmbed.MadoVoice? {
-    val url =
-        when (val embed = postView.embed) {
-            is PostViewEmbedUnion.ExternalView -> embed.value.external.uri.uri
-            is PostViewEmbedUnion.RecordWithMediaView ->
-                (embed.value.media as? RecordWithMediaViewMediaUnion.ExternalView)
-                    ?.value
-                    ?.external
-                    ?.uri
-                    ?.uri
-            else -> null
-        } ?: return null
+private fun kagariFindLinkEmbed(postView: PostView): KagariEmbed? {
+    val url = kagariExternalUrl(postView) ?: return null
+    return kagariFindMadoVoice(postView, url) ?: kagariFindTokimekiPoll(url)
+}
+
+private fun kagariExternalUrl(postView: PostView): String? =
+    when (val embed = postView.embed) {
+        is PostViewEmbedUnion.ExternalView -> embed.value.external.uri.uri
+        is PostViewEmbedUnion.RecordWithMediaView ->
+            (embed.value.media as? RecordWithMediaViewMediaUnion.ExternalView)
+                ?.value
+                ?.external
+                ?.uri
+                ?.uri
+        else -> null
+    }
+
+private fun kagariFindTokimekiPoll(url: String): KagariEmbed.TokimekiPoll? {
+    val rest = url.substringAfter("://", "").takeIf { url.startsWith("https://", ignoreCase = true) } ?: return null
+    val host = rest.substringBefore('/').lowercase()
+    if (host != "poll.tokimeki.tech" && host != "poll.tokimeki.blue") {
+        return null
+    }
+    val pathAndQuery = rest.substringAfter('/', "").substringBefore('#')
+    val segments =
+        pathAndQuery
+            .substringBefore('?')
+            .split('/')
+            .filter { it.isNotEmpty() }
+            .map { runCatching { it.decodeURLPart() }.getOrNull() ?: return null }
+    if (segments.size != 3 || segments[0] != "p") {
+        return null
+    }
+    val did = segments[1].takeIf { value -> value.startsWith("did:") && value.all { it.isLetterOrDigit() || it in "._:%-" } } ?: return null
+    val rkey = segments[2].takeIf { key -> key.all { it.isLetterOrDigit() || it in "._:~-" } } ?: return null
+    val optionCount =
+        pathAndQuery
+            .substringAfter('?', "")
+            .split('&')
+            .firstOrNull { it.startsWith("options=") }
+            ?.removePrefix("options=")
+            ?.toIntOrNull()
+    return KagariEmbed.TokimekiPoll(
+        did = did,
+        rkey = rkey,
+        url = url,
+        optionCount = optionCount,
+    )
+}
+
+private fun kagariFindMadoVoice(
+    postView: PostView,
+    url: String,
+): KagariEmbed.MadoVoice? {
     val rest = url.substringAfter("://", "").takeIf { url.startsWith("https://", ignoreCase = true) } ?: return null
     if (!rest.substringBefore('/').equals("mado.blue", ignoreCase = true)) {
         return null

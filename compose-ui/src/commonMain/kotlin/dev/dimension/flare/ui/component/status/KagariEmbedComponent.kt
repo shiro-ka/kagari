@@ -35,6 +35,7 @@ import dev.dimension.flare.ui.component.NetworkImage
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.KagariMadoVoice
+import dev.dimension.flare.ui.model.KagariTokimekiPoll
 import dev.dimension.flare.ui.theme.PlatformTheme
 import org.jetbrains.compose.resources.stringResource
 
@@ -43,11 +44,13 @@ internal fun KagariEmbedComponent(
     embed: KagariEmbed,
     modifier: Modifier = Modifier,
     madoVoice: KagariMadoVoice? = null,
+    tokimekiPoll: KagariTokimekiPoll? = null,
 ) {
     when (embed) {
         is KagariEmbed.Card -> KagariEmbedCard(embed, modifier)
         is KagariEmbed.Unavailable -> KagariEmbedUnavailable(embed, modifier)
         is KagariEmbed.MadoVoice -> madoVoice?.let { KagariMadoEmbedCard(it, modifier) }
+        is KagariEmbed.TokimekiPoll -> tokimekiPoll?.let { KagariTokimekiPollCard(it, modifier) }
     }
 }
 
