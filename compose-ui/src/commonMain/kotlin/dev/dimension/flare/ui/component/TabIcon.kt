@@ -344,10 +344,10 @@ public fun TabIcon(
                             Modifier
                                 .align(Alignment.BottomEnd)
                                 .background(PlatformTheme.colorScheme.card, shape = CircleShape)
-                                .padding(2.dp),
+                                .padding(1.5.dp),
                         iconOnly = true,
                         color = color,
-                        size = size / 2 - 4.dp,
+                        size = size * 0.6f - 3.dp,
                     )
                 }
             }
