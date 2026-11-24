@@ -52,6 +52,7 @@ import compose.icons.fontawesomeicons.solid.Thumbtack
 import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.Trash
 import compose.icons.fontawesomeicons.solid.Tv
+import compose.icons.fontawesomeicons.solid.Trophy
 import compose.icons.fontawesomeicons.solid.UserCheck
 import compose.icons.fontawesomeicons.solid.UserGroup
 import compose.icons.fontawesomeicons.solid.UserLock
@@ -137,4 +138,5 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.KagariCompass -> FontAwesomeIcons.Solid.Compass
         UiIcon.KagariFire -> FontAwesomeIcons.Solid.Fire
         UiIcon.KagariUserGroup -> FontAwesomeIcons.Solid.UserGroup
+        UiIcon.KagariTrophy -> FontAwesomeIcons.Solid.Trophy
     }
