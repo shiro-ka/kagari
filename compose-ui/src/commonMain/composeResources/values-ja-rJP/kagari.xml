@@ -88,4 +88,5 @@
     <string name="kagari_pixiv_recommended_title">おすすめ</string>
     <string name="kagari_menu_show_more_like_this">このような投稿を増やす</string>
     <string name="kagari_menu_show_less_like_this">このような投稿を減らす</string>
+    <string name="kagari_file_sensitive">閲覧注意のファイル</string>
 </resources>

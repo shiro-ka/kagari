@@ -251,6 +251,7 @@ public fun CommonStatusComponent(
         val hasBodyAfterReply = hasBodyContent || showsDetailTranslation
         val hasPreMediaBody = replyToHandle != null || hasBodyAfterReply
         val showsImages = item.images.isNotEmpty() && showMedia
+        val showsFiles = item.kagariFiles.isNotEmpty() && showMedia
         val kagariMadoVoice = kagariRememberMadoVoice(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
         val kagariTokimekiPoll = kagariRememberTokimekiPoll(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
         val showsCard =
@@ -263,7 +264,7 @@ public fun CommonStatusComponent(
                     (it !is KagariEmbed.MadoVoice || kagariMadoVoice != null) &&
                     (it !is KagariEmbed.TokimekiPoll || kagariTokimekiPoll != null)
             }
-        val showsAttachments = showsImages || showsCard || showsQuotes || kagariEmbed != null
+        val showsAttachments = showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
         val showsActions = (appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions
@@ -552,9 +553,13 @@ public fun CommonStatusComponent(
                         },
                     )
                 }
+                if (showsFiles) {
+                    Spacer(modifier = Modifier.height(if (showsImages) 8.dp else firstAttachmentSpacing))
+                    KagariFilesComponent(files = item.kagariFiles)
+                }
                 item.card?.let { card ->
                     if (showsCard) {
-                        Spacer(modifier = Modifier.height(firstAttachmentSpacing))
+                        Spacer(modifier = Modifier.height(if (showsFiles) 8.dp else firstAttachmentSpacing))
                         StatusCardComponent(
                             card = card,
                             modifier =
@@ -584,7 +589,7 @@ public fun CommonStatusComponent(
                 }
                 if (showsQuotes) {
                     Spacer(
-                        modifier = Modifier.height(if (showsImages) 8.dp else firstAttachmentSpacing),
+                        modifier = Modifier.height(if (showsImages || showsFiles) 8.dp else firstAttachmentSpacing),
                     )
                     StatusQuoteComponent(
                         quotes = quotes,
@@ -593,7 +598,7 @@ public fun CommonStatusComponent(
                 }
                 if (kagariEmbed != null) {
                     Spacer(
-                        modifier = Modifier.height(if (showsImages || showsCard) 8.dp else firstAttachmentSpacing),
+                        modifier = Modifier.height(if (showsImages || showsFiles || showsCard) 8.dp else firstAttachmentSpacing),
                     )
                     KagariEmbedComponent(embed = kagariEmbed, madoVoice = kagariMadoVoice, tokimekiPoll = kagariTokimekiPoll)
                 }

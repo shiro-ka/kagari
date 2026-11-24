@@ -338,6 +338,7 @@ public sealed class UiTimelineV2 {
         public val kagariMutedWord: String? = null,
         public val kagariEmbed: KagariEmbed? = null,
         public val kagariCardWithQuote: Boolean = false,
+        public val kagariFiles: SerializableImmutableList<KagariFile> = persistentListOf(),
     ) : UiTimelineV2() {
         @WebExport
         val authorSubtitle: String
@@ -373,6 +374,7 @@ public sealed class UiTimelineV2 {
                 .add(user?.renderSummaryHash())
                 .add(authorSubtitle)
                 .add(images.renderSummaryHash { it.renderSummaryHash() })
+                .add(kagariFiles)
                 .add(sensitive)
                 .add(contentWarning?.original?.renderSummaryHash())
                 .add(contentWarning?.translation?.renderSummaryHash())

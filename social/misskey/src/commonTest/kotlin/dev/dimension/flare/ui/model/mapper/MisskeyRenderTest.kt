@@ -25,6 +25,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -88,6 +89,58 @@ class MisskeyRenderTest {
         assertEquals("https://cdn.misskey.io/video-thumb.jpg", video.thumbnailUrl)
         assertEquals(1920f, video.width)
         assertEquals(1080f, video.height)
+    }
+
+    @Test
+    fun audioAndOtherFilesAreRecognized() {
+        val note =
+            createNote(
+                id = "note-files",
+                user = createUser("user-files"),
+                text = "has files",
+                files =
+                    listOf(
+                        createFile(
+                            id = "file-audio",
+                            type = "audio/mpeg",
+                            url = "https://cdn.misskey.io/sound.mp3",
+                            thumbnailUrl = "",
+                            width = 0.0,
+                            height = 0.0,
+                        ),
+                        createFile(
+                            id = "file-pdf",
+                            type = "application/pdf",
+                            url = "https://cdn.misskey.io/paper.pdf",
+                            thumbnailUrl = "",
+                            width = 0.0,
+                            height = 0.0,
+                            isSensitive = true,
+                        ).copy(name = "paper.pdf", propertySize = 2048.0),
+                        createFile(
+                            id = "file-zip",
+                            type = "application/zip",
+                            url = "https://cdn.misskey.io/archive.zip",
+                            thumbnailUrl = "",
+                            width = 0.0,
+                            height = 0.0,
+                        ).copy(name = "archive.zip"),
+                    ),
+            )
+
+        val rendered = rootPostOf(note.render(accountKey))
+
+        val audio = assertIs<UiMedia.Audio>(rendered.images.single())
+        assertEquals("https://cdn.misskey.io/sound.mp3", audio.url)
+        assertEquals(null, audio.previewUrl)
+
+        assertEquals(listOf("paper.pdf", "archive.zip"), rendered.kagariFiles.map { it.name })
+        val pdf = rendered.kagariFiles[0]
+        assertEquals("https://cdn.misskey.io/paper.pdf", pdf.url)
+        assertEquals("application/pdf", pdf.type)
+        assertEquals(2048L, pdf.size)
+        assertTrue(pdf.sensitive)
+        assertFalse(rendered.kagariFiles[1].sensitive)
     }
 
     @Test

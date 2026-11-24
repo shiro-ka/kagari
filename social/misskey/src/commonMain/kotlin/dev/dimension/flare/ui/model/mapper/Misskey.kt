@@ -24,6 +24,7 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.model.toAccountType
 import dev.dimension.flare.ui.model.ClickEvent
+import dev.dimension.flare.ui.model.KagariFile
 import dev.dimension.flare.ui.model.UiEmoji
 import dev.dimension.flare.ui.model.UiHandle
 import dev.dimension.flare.ui.model.UiIcon
@@ -560,6 +561,11 @@ private fun Note.renderStatus(accountKey: MicroBlogKey): UiTimelineV2.Post {
                 ?.mapNotNull { file ->
                     file.toUi()
                 }?.toPersistentList() ?: persistentListOf(),
+        kagariFiles =
+            files
+                ?.mapNotNull { file ->
+                    file.toKagariFile()
+                }?.toPersistentList() ?: persistentListOf(),
         contentWarning =
             if (!cw.isNullOrEmpty() && !text.isNullOrEmpty()) {
                 UiTranslatableText(original = parseMisskeyText(cw, accountKey, emojis, remoteHost))
@@ -828,9 +834,29 @@ private fun DriveFile.toUi(): UiMedia? {
             width = properties.width?.toFloat() ?: 0f,
             height = properties.height?.toFloat() ?: 0f,
         )
+    } else if (type.startsWith("audio/")) {
+        return UiMedia.Audio(
+            url = url.orEmpty(),
+            description = comment,
+            previewUrl = thumbnailUrl?.takeIf { it.isNotEmpty() },
+        )
     } else {
         return null
     }
+}
+
+private fun DriveFile.toKagariFile(): KagariFile? {
+    if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {
+        return null
+    }
+    val fileUrl = url?.takeIf { it.isNotEmpty() } ?: return null
+    return KagariFile(
+        name = name,
+        url = fileUrl,
+        type = type,
+        size = propertySize.toLong(),
+        sensitive = isSensitive,
+    )
 }
 
 internal fun UserLite.render(accountKey: MicroBlogKey): UiProfile {
