@@ -22,6 +22,7 @@ import dev.dimension.flare.data.network.xqt.model.GetProfileSpotlightsQuery200Re
 import dev.dimension.flare.data.network.xqt.model.InboxMessageData
 import dev.dimension.flare.data.network.xqt.model.InstructionUnion
 import dev.dimension.flare.data.network.xqt.model.KagariBirdwatchPivot
+import dev.dimension.flare.data.network.xqt.model.KagariTypeaheadUser
 import dev.dimension.flare.data.network.xqt.model.Media
 import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichTextTag
 import dev.dimension.flare.data.network.xqt.model.TimelineAddEntries
@@ -1443,6 +1444,44 @@ private fun Admin.render(accountKey: MicroBlogKey): UiProfile {
     ).withProxy(ProxyRef.forAccount(accountKey))
 }
 
+internal fun KagariTypeaheadUser.render(accountKey: MicroBlogKey): UiProfile? {
+    val id = idStr?.takeIf { it.isNotBlank() } ?: return null
+    val handle = screenName?.takeIf { it.isNotBlank() } ?: return null
+    val key = MicroBlogKey(id = id, host = accountKey.host)
+    return UiProfile(
+        key = key,
+        avatar = (profileImageUrlHttps?.replaceWithOriginImageUrl() ?: DEFAULT_XQT_AVATAR).toUiImage(),
+        nameInternal = (name ?: handle).toUiPlainText(),
+        handle =
+            UiHandle(
+                raw = handle,
+                host = accountKey.host,
+                displayOverride = if (isWebPlatform) null else "@$handle",
+            ),
+        platformId = XQT_PLATFORM_ID,
+        platformIcon = UiIcon.X.asType(),
+        clickEvent =
+            ClickEvent.Deeplink(
+                DeeplinkRoute.Profile
+                    .User(
+                        accountType =
+                            dev.dimension.flare.model.AccountType
+                                .Specific(accountKey),
+                        userKey = key,
+                    ),
+            ),
+        description = null,
+        banner = null,
+        matrices = UiProfile.Matrices(0, 0, 0),
+        mark =
+            listOfNotNull(
+                if (verified || extIsBlueVerified) UiProfile.Mark.Verified else null,
+                if (isProtected) UiProfile.Mark.Locked else null,
+            ).toImmutableList(),
+        bottomContent = null,
+    ).withProxy(ProxyRef.forAccount(accountKey))
+}
+
 internal val User.name: String
     get() = legacy.name ?: core?.name ?: "Unknown"
 
@@ -1453,7 +1492,9 @@ internal val User.avatarUrl: String
     get() =
         legacy.profileImageUrlHttps?.replaceWithOriginImageUrl()
             ?: avatar?.imageUrl?.replaceWithOriginImageUrl()
-            ?: "https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png"
+            ?: DEFAULT_XQT_AVATAR
+
+private const val DEFAULT_XQT_AVATAR = "https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png"
 
 private val Tweet.articleResult: TwitterArticleResult?
     get() = article?.articleResults?.result

@@ -10,6 +10,7 @@ import dev.dimension.flare.data.network.xqt.model.FleetlineResponse
 import dev.dimension.flare.data.network.xqt.model.InboxConversationTimelineResponse
 import dev.dimension.flare.data.network.xqt.model.InboxDMTrustedTimelineResponse
 import dev.dimension.flare.data.network.xqt.model.InboxDMUserUpdateResponse
+import dev.dimension.flare.data.network.xqt.model.KagariSearchTypeahead
 import dev.dimension.flare.data.network.xqt.model.ListsMembershipsResponse
 import dev.dimension.flare.data.network.xqt.model.UserRecommendationsItem
 import dev.dimension.flare.model.xqtHost
@@ -60,7 +61,7 @@ internal interface V11GetApi {
      * @return [Unit]
      */
     @GET("1.1/search/typeahead.json")
-    suspend fun getSearchTypeahead(@Query("include_ext_is_blue_verified") includeExtIsBlueVerified: kotlin.Int = 1, @Query("include_ext_verified_type") includeExtVerifiedType: kotlin.Int = 1, @Query("include_ext_profile_image_shape") includeExtProfileImageShape: kotlin.Int = 1, @Query("q") q: kotlin.String = "test", @Query("src") src: kotlin.String = "search_box", @Query("result_type") resultType: kotlin.String = "events,users,topics"): Response<Unit>
+    suspend fun getSearchTypeahead(@Query("include_ext_is_blue_verified") includeExtIsBlueVerified: kotlin.Int = 1, @Query("include_ext_verified_type") includeExtVerifiedType: kotlin.Int = 1, @Query("include_ext_profile_image_shape") includeExtProfileImageShape: kotlin.Int = 1, @Query("q") q: kotlin.String = "test", @Query("src") src: kotlin.String = "search_box", @Query("result_type") resultType: kotlin.String = "events,users,topics"): Response<KagariSearchTypeahead>
 
     @GET("1.1/dm/permissions.json")
     public suspend fun getDMPermissions(

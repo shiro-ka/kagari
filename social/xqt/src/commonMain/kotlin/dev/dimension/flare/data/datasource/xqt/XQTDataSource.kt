@@ -11,6 +11,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
 import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.DirectMessageDataSource
+import dev.dimension.flare.data.datasource.microblog.KagariMentionSearch
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSource
 import dev.dimension.flare.data.datasource.microblog.PostDetailFilter
@@ -726,6 +727,17 @@ internal class XQTDataSource(
                     allowMediaOnly = true,
                     compression = MEDIA_COMPRESSION,
                 ),
+            kagariMentionSearch =
+                KagariMentionSearch { query ->
+                    val response = service.getSearchTypeahead(q = query, resultType = "users")
+                    check(response.isSuccessful) { "X typeahead failed with HTTP ${response.code}" }
+                    response
+                        .body()
+                        ?.users
+                        .orEmpty()
+                        .mapNotNull { it.render(accountKey) }
+                        .take(5)
+                },
         )
 
     override fun following(userKey: MicroBlogKey) =
