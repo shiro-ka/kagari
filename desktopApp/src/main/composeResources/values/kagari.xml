@@ -11,9 +11,13 @@
     <string name="kagari_edit_tab_with_badge">Show small icon</string>
     <string name="kagari_edit_tab_icon">Icon</string>
     <string name="kagari_edit_tab_badge_icon">Small icon</string>
-    <string name="kagari_pixiv_following_switchable_title">Following (switchable)</string>
-    <string name="kagari_pixiv_bookmark_switchable_title">Bookmarks (switchable)</string>
+    <string name="kagari_pixiv_following_switchable_title">Following</string>
+    <string name="kagari_pixiv_bookmark_switchable_title">Bookmarks</string>
     <string name="kagari_timeline_switch_all">All</string>
     <string name="kagari_timeline_switch_public">Public</string>
     <string name="kagari_timeline_switch_private">Private</string>
+    <string name="kagari_pixiv_public_following_title">Public follows</string>
+    <string name="kagari_pixiv_private_following_title">Private follows</string>
+    <string name="kagari_pixiv_public_bookmarks_title">Public bookmarks</string>
+    <string name="kagari_pixiv_recommended_title">Recommended</string>
 </resources>

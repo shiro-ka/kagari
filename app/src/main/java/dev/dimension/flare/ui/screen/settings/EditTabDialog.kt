@@ -280,6 +280,14 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.KagariTimelineSwitchPrivate -> R.string.kagari_timeline_switch_private
 
+            UiStrings.KagariPixivPublicFollowing -> R.string.kagari_pixiv_public_following_title
+
+            UiStrings.KagariPixivPrivateFollowing -> R.string.kagari_pixiv_private_following_title
+
+            UiStrings.KagariPixivPublicBookmarks -> R.string.kagari_pixiv_public_bookmarks_title
+
+            UiStrings.KagariPixivRecommended -> R.string.kagari_pixiv_recommended_title
+
             UiStrings.CredentialImport -> R.string.login_button
 
             UiStrings.ExternalSigner -> R.string.login_button
@@ -322,7 +330,7 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.PixivPrivateFollowing -> R.string.pixiv_private_following_title
 
-            UiStrings.PixivPrivateBookmarks,
-            UiStrings.PixivPrivateFavourites,
-            -> R.string.pixiv_private_favourites_title
+            UiStrings.PixivPrivateBookmarks -> R.string.pixiv_private_bookmarks_title
+
+            UiStrings.PixivPrivateFavourites -> R.string.pixiv_private_favourites_title
         }

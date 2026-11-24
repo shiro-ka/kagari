@@ -99,6 +99,10 @@ public enum class UiStrings {
     KagariTimelineSwitchAll,
     KagariTimelineSwitchPublic,
     KagariTimelineSwitchPrivate,
+    KagariPixivPublicFollowing,
+    KagariPixivPrivateFollowing,
+    KagariPixivPublicBookmarks,
+    KagariPixivRecommended,
 }
 
 public fun UiStrings.asText(): UiText = UiText.Localized(this)

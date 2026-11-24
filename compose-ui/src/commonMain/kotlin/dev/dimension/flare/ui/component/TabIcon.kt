@@ -59,6 +59,10 @@ import dev.dimension.flare.compose.ui.kagari_pixiv_bookmark_switchable_title
 import dev.dimension.flare.compose.ui.kagari_timeline_switch_all
 import dev.dimension.flare.compose.ui.kagari_timeline_switch_public
 import dev.dimension.flare.compose.ui.kagari_timeline_switch_private
+import dev.dimension.flare.compose.ui.kagari_pixiv_public_following_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_private_following_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_public_bookmarks_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_recommended_title
 import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
 import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.kagari_tab_bluesky_discover
@@ -73,6 +77,7 @@ import dev.dimension.flare.compose.ui.nostr_login_account_hint
 import dev.dimension.flare.compose.ui.nostr_login_amber_button
 import dev.dimension.flare.compose.ui.nostr_login_qr_button
 import dev.dimension.flare.compose.ui.nostr_login_title
+import dev.dimension.flare.compose.ui.pixiv_private_bookmarks_title
 import dev.dimension.flare.compose.ui.pixiv_private_favourites_title
 import dev.dimension.flare.compose.ui.pixiv_private_following_title
 import dev.dimension.flare.compose.ui.pixiv_ranking_day_ai_title
@@ -515,6 +520,14 @@ internal val UiStrings.res: StringResource
 
             UiStrings.KagariTimelineSwitchPrivate -> Res.string.kagari_timeline_switch_private
 
+            UiStrings.KagariPixivPublicFollowing -> Res.string.kagari_pixiv_public_following_title
+
+            UiStrings.KagariPixivPrivateFollowing -> Res.string.kagari_pixiv_private_following_title
+
+            UiStrings.KagariPixivPublicBookmarks -> Res.string.kagari_pixiv_public_bookmarks_title
+
+            UiStrings.KagariPixivRecommended -> Res.string.kagari_pixiv_recommended_title
+
             UiStrings.Articles -> Res.string.profile_tab_articles
 
             UiStrings.WeiboFriendsCircle -> Res.string.weibo_friends_circle_title
@@ -589,9 +602,9 @@ internal val UiStrings.res: StringResource
 
             UiStrings.PixivPrivateFollowing -> Res.string.pixiv_private_following_title
 
-            UiStrings.PixivPrivateBookmarks,
-            UiStrings.PixivPrivateFavourites,
-            -> Res.string.pixiv_private_favourites_title
+            UiStrings.PixivPrivateBookmarks -> Res.string.pixiv_private_bookmarks_title
+
+            UiStrings.PixivPrivateFavourites -> Res.string.pixiv_private_favourites_title
 
             UiStrings.BlueskyFixDelegationScopes -> Res.string.bluesky_login_fix_delegation_scopes_button
         }

@@ -46,8 +46,8 @@ import dev.dimension.flare.ui.model.UiHashtag
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiStrings
-import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.model.contentPostOrNull
 import dev.dimension.flare.ui.model.mapper.PixivBookmarkKind
 import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
@@ -120,29 +120,46 @@ internal class PixivDataSource(
 
     override val pinnableTimelineTabs: List<PinnableTimelineTabSection> = emptyList()
 
+    private val recommendedTab: TimelineCandidate<*> by lazy {
+        CommonTimelineSpecs.discover.galleryCandidate(
+            data = TimelineSpec.AccountBasedData(accountKey),
+            title = UiStrings.KagariPixivRecommended.asText(),
+            icon = UiIcon.KagariWandMagicSparkles.withPixivLogo(),
+        )
+    }
+
+    private val switchableFollowingTab: TimelineCandidate<*> by lazy {
+        PixivPlatformSpec.switchableFollowingTimelineSpec.galleryCandidate(
+            TimelineSpec.AccountBasedData(accountKey),
+            icon = UiIcon.Home.withPixivLogo(),
+        )
+    }
+
+    private val switchableBookmarkTab: TimelineCandidate<*> by lazy {
+        PixivPlatformSpec.switchableBookmarkTimelineSpec.galleryCandidate(
+            TimelineSpec.AccountBasedData(accountKey),
+            icon = UiIcon.Heart.withPixivLogo(),
+        )
+    }
+
     override val defaultTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         persistentListOf(
-            CommonTimelineSpecs.home.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-                icon = IconType.FavIcon("https://pixiv.net/"),
-                title = UiText.Raw("pixiv"),
-            ),
+            recommendedTab,
+            switchableFollowingTab,
+            switchableBookmarkTab,
         )
     }
 
     private val userTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         val data = TimelineSpec.AccountBasedData(accountKey)
         persistentListOf(
-            PixivPlatformSpec.switchableFollowingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
+            switchableFollowingTab,
             PixivPlatformSpec.followingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
             PixivPlatformSpec.privateFollowingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
-            CommonTimelineSpecs.discover.galleryCandidate(
-                data = data,
-                icon = UiIcon.KagariWandMagicSparkles.withPixivLogo(),
-            ),
-            PixivPlatformSpec.switchableBookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
-            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
-            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
+            recommendedTab,
+            switchableBookmarkTab,
+            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Heart.withPixivLogo()),
+            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Heart.withPixivLogo()),
         )
     }
 

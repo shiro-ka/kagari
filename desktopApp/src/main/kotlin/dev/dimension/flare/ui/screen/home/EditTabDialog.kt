@@ -55,6 +55,10 @@ import dev.dimension.flare.kagari_pixiv_bookmark_switchable_title
 import dev.dimension.flare.kagari_timeline_switch_all
 import dev.dimension.flare.kagari_timeline_switch_public
 import dev.dimension.flare.kagari_timeline_switch_private
+import dev.dimension.flare.kagari_pixiv_public_following_title
+import dev.dimension.flare.kagari_pixiv_private_following_title
+import dev.dimension.flare.kagari_pixiv_public_bookmarks_title
+import dev.dimension.flare.kagari_pixiv_recommended_title
 import dev.dimension.flare.liked_title
 import dev.dimension.flare.manga_title
 import dev.dimension.flare.mastodon_tab_local_title
@@ -62,6 +66,7 @@ import dev.dimension.flare.mastodon_tab_public_title
 import dev.dimension.flare.misskey_channel_tab_following
 import dev.dimension.flare.mixed_timeline_title
 import dev.dimension.flare.ok
+import dev.dimension.flare.pixiv_private_bookmarks_title
 import dev.dimension.flare.pixiv_private_favourites_title
 import dev.dimension.flare.pixiv_private_following_title
 import dev.dimension.flare.pixiv_ranking_day_ai_title
@@ -345,6 +350,14 @@ private val UiStrings.desktopStringResource: StringResource
 
             UiStrings.KagariTimelineSwitchPrivate -> Res.string.kagari_timeline_switch_private
 
+            UiStrings.KagariPixivPublicFollowing -> Res.string.kagari_pixiv_public_following_title
+
+            UiStrings.KagariPixivPrivateFollowing -> Res.string.kagari_pixiv_private_following_title
+
+            UiStrings.KagariPixivPublicBookmarks -> Res.string.kagari_pixiv_public_bookmarks_title
+
+            UiStrings.KagariPixivRecommended -> Res.string.kagari_pixiv_recommended_title
+
             UiStrings.CredentialImport -> Res.string.ok
 
             UiStrings.ExternalSigner -> Res.string.ok
@@ -387,7 +400,7 @@ private val UiStrings.desktopStringResource: StringResource
 
             UiStrings.PixivPrivateFollowing -> Res.string.pixiv_private_following_title
 
-            UiStrings.PixivPrivateBookmarks,
-            UiStrings.PixivPrivateFavourites,
-            -> Res.string.pixiv_private_favourites_title
+            UiStrings.PixivPrivateBookmarks -> Res.string.pixiv_private_bookmarks_title
+
+            UiStrings.PixivPrivateFavourites -> Res.string.pixiv_private_favourites_title
         }

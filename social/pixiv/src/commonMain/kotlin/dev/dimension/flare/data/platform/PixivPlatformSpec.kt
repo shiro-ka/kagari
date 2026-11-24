@@ -47,7 +47,7 @@ public data object PixivPlatformSpec :
     internal val bookmarkTimelineSpec =
         TimelineSpec(
             id = PIXIV_BOOKMARK,
-            title = UiStrings.Favourite,
+            title = UiStrings.KagariPixivPublicBookmarks,
             icon = UiIcon.Heart.asType(),
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
@@ -60,7 +60,7 @@ public data object PixivPlatformSpec :
     internal val privateBookmarkTimelineSpec =
         TimelineSpec(
             id = PIXIV_PRIVATE_BOOKMARK,
-            title = UiStrings.PixivPrivateFavourites,
+            title = UiStrings.PixivPrivateBookmarks,
             icon = UiIcon.Heart.asType(),
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
@@ -73,7 +73,7 @@ public data object PixivPlatformSpec :
     internal val followingTimelineSpec =
         TimelineSpec(
             id = PIXIV_FOLLOWING,
-            title = UiStrings.Following,
+            title = UiStrings.KagariPixivPublicFollowing,
             icon = UiIcon.Follow.asType(),
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
@@ -86,7 +86,7 @@ public data object PixivPlatformSpec :
     internal val privateFollowingTimelineSpec =
         TimelineSpec(
             id = PIXIV_PRIVATE_FOLLOWING,
-            title = UiStrings.PixivPrivateFollowing,
+            title = UiStrings.KagariPixivPrivateFollowing,
             icon = UiIcon.Follow.asType(),
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
