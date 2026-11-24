@@ -256,4 +256,10 @@
     <string name="kagari_tokimeki_compose_edit">Edit</string>
     <string name="kagari_tokimeki_compose_media_conflict">A poll can\'t be posted with images or videos</string>
     <string name="kagari_tokimeki_compose_title">Let\'s poll</string>
+    <string name="kagari_post_action_layout_enable_for_platform">Customize %1$s actions</string>
+    <string name="kagari_post_action_family_repost_quote">Repost &amp; quote</string>
+    <string name="kagari_post_action_family_boost_quote">Boost &amp; quote</string>
+    <string name="kagari_post_action_family_renote_quote">Renote &amp; quote</string>
+    <string name="kagari_post_action_family_forward">Forward</string>
+    <string name="kagari_post_action_family_emoji_reaction">Emoji reaction</string>
 </resources>

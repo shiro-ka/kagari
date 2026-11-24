@@ -20,8 +20,11 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -30,13 +33,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -44,21 +50,29 @@ import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import dev.dimension.flare.R
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.KagariPlatformPostActionLayouts
+import dev.dimension.flare.data.datasource.microblog.KagariPostActionPlatforms
 import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig
+import dev.dimension.flare.data.datasource.microblog.PostActionLayoutHelpers
+import dev.dimension.flare.data.datasource.microblog.PostActionPlacement
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
+import dev.dimension.flare.model.PlatformRegistry
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
+import dev.dimension.flare.ui.component.resolveText
 import dev.dimension.flare.ui.component.status.StatusItem
 import dev.dimension.flare.ui.component.toImageVector
+import dev.dimension.flare.ui.model.PostActionLayoutPreviewHelper
+import dev.dimension.flare.ui.model.UiAccount
 import dev.dimension.flare.ui.model.UiIcon
-import dev.dimension.flare.ui.model.UiNumber
 import dev.dimension.flare.ui.model.UiTimelineV2
-import dev.dimension.flare.ui.model.isSuccess
-import dev.dimension.flare.ui.model.onSuccess
+import dev.dimension.flare.ui.model.takeSuccess
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.presenter.settings.AccountsPresenter
 import dev.dimension.flare.ui.theme.first
 import dev.dimension.flare.ui.theme.last
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
@@ -66,6 +80,7 @@ import dev.dimension.flare.ui.theme.segmentedShapes2
 import dev.dimension.flare.ui.theme.single
 import kotlinx.collections.immutable.toPersistentList
 import moe.tlaster.precompose.molecule.producePresenter
+import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -74,8 +89,32 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 internal fun PostActionLayoutScreen(onBack: () -> Unit) {
     val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val state by producePresenter { appearancePresenter() }
+    val accountsState by producePresenter("kagari_post_action_layout_accounts") {
+        remember { AccountsPresenter() }.invoke()
+    }
+    val platformRegistry = koinInject<PlatformRegistry>()
     val timelineAppearance = LocalTimelineAppearance.current
-    val persistedConfig = timelineAppearance.postActionLayout.normalizedForEdit()
+    val platforms =
+        remember(accountsState.accounts, platformRegistry) {
+            kagariPostActionPlatformsOf(
+                accounts =
+                    accountsState.accounts
+                        .takeSuccess()
+                        .orEmpty()
+                        .map { it.account },
+                order = platformRegistry.all.map { it.platformId },
+            )
+        }
+    var selectedPlatformId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedPlatform = platforms.firstOrNull { it.platformId == selectedPlatformId } ?: platforms.firstOrNull()
+    val platformId = selectedPlatform?.platformId
+    val families = KagariPostActionPlatforms.familiesFor(platformId)
+    val persistedLayouts = timelineAppearance.kagariPostActionLayouts
+    val persistedConfig =
+        PostActionLayoutHelpers.normalizedForEdit(
+            persistedLayouts.layoutFor(platformId, timelineAppearance.postActionLayout),
+            families,
+        )
     val configState = remember { mutableStateOf(persistedConfig) }
     var config by configState
     var isDraggingAction by remember { mutableStateOf(false) }
@@ -92,10 +131,17 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
         value: PostActionLayoutConfig,
         persist: Boolean = true,
     ) {
-        val normalized = value.normalizedForEdit()
+        val normalized = PostActionLayoutHelpers.normalizedForEdit(value, families)
         configState.value = normalized
         if (persist && normalized != persistedConfig) {
-            state.update(AppearanceKeys.PostActionLayout, normalized)
+            if (platformId == null) {
+                state.update(AppearanceKeys.PostActionLayout, normalized)
+            } else {
+                state.update(
+                    AppearanceKeys.KagariPostActionLayoutByPlatform,
+                    persistedLayouts.with(platformId, normalized),
+                )
+            }
         }
     }
 
@@ -108,16 +154,21 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
             val fromFamily = from.key.asPostActionFamilyOrNull() ?: return@rememberReorderableLazyListState
             val toFamily = to.key.asPostActionFamilyOrNull() ?: return@rememberReorderableLazyListState
             val currentConfig = configState.value
-            val fromPlacement = currentConfig.placementOf(fromFamily)
-            val toPlacement = currentConfig.placementOf(toFamily)
+            val fromPlacement = PostActionLayoutHelpers.placementOf(currentConfig, fromFamily)
+            val toPlacement = PostActionLayoutHelpers.placementOf(currentConfig, toFamily)
             if (fromPlacement == toPlacement) {
                 updateConfig(
-                    currentConfig.moveWithin(fromPlacement, fromFamily, toFamily),
+                    PostActionLayoutHelpers.moveWithin(currentConfig, fromPlacement, fromFamily, toFamily, families),
                     persist = false,
                 )
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             }
         }
+
+    val previewSample =
+        state.sampleStatus
+            .takeSuccess()
+            ?.takeIf { platformId == null || it.platformId == platformId }
 
     FlareScaffold(
         topBar = {
@@ -139,22 +190,42 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             modifier = Modifier.padding(horizontal = screenHorizontalPadding),
         ) {
+            if (platforms.isNotEmpty()) {
+                item(key = "platform_tabs") {
+                    KagariPostActionPlatformTabs(
+                        platforms = platforms,
+                        selectedPlatformId = platformId,
+                        onSelected = {
+                            selectedPlatformId = it
+                            configState.value =
+                                PostActionLayoutHelpers.normalizedForEdit(
+                                    persistedLayouts.layoutFor(it, timelineAppearance.postActionLayout),
+                                    KagariPostActionPlatforms.familiesFor(it),
+                                )
+                        },
+                    )
+                }
+            }
+
             item(key = "preview_and_enabled") {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
-                    val hasPreview = state.sampleStatus.isSuccess
-                    state.sampleStatus.onSuccess { sample ->
+                    if (previewSample != null) {
                         SegmentedListItem(
                             onClick = {},
                             shapes = ListItemDefaults.first(),
                             contentPadding = PaddingValues(0.dp),
                         ) {
                             CompositionLocalProvider(
-                                LocalTimelineAppearance provides timelineAppearance.copy(postActionLayout = config),
+                                LocalTimelineAppearance provides
+                                    timelineAppearance.copy(
+                                        postActionLayout = config,
+                                        kagariPostActionLayouts = KagariPlatformPostActionLayouts.Default,
+                                    ),
                             ) {
                                 StatusItem(
-                                    sample.withPostActionLayoutPreviewActions(),
+                                    previewSample.withKagariPreviewActions(families),
                                     modifier = Modifier.background(MaterialTheme.colorScheme.surface),
                                 )
                             }
@@ -165,9 +236,19 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
                         onClick = {
                             updateConfig(config.copy(enabled = !config.enabled))
                         },
-                        shapes = if (hasPreview) ListItemDefaults.last() else ListItemDefaults.single(),
+                        shapes = if (previewSample != null) ListItemDefaults.last() else ListItemDefaults.single(),
                         content = {
-                            Text(text = stringResource(id = R.string.settings_post_action_layout_enable))
+                            if (selectedPlatform != null) {
+                                Text(
+                                    text =
+                                        stringResource(
+                                            id = R.string.kagari_post_action_layout_enable_for_platform,
+                                            selectedPlatform.platformDisplayNameText.resolveText(),
+                                        ),
+                                )
+                            } else {
+                                Text(text = stringResource(id = R.string.settings_post_action_layout_enable))
+                            }
                         },
                         supportingContent = {
                             Text(text = stringResource(id = R.string.settings_post_action_layout_enable_description))
@@ -189,6 +270,8 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
                     titleRes = R.string.settings_post_action_layout_button_row,
                     placement = PostActionPlacement.ButtonRow,
                     config = config,
+                    platformId = platformId,
+                    families = families,
                     onConfigChanged = {
                         updateConfig(it)
                     },
@@ -205,6 +288,8 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
                     titleRes = R.string.settings_post_action_layout_more_menu,
                     placement = PostActionPlacement.MoreMenu,
                     config = config,
+                    platformId = platformId,
+                    families = families,
                     onConfigChanged = {
                         updateConfig(it)
                     },
@@ -221,6 +306,8 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
                     titleRes = R.string.settings_post_action_layout_hidden,
                     placement = PostActionPlacement.Hidden,
                     config = config,
+                    platformId = platformId,
+                    families = families,
                     onConfigChanged = {
                         updateConfig(it)
                     },
@@ -238,16 +325,69 @@ internal fun PostActionLayoutScreen(onBack: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KagariPostActionPlatformTabs(
+    platforms: List<UiAccount>,
+    selectedPlatformId: String?,
+    onSelected: (String) -> Unit,
+) {
+    val selectedIndex = platforms.indexOfFirst { it.platformId == selectedPlatformId }.coerceAtLeast(0)
+    SecondaryScrollableTabRow(
+        selectedTabIndex = selectedIndex,
+        containerColor = Color.Transparent,
+        edgePadding = 0.dp,
+        divider = {},
+        indicator = {
+            TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(selectedIndex),
+                height = 2.dp,
+            )
+        },
+    ) {
+        platforms.forEachIndexed { index, platform ->
+            val selected = index == selectedIndex
+            Tab(
+                selected = selected,
+                onClick = { onSelected(platform.platformId) },
+                selectedContentColor = MaterialTheme.colorScheme.onSurface,
+                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = {
+                    Text(
+                        text = platform.platformDisplayNameText.resolveText(),
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            ),
+                    )
+                },
+            )
+        }
+    }
+}
+
+private fun kagariPostActionPlatformsOf(
+    accounts: List<UiAccount>,
+    order: List<String>,
+): List<UiAccount> =
+    accounts
+        .distinctBy { it.platformId }
+        .sortedBy { account ->
+            order.indexOf(account.platformId).let { if (it == -1) Int.MAX_VALUE else it }
+        }
+
 private fun LazyListScope.postActionSection(
     titleRes: Int,
     placement: PostActionPlacement,
     config: PostActionLayoutConfig,
+    platformId: String?,
+    families: List<PostActionFamily>,
     onConfigChanged: (PostActionLayoutConfig) -> Unit,
     onDragStarted: () -> Unit,
     onDragStopped: () -> Unit,
     reorderableState: sh.calvin.reorderable.ReorderableLazyListState,
 ) {
-    val families = config.familiesFor(placement)
+    val placed = PostActionLayoutHelpers.familiesFor(config, placement)
     item(key = "${placement.name}_title") {
         Text(
             text = stringResource(id = titleRes),
@@ -259,7 +399,7 @@ private fun LazyListScope.postActionSection(
                     .padding(horizontal = 16.dp),
         )
     }
-    if (families.isEmpty()) {
+    if (placed.isEmpty()) {
         item(key = "${placement.name}_empty") {
             SegmentedListItem(
                 onClick = {},
@@ -271,15 +411,17 @@ private fun LazyListScope.postActionSection(
         }
     } else {
         itemsIndexed(
-            items = families,
+            items = placed,
             key = { _, family -> family.saveableKey },
         ) { index, family ->
             PostActionFamilyRow(
                 family = family,
                 placement = placement,
                 index = index,
-                totalCount = families.size,
+                totalCount = placed.size,
                 config = config,
+                platformId = platformId,
+                families = families,
                 onConfigChanged = onConfigChanged,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
@@ -297,6 +439,8 @@ private fun LazyItemScope.PostActionFamilyRow(
     index: Int,
     totalCount: Int,
     config: PostActionLayoutConfig,
+    platformId: String?,
+    families: List<PostActionFamily>,
     onConfigChanged: (PostActionLayoutConfig) -> Unit,
     onDragStarted: () -> Unit,
     onDragStopped: () -> Unit,
@@ -316,12 +460,12 @@ private fun LazyItemScope.PostActionFamilyRow(
             shapes = ListItemDefaults.segmentedShapes2(index, totalCount),
             leadingContent = {
                 FAIcon(
-                    imageVector = family.icon.toImageVector(),
+                    imageVector = family.kagariIcon(platformId).toImageVector(),
                     contentDescription = null,
                 )
             },
             content = {
-                Text(text = stringResource(id = family.labelRes))
+                Text(text = stringResource(id = family.kagariLabelRes(platformId)))
             },
             trailingContent = {
                 Row(
@@ -365,7 +509,9 @@ private fun LazyItemScope.PostActionFamilyRow(
                                         },
                                         onClick = {
                                             showMenu = false
-                                            onConfigChanged(config.moveTo(family, targetPlacement))
+                                            onConfigChanged(
+                                                PostActionLayoutHelpers.moveTo(config, family, targetPlacement, families),
+                                            )
                                         },
                                     )
                                 }
@@ -377,7 +523,7 @@ private fun LazyItemScope.PostActionFamilyRow(
                                 enabled = index > 0,
                                 onClick = {
                                     showMenu = false
-                                    onConfigChanged(config.moveBy(family, -1))
+                                    onConfigChanged(PostActionLayoutHelpers.moveBy(config, family, -1, families))
                                 },
                             )
                             DropdownMenuItem(
@@ -387,7 +533,7 @@ private fun LazyItemScope.PostActionFamilyRow(
                                 enabled = index < totalCount - 1,
                                 onClick = {
                                     showMenu = false
-                                    onConfigChanged(config.moveBy(family, 1))
+                                    onConfigChanged(PostActionLayoutHelpers.moveBy(config, family, 1, families))
                                 },
                             )
                         }
@@ -398,81 +544,38 @@ private fun LazyItemScope.PostActionFamilyRow(
     }
 }
 
-private fun UiTimelineV2.Post.withPostActionLayoutPreviewActions(): UiTimelineV2.Post {
-    var replacedMore = false
-    val previewActions =
-        actions
-            .map { action ->
-                val item = action as? ActionMenu.Item
-                if (item?.isMoreMenuDisplayItem() == true) {
-                    replacedMore = true
-                    previewMoreGroup(item)
-                } else if (item?.actionFamily == PostActionFamily.Repost) {
-                    previewRepostGroup(item)
-                } else {
-                    action
-                }
-            }.let { actions ->
-                if (replacedMore) actions else actions + previewMoreGroup()
+private fun UiTimelineV2.Post.withKagariPreviewActions(families: List<PostActionFamily>): UiTimelineV2.Post {
+    val preview = PostActionLayoutPreviewHelper.withPreviewActions(this)
+    return preview.copy(actions = preview.actions.filterKagariFamilies(families).toPersistentList())
+}
+
+private fun List<ActionMenu>.filterKagariFamilies(families: List<PostActionFamily>): List<ActionMenu> =
+    mapNotNull { action ->
+        when (action) {
+            is ActionMenu.Item -> {
+                action.takeIf { it.actionFamily.isKagariFamilyIn(families) }
             }
-    return copy(actions = previewActions.toPersistentList())
-}
 
-private fun ActionMenu.Item.isMoreMenuDisplayItem(): Boolean =
-    actionFamily == null &&
-        icon == UiIcon.More &&
-        text == ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More)
+            is ActionMenu.Group -> {
+                if (action.displayItem.actionFamily.isKagariFamilyIn(families)) {
+                    action.copy(actions = action.actions.filterKagariFamilies(families).toPersistentList())
+                } else {
+                    null
+                }
+            }
 
-private fun previewMoreGroup(
-    displayItem: ActionMenu.Item =
-        ActionMenu.Item(
-            icon = UiIcon.More,
-            text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More),
-        ),
-): ActionMenu.Group =
-    ActionMenu.Group(
-        displayItem = displayItem,
-        actions =
-            listOf(
-                ActionMenu.Item(
-                    icon = UiIcon.Translate,
-                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Translate),
-                    actionFamily = PostActionFamily.Translate,
-                ),
-                ActionMenu.Item(
-                    icon = UiIcon.Bookmark,
-                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Bookmark),
-                    count = UiNumber(4),
-                    actionFamily = PostActionFamily.Bookmark,
-                ),
-                ActionMenu.Item(
-                    icon = UiIcon.Share,
-                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Share),
-                    actionFamily = PostActionFamily.Share,
-                ),
-            ).toPersistentList(),
-    )
+            ActionMenu.Divider -> {
+                action
+            }
+        }
+    }
 
-private fun previewRepostGroup(displayItem: ActionMenu.Item): ActionMenu.Group =
-    ActionMenu.Group(
-        displayItem = displayItem,
-        actions =
-            listOf(
-                displayItem,
-                ActionMenu.Item(
-                    icon = UiIcon.Quote,
-                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Quote),
-                    count = UiNumber(2),
-                    actionFamily = PostActionFamily.Quote,
-                ),
-            ).toPersistentList(),
-    )
-
-private enum class PostActionPlacement {
-    ButtonRow,
-    MoreMenu,
-    Hidden,
-}
+private fun PostActionFamily?.isKagariFamilyIn(families: List<PostActionFamily>): Boolean =
+    when (this) {
+        null -> true
+        PostActionFamily.Quote -> PostActionFamily.Repost in families
+        else -> this in families
+    }
 
 private const val POST_ACTION_FAMILY_KEY_PREFIX = "post_action_family:"
 
@@ -486,110 +589,6 @@ private fun Any?.asPostActionFamilyOrNull(): PostActionFamily? {
     return runCatching { enumValueOf<PostActionFamily>(name) }.getOrNull()
 }
 
-private val allPostActionFamilies: List<PostActionFamily> =
-    listOf(
-        PostActionFamily.Reply,
-        PostActionFamily.Comment,
-        PostActionFamily.Repost,
-        PostActionFamily.Like,
-        PostActionFamily.React,
-        PostActionFamily.Translate,
-        PostActionFamily.Bookmark,
-        PostActionFamily.Favorite,
-        PostActionFamily.Share,
-        PostActionFamily.Delete,
-        PostActionFamily.Report,
-        PostActionFamily.MuteUser,
-        PostActionFamily.BlockUser,
-    )
-
-private fun PostActionLayoutConfig.normalizedForEdit(): PostActionLayoutConfig {
-    val primary = primary.cleanFamilies()
-    val hidden = hidden.cleanFamilies().filterNot { it in primary }
-    val overflow =
-        (
-            overflow.cleanFamilies().filterNot { it in primary || it in hidden } +
-                allPostActionFamilies.filterNot { it in primary || it in hidden || it in overflow }
-        ).distinct()
-    return copy(
-        primary = primary.toPersistentList(),
-        overflow = overflow.toPersistentList(),
-        hidden = hidden.toPersistentList(),
-    )
-}
-
-private fun Iterable<PostActionFamily>.cleanFamilies(): List<PostActionFamily> = filter { it in allPostActionFamilies }.distinct()
-
-private fun PostActionLayoutConfig.familiesFor(placement: PostActionPlacement): List<PostActionFamily> =
-    when (placement) {
-        PostActionPlacement.ButtonRow -> primary.toList()
-        PostActionPlacement.MoreMenu -> overflow.toList()
-        PostActionPlacement.Hidden -> hidden.toList()
-    }
-
-private fun PostActionLayoutConfig.placementOf(family: PostActionFamily): PostActionPlacement =
-    when {
-        family in primary -> PostActionPlacement.ButtonRow
-        family in hidden -> PostActionPlacement.Hidden
-        else -> PostActionPlacement.MoreMenu
-    }
-
-private fun PostActionLayoutConfig.moveTo(
-    family: PostActionFamily,
-    placement: PostActionPlacement,
-): PostActionLayoutConfig {
-    val primary = primary.filterNot { it == family }.toMutableList()
-    val overflow = overflow.filterNot { it == family }.toMutableList()
-    val hidden = hidden.filterNot { it == family }.toMutableList()
-    when (placement) {
-        PostActionPlacement.ButtonRow -> primary += family
-        PostActionPlacement.MoreMenu -> overflow += family
-        PostActionPlacement.Hidden -> hidden += family
-    }
-    return copy(
-        primary = primary.toPersistentList(),
-        overflow = overflow.toPersistentList(),
-        hidden = hidden.toPersistentList(),
-    ).normalizedForEdit()
-}
-
-private fun PostActionLayoutConfig.moveWithin(
-    placement: PostActionPlacement,
-    from: PostActionFamily,
-    to: PostActionFamily,
-): PostActionLayoutConfig {
-    if (from == to) return this
-    return when (placement) {
-        PostActionPlacement.ButtonRow -> copy(primary = primary.toMutableList().move(from, to).toPersistentList())
-        PostActionPlacement.MoreMenu -> copy(overflow = overflow.toMutableList().move(from, to).toPersistentList())
-        PostActionPlacement.Hidden -> copy(hidden = hidden.toMutableList().move(from, to).toPersistentList())
-    }.normalizedForEdit()
-}
-
-private fun PostActionLayoutConfig.moveBy(
-    family: PostActionFamily,
-    offset: Int,
-): PostActionLayoutConfig {
-    val placement = placementOf(family)
-    val families = familiesFor(placement)
-    val fromIndex = families.indexOf(family)
-    if (fromIndex == -1) return this
-    val toIndex = (fromIndex + offset).coerceIn(families.indices)
-    if (fromIndex == toIndex) return this
-    return moveWithin(placement, family, families[toIndex])
-}
-
-private fun MutableList<PostActionFamily>.move(
-    from: PostActionFamily,
-    to: PostActionFamily,
-): MutableList<PostActionFamily> {
-    val fromIndex = indexOf(from)
-    val toIndex = indexOf(to)
-    if (fromIndex == -1 || toIndex == -1) return this
-    add(toIndex, removeAt(fromIndex))
-    return this
-}
-
 private val PostActionPlacement.moveLabelRes: Int
     get() =
         when (this) {
@@ -597,6 +596,59 @@ private val PostActionPlacement.moveLabelRes: Int
             PostActionPlacement.MoreMenu -> R.string.settings_post_action_layout_move_to_more_menu
             PostActionPlacement.Hidden -> R.string.settings_post_action_layout_hide_action
         }
+
+private fun PostActionFamily.kagariIcon(platformId: String?): UiIcon =
+    when {
+        platformId == KagariPostActionPlatforms.PIXIV && this == PostActionFamily.Favorite -> UiIcon.Like
+        else -> icon
+    }
+
+private fun PostActionFamily.kagariLabelRes(platformId: String?): Int =
+    when (platformId) {
+        KagariPostActionPlatforms.BLUESKY,
+        KagariPostActionPlatforms.XQT,
+        KagariPostActionPlatforms.NOSTR,
+        -> {
+            when (this) {
+                PostActionFamily.Repost -> R.string.kagari_post_action_family_repost_quote
+                else -> labelRes
+            }
+        }
+
+        KagariPostActionPlatforms.MASTODON -> {
+            when (this) {
+                PostActionFamily.Repost -> R.string.kagari_post_action_family_boost_quote
+                PostActionFamily.Like -> R.string.settings_post_action_family_favorite
+                PostActionFamily.React -> R.string.kagari_post_action_family_emoji_reaction
+                else -> labelRes
+            }
+        }
+
+        KagariPostActionPlatforms.MISSKEY -> {
+            when (this) {
+                PostActionFamily.Repost -> R.string.kagari_post_action_family_renote_quote
+                else -> labelRes
+            }
+        }
+
+        KagariPostActionPlatforms.VVO -> {
+            when (this) {
+                PostActionFamily.Repost -> R.string.kagari_post_action_family_forward
+                else -> labelRes
+            }
+        }
+
+        KagariPostActionPlatforms.PIXIV -> {
+            when (this) {
+                PostActionFamily.Favorite -> R.string.settings_post_action_family_bookmark
+                else -> labelRes
+            }
+        }
+
+        else -> {
+            labelRes
+        }
+    }
 
 private val PostActionFamily.icon: UiIcon
     get() =

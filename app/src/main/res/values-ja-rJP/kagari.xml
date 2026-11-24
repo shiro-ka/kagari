@@ -255,4 +255,10 @@
     <string name="kagari_tokimeki_compose_edit">編集</string>
     <string name="kagari_tokimeki_compose_media_conflict">投票と画像・動画は同時に投稿できません</string>
     <string name="kagari_tokimeki_compose_title">投票しよう</string>
+    <string name="kagari_post_action_layout_enable_for_platform">%1$s のアクションをカスタマイズ</string>
+    <string name="kagari_post_action_family_repost_quote">リポスト・引用</string>
+    <string name="kagari_post_action_family_boost_quote">ブースト・引用</string>
+    <string name="kagari_post_action_family_renote_quote">リノート・引用</string>
+    <string name="kagari_post_action_family_forward">転送</string>
+    <string name="kagari_post_action_family_emoji_reaction">絵文字リアクション</string>
 </resources>
