@@ -39,6 +39,7 @@ import dev.dimension.flare.ui.model.UiArticleBlock
 import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
 import dev.dimension.flare.ui.route.DeeplinkRoute
+import kotlinx.serialization.json.JsonElement
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.plugin.module.dsl.modules
@@ -47,6 +48,8 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Instant
 
@@ -1007,10 +1010,57 @@ class XQTTest {
         assertEquals("10", tweet.views?.count)
     }
 
-    private fun createPlainTweet(views: TweetView? = null): Tweet =
+    @Test
+    fun renderStatus_birdwatchPivot_addsCommunityNoteWithLinks() {
+        val pivot =
+            XQT_JSON.parseToJsonElement(
+                """
+                {
+                  "destinationUrl": "https://x.com/i/birdwatch/n/1",
+                  "title": "Readers added context",
+                  "subtitle": {
+                    "text": "See https://example.com for details",
+                    "entities": [
+                      {"fromIndex": 4, "toIndex": 23, "ref": {"type": "TimelineUrl", "url": "https://t.co/abc", "urlType": "ExternalUrl"}}
+                    ]
+                  },
+                  "footer": {"text": "", "entities": []},
+                  "iconType": "SomethingNew"
+                }
+                """.trimIndent(),
+            )
+
+        val note = assertNotNull(createPlainTweet(birdwatchPivot = pivot).renderStatus(accountKey).kagariCommunityNote)
+        val runs = note.text.allTextRuns()
+
+        assertEquals("Readers added context", note.title)
+        assertEquals("https://x.com/i/birdwatch/n/1", note.url)
+        assertEquals("See https://example.com for details", note.text.innerText)
+        assertEquals(listOf("See ", "https://example.com", " for details"), runs.map { it.text })
+        assertEquals("https://t.co/abc", runs[1].style.link)
+    }
+
+    @Test
+    fun decodeTweet_brokenBirdwatchPivot_keepsTweetWithoutNote() {
+        val tweet =
+            XQT_JSON.decodeFromString(
+                Tweet.serializer(),
+                """{"rest_id":"1","birdwatch_pivot":{"subtitle":5}}""",
+            )
+
+        assertEquals("1", tweet.restId)
+        assertNull(tweet.renderKagariCommunityNote())
+        assertNull(createPlainTweet().renderStatus(accountKey).kagariCommunityNote)
+    }
+
+    private fun createPlainTweet(
+        views: TweetView? = null,
+        birdwatchPivot: JsonElement? = null,
+    ): Tweet =
         Tweet(
             restId = "123",
             views = views,
+            birdwatchPivot = birdwatchPivot,
             legacy =
                 TweetLegacy(
                     idStr = "123",

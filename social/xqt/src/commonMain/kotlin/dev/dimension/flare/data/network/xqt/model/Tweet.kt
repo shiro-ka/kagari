@@ -17,6 +17,7 @@ package dev.dimension.flare.data.network.xqt.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  *
@@ -50,8 +51,8 @@ internal data class Tweet(
     val views: TweetView? = null,
 //    @Contextual @SerialName(value = "__typename")
 //    val typename: TypeName? = null,
-//    @SerialName(value = "birdwatch_pivot")
-//    val birdwatchPivot: BirdwatchPivot? = null,
+    @SerialName(value = "birdwatch_pivot")
+    val birdwatchPivot: JsonElement? = null,
     @SerialName(value = "card")
     val card: TweetCard? = null,
     @SerialName(value = "core")

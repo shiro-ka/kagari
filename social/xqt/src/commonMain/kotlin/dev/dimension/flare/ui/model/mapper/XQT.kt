@@ -14,12 +14,14 @@ import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.userActionsMenu
 import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.data.network.xqt.XQT_JSON
 import dev.dimension.flare.data.network.xqt.model.Admin
 import dev.dimension.flare.data.network.xqt.model.AudioSpace
 import dev.dimension.flare.data.network.xqt.model.Entities
 import dev.dimension.flare.data.network.xqt.model.GetProfileSpotlightsQuery200Response
 import dev.dimension.flare.data.network.xqt.model.InboxMessageData
 import dev.dimension.flare.data.network.xqt.model.InstructionUnion
+import dev.dimension.flare.data.network.xqt.model.KagariBirdwatchPivot
 import dev.dimension.flare.data.network.xqt.model.Media
 import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichTextTag
 import dev.dimension.flare.data.network.xqt.model.TimelineAddEntries
@@ -54,6 +56,7 @@ import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.ui.model.ClickEvent
+import dev.dimension.flare.ui.model.KagariCommunityNote
 import dev.dimension.flare.ui.model.UiArticle
 import dev.dimension.flare.ui.model.UiArticleAuthor
 import dev.dimension.flare.ui.model.UiArticleBlock
@@ -937,7 +940,50 @@ internal fun Tweet.renderStatus(
                 ),
             ),
         accountType = AccountType.Specific(accountKey),
+        kagariCommunityNote = renderKagariCommunityNote(),
     ).bindMediaProxy()
+}
+
+internal fun Tweet.renderKagariCommunityNote(): KagariCommunityNote? {
+    val pivot =
+        birdwatchPivot
+            ?.let { runCatching { XQT_JSON.decodeFromJsonElement(KagariBirdwatchPivot.serializer(), it) }.getOrNull() }
+            ?: return null
+    val subtitle = pivot.subtitle ?: return null
+    val noteText = subtitle.text?.takeIf { it.isNotBlank() } ?: return null
+    val runs =
+        buildList<RenderRun> {
+            var cursor = 0
+            subtitle.entities
+                .orEmpty()
+                .mapNotNull { entity ->
+                    val from = entity.fromIndex
+                    val to = entity.toIndex
+                    val url = entity.ref?.url?.takeIf { it.isNotBlank() }
+                    if (from == null || to == null || url == null) null else Triple(from, to, url)
+                }.sortedBy { it.first }
+                .forEach { (from, to, url) ->
+                    if (from < cursor || to <= from || to > noteText.length) return@forEach
+                    if (from > cursor) {
+                        add(RenderRun.Text(text = noteText.substring(cursor, from)))
+                    }
+                    add(
+                        RenderRun.Text(
+                            text = noteText.substring(from, to),
+                            style = RenderTextStyle(link = url),
+                        ),
+                    )
+                    cursor = to
+                }
+            if (cursor < noteText.length) {
+                add(RenderRun.Text(text = noteText.substring(cursor)))
+            }
+        }
+    return KagariCommunityNote(
+        title = pivot.title?.takeIf { it.isNotBlank() },
+        text = uiRichTextOf(listOf(RenderContent.Text(runs = runs.toImmutableList()))),
+        url = pivot.destinationUrl?.takeIf { it.isNotBlank() },
+    )
 }
 
 internal fun User.render(accountKey: MicroBlogKey): UiProfile {

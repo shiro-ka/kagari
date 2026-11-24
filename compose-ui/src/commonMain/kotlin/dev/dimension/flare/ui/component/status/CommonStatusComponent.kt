@@ -271,7 +271,9 @@ public fun CommonStatusComponent(
                     (it !is KagariEmbed.TokimekiPoll || kagariTokimekiPoll != null) &&
                     it !is KagariEmbed.MisskeyUrlPreview
             }
-        val showsAttachments = showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null
+        val kagariCommunityNote = item.kagariCommunityNote?.takeIf { !isQuote }
+        val showsAttachments =
+            showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null || kagariCommunityNote != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
         val showsActions = (appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions
@@ -608,6 +610,19 @@ public fun CommonStatusComponent(
                         modifier = Modifier.height(if (showsImages || showsFiles || showsCard) 8.dp else firstAttachmentSpacing),
                     )
                     KagariEmbedComponent(embed = kagariEmbed, madoVoice = kagariMadoVoice, tokimekiPoll = kagariTokimekiPoll)
+                }
+                if (kagariCommunityNote != null) {
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                if (showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null) {
+                                    8.dp
+                                } else {
+                                    firstAttachmentSpacing
+                                },
+                            ),
+                    )
+                    KagariCommunityNoteComponent(note = kagariCommunityNote)
                 }
 
                 if (showsReactions) {
