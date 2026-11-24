@@ -34,6 +34,12 @@ public enum class PostActionFamily {
     Report,
     MuteUser,
     BlockUser,
+    BookmarkPublic,
+    BookmarkPrivate,
+    Save,
+    Follow,
+    FollowPrivate,
+    OpenInBrowser,
 }
 
 public enum class PostActionPlacement {
@@ -184,6 +190,14 @@ public sealed class ActionMenu {
                     KagariDetachQuote,
                     KagariReattachQuote,
                     KagariSendViaChat,
+                    KagariPixivBookmarkPublic,
+                    KagariPixivBookmarkPrivate,
+                    KagariPixivRemoveBookmark,
+                    KagariSave,
+                    KagariPixivFollow,
+                    KagariPixivFollowPrivate,
+                    KagariPixivUnfollow,
+                    KagariOpenInBrowser,
                 }
             }
         }
@@ -244,7 +258,12 @@ public fun ImmutableList<ActionMenu>.applyPostActionLayout(config: PostActionLay
             .filterNot { it in hiddenFamilies }
             .filterNot { it in primaryFamilies }
 
-    val primaryActions = primaryFamilies.mapNotNull(::pick)
+    val counterActions =
+        entries
+            .filter { it.family == null && it.action.isDisplayOnlyPostActionCounter() }
+            .onEach { consumedIndexes += it.index }
+            .map { it.action }
+    val primaryActions = counterActions + primaryFamilies.mapNotNull(::pick)
     val overflowActions = overflowFamilies.mapNotNull(::pick).toMutableList<ActionMenu>()
     overflowActions +=
         entries
@@ -554,6 +573,12 @@ private fun List<ActionMenu>.normalizePostActionDividers(): List<ActionMenu> {
     }
     return result
 }
+
+private fun ActionMenu.isDisplayOnlyPostActionCounter(): Boolean =
+    this is ActionMenu.Item &&
+        actionFamily == null &&
+        clickEvent == ClickEvent.Noop &&
+        count != null
 
 private fun ActionMenu.Item.isDisplayOnlyPostActionContainer(): Boolean =
     actionFamily == null &&

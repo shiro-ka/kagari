@@ -71,6 +71,11 @@ public enum class UiIcon {
     KagariPin,
     KagariMuteThread,
     KagariUnmuteThread,
+    KagariPrivateBookmark,
+    KagariPrivateBookmarked,
+    KagariFollowing,
+    KagariFollowPrivate,
+    KagariSave,
 }
 
 /**

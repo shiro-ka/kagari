@@ -80,6 +80,12 @@ internal data class KagariSendViaChatScreenRoute(
     val cid: String,
 ) : Route.DM
 
+@Serializable
+internal data class KagariPixivBookmarkSheetRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+) : Route.Status
+
 internal fun KagariDeeplink.toKagariRoute(): Route =
     when (this) {
         is KagariHideReplyRoute -> {
@@ -158,6 +164,13 @@ internal fun KagariDeeplink.toKagariRoute(): Route =
 
         is KagariInteractionGateRoute -> {
             KagariInteractionGateDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+            )
+        }
+
+        is KagariPixivBookmarkRoute -> {
+            KagariPixivBookmarkSheetRoute(
                 statusKey = statusKey,
                 accountType = accountType,
             )

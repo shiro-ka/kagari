@@ -62,11 +62,12 @@ internal class PixivLoader(
 
     override suspend fun status(statusKey: MicroBlogKey): UiTimelineV2 {
         val illustId = statusKey.pixivId()
-        return service
-            .illustDetail(
-                illustId = illustId,
-            ).illust
-            .toUiTimeline(accountKey)
+        val illust =
+            service
+                .illustDetail(
+                    illustId = illustId,
+                ).illust
+        return illust.toUiTimeline(accountKey, service.bookmarkStateOf(illust))
     }
 
     override suspend fun deleteStatus(statusKey: MicroBlogKey): Unit =

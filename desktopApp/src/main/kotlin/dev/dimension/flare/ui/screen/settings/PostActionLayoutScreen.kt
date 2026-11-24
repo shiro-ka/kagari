@@ -36,6 +36,12 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutHelpers
 import dev.dimension.flare.data.datasource.microblog.PostActionPlacement
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
 import dev.dimension.flare.data.repository.SettingsRepository
+import dev.dimension.flare.kagari_post_action_family_bookmark_private
+import dev.dimension.flare.kagari_post_action_family_bookmark_public
+import dev.dimension.flare.kagari_post_action_family_follow
+import dev.dimension.flare.kagari_post_action_family_follow_private
+import dev.dimension.flare.kagari_post_action_family_open_in_browser
+import dev.dimension.flare.kagari_post_action_family_save
 import dev.dimension.flare.more
 import dev.dimension.flare.settings_post_action_family_block_user
 import dev.dimension.flare.settings_post_action_family_bookmark
@@ -471,6 +477,12 @@ private val PostActionFamily.icon: UiIcon
             PostActionFamily.Report -> UiIcon.Report
             PostActionFamily.MuteUser -> UiIcon.Mute
             PostActionFamily.BlockUser -> UiIcon.Block
+            PostActionFamily.BookmarkPublic -> UiIcon.Like
+            PostActionFamily.BookmarkPrivate -> UiIcon.KagariPrivateBookmark
+            PostActionFamily.Save -> UiIcon.KagariSave
+            PostActionFamily.Follow -> UiIcon.Follow
+            PostActionFamily.FollowPrivate -> UiIcon.KagariFollowPrivate
+            PostActionFamily.OpenInBrowser -> UiIcon.World
         }
 
 private val PostActionFamily.label: StringResource
@@ -491,4 +503,10 @@ private val PostActionFamily.label: StringResource
             PostActionFamily.Report -> Res.string.settings_post_action_family_report
             PostActionFamily.MuteUser -> Res.string.settings_post_action_family_mute_user
             PostActionFamily.BlockUser -> Res.string.settings_post_action_family_block_user
+            PostActionFamily.BookmarkPublic -> Res.string.kagari_post_action_family_bookmark_public
+            PostActionFamily.BookmarkPrivate -> Res.string.kagari_post_action_family_bookmark_private
+            PostActionFamily.Save -> Res.string.kagari_post_action_family_save
+            PostActionFamily.Follow -> Res.string.kagari_post_action_family_follow
+            PostActionFamily.FollowPrivate -> Res.string.kagari_post_action_family_follow_private
+            PostActionFamily.OpenInBrowser -> Res.string.kagari_post_action_family_open_in_browser
         }

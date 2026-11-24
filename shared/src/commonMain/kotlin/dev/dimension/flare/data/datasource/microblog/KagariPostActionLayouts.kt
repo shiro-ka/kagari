@@ -1,6 +1,7 @@
 package dev.dimension.flare.data.datasource.microblog
 
 import androidx.compose.runtime.Immutable
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -11,7 +12,8 @@ public data class KagariPlatformPostActionLayouts(
     public fun layoutFor(
         platformId: String?,
         fallback: PostActionLayoutConfig,
-    ): PostActionLayoutConfig = platformId?.let { layouts[it] } ?: fallback
+    ): PostActionLayoutConfig =
+        platformId?.let { layouts[it] ?: KagariPostActionPlatforms.defaultLayoutFor(it) } ?: fallback
 
     public fun with(
         platformId: String,
@@ -114,7 +116,13 @@ public object KagariPostActionPlatforms {
             PIXIV to
                 setOf(
                     PostActionFamily.Favorite,
+                    PostActionFamily.BookmarkPublic,
+                    PostActionFamily.BookmarkPrivate,
+                    PostActionFamily.Save,
                     PostActionFamily.Share,
+                    PostActionFamily.Follow,
+                    PostActionFamily.FollowPrivate,
+                    PostActionFamily.OpenInBrowser,
                 ),
             FANBOX to
                 setOf(
@@ -122,8 +130,45 @@ public object KagariPostActionPlatforms {
                 ),
         )
 
+    private val platformOnlyFamilies: List<PostActionFamily> =
+        listOf(
+            PostActionFamily.BookmarkPublic,
+            PostActionFamily.BookmarkPrivate,
+            PostActionFamily.Save,
+            PostActionFamily.Follow,
+            PostActionFamily.FollowPrivate,
+            PostActionFamily.OpenInBrowser,
+        )
+
+    private val defaultLayoutsByPlatform: Map<String, PostActionLayoutConfig> =
+        mapOf(
+            PIXIV to
+                PostActionLayoutConfig(
+                    enabled = true,
+                    primary =
+                        persistentListOf(
+                            PostActionFamily.Favorite,
+                        ),
+                    overflow =
+                        persistentListOf(
+                            PostActionFamily.BookmarkPrivate,
+                            PostActionFamily.Save,
+                            PostActionFamily.Share,
+                            PostActionFamily.Follow,
+                        ),
+                    hidden =
+                        persistentListOf(
+                            PostActionFamily.BookmarkPublic,
+                            PostActionFamily.FollowPrivate,
+                            PostActionFamily.OpenInBrowser,
+                        ),
+                ),
+        )
+
+    public fun defaultLayoutFor(platformId: String): PostActionLayoutConfig? = defaultLayoutsByPlatform[platformId]
+
     public fun familiesFor(platformId: String?): List<PostActionFamily> {
         val families = platformId?.let { familiesByPlatform[it] } ?: return PostActionLayoutHelpers.allEditableFamilies
-        return PostActionLayoutHelpers.allEditableFamilies.filter { it in families }
+        return (PostActionLayoutHelpers.allEditableFamilies + platformOnlyFamilies).filter { it in families }
     }
 }

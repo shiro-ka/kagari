@@ -262,4 +262,19 @@
     <string name="kagari_post_action_family_renote_quote">Renote &amp; quote</string>
     <string name="kagari_post_action_family_forward">Forward</string>
     <string name="kagari_post_action_family_emoji_reaction">Emoji reaction</string>
+    <string name="kagari_post_action_family_bookmark_public">Bookmark publicly</string>
+    <string name="kagari_post_action_family_bookmark_private">Bookmark privately</string>
+    <string name="kagari_post_action_family_save">Save</string>
+    <string name="kagari_post_action_family_follow">Follow</string>
+    <string name="kagari_post_action_family_follow_private">Follow privately</string>
+    <string name="kagari_post_action_family_open_in_browser">Open in browser</string>
+    <string name="kagari_pixiv_bookmark_title">Edit bookmark</string>
+    <string name="kagari_pixiv_bookmark_private">Make private</string>
+    <string name="kagari_pixiv_bookmark_tag_hint">Tag</string>
+    <string name="kagari_pixiv_bookmark_tag_add">Add</string>
+    <string name="kagari_pixiv_bookmark_save">Save</string>
+    <string name="kagari_pixiv_bookmark_remove">Remove bookmark</string>
+    <string name="kagari_pixiv_bookmark_failed">Couldn\'t update the bookmark</string>
+    <string name="kagari_pixiv_bookmark_load_failed">Couldn\'t load the bookmark</string>
+    <string name="kagari_pixiv_bookmark_retry">Retry</string>
 </resources>

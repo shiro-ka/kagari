@@ -1,14 +1,17 @@
 package dev.dimension.flare.ui.screen.status
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
+import dev.dimension.flare.ui.component.BottomSheetSceneStrategy
 import dev.dimension.flare.ui.route.KagariDetachQuoteDialogRoute
 import dev.dimension.flare.ui.route.KagariHideReplyDialogRoute
 import dev.dimension.flare.ui.route.KagariProfileEditScreenRoute
 import dev.dimension.flare.ui.route.KagariStarterPackScreenRoute
 import dev.dimension.flare.ui.route.KagariMuteThreadDialogRoute
 import dev.dimension.flare.ui.route.KagariPinPostDialogRoute
+import dev.dimension.flare.ui.route.KagariPixivBookmarkSheetRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateDialogRoute
 import dev.dimension.flare.ui.route.KagariVerificationDialogRoute
 import dev.dimension.flare.ui.screen.profile.KagariProfileEditScreen
@@ -18,9 +21,20 @@ import dev.dimension.flare.ui.screen.status.action.KagariDetachQuoteDialog
 import dev.dimension.flare.ui.screen.status.action.KagariHideReplyDialog
 import dev.dimension.flare.ui.screen.status.action.KagariMuteThreadAction
 import dev.dimension.flare.ui.screen.status.action.KagariPinPostAction
+import dev.dimension.flare.ui.screen.status.action.KagariPixivBookmarkSheet
 import dev.dimension.flare.ui.screen.status.action.KagariInteractionGateDialog
 
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
+    entry<KagariPixivBookmarkSheetRoute>(
+        metadata = BottomSheetSceneStrategy.bottomSheet(expandFully = true),
+    ) { args ->
+        KagariPixivBookmarkSheet(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            onBack = onBack,
+        )
+    }
     entry<KagariInteractionGateDialogRoute>(
         metadata = DialogSceneStrategy.dialog(),
     ) { args ->

@@ -148,6 +148,18 @@ public extension PostActionFamily {
             "Mute user"
         case .blockUser:
             "Block user"
+        case .bookmarkPublic:
+            "Bookmark publicly"
+        case .bookmarkPrivate:
+            "Bookmark privately"
+        case .save:
+            "Save"
+        case .follow:
+            "Follow"
+        case .followPrivate:
+            "Follow privately"
+        case .openInBrowser:
+            "Open in browser"
         }
     }
 
@@ -183,6 +195,18 @@ public extension PostActionFamily {
             .volumeXmark
         case .blockUser:
             .userSlash
+        case .bookmarkPublic:
+            .heart
+        case .bookmarkPrivate:
+            .lock
+        case .save:
+            .download
+        case .follow:
+            .userPlus
+        case .followPrivate:
+            .lock
+        case .openInBrowser:
+            .globe
         }
     }
 }

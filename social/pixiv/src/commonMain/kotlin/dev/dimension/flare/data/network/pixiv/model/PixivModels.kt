@@ -301,6 +301,19 @@ internal data class PixivBookmarkDetail(
 )
 
 @Serializable
+internal data class PixivFollowDetailResponse(
+    @SerialName("follow_detail")
+    val followDetail: PixivFollowDetail,
+)
+
+@Serializable
+internal data class PixivFollowDetail(
+    @SerialName("is_followed")
+    val isFollowed: Boolean = false,
+    val restrict: String? = null,
+)
+
+@Serializable
 internal data class PixivBookmarkTag(
     val name: String,
     @SerialName("is_registered")

@@ -198,6 +198,12 @@ private extension PostActionFamily {
         case .report: return String(localized: "bluesky_report")
         case .muteUser: return String(localized: "Mute user")
         case .blockUser: return String(localized: "Block user")
+        case .bookmarkPublic: return String(localized: "Bookmark publicly")
+        case .bookmarkPrivate: return String(localized: "Bookmark privately")
+        case .save: return String(localized: "Save")
+        case .follow: return String(localized: "Follow")
+        case .followPrivate: return String(localized: "Follow privately")
+        case .openInBrowser: return String(localized: "Open in browser")
         }
     }
 
@@ -218,6 +224,12 @@ private extension PostActionFamily {
         case .report: return .circleInfo
         case .muteUser: return .volumeXmark
         case .blockUser: return .userSlash
+        case .bookmarkPublic: return .heart
+        case .bookmarkPrivate: return .lock
+        case .save: return .download
+        case .follow: return .userPlus
+        case .followPrivate: return .lock
+        case .openInBrowser: return .globe
         }
     }
 }

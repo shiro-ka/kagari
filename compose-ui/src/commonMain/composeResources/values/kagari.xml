@@ -60,4 +60,12 @@
     <string name="kagari_tokimeki_cancel">Remove vote</string>
     <string name="kagari_tokimeki_vote_failed">Couldn\'t submit your vote</string>
     <string name="kagari_tokimeki_cancel_failed">Couldn\'t remove your vote</string>
+    <string name="kagari_menu_pixiv_bookmark_public">Bookmark publicly</string>
+    <string name="kagari_menu_pixiv_bookmark_private">Bookmark privately</string>
+    <string name="kagari_menu_pixiv_remove_bookmark">Remove bookmark</string>
+    <string name="kagari_menu_save">Save</string>
+    <string name="kagari_menu_pixiv_follow">Follow</string>
+    <string name="kagari_menu_pixiv_follow_private">Follow privately</string>
+    <string name="kagari_menu_pixiv_unfollow">Unfollow</string>
+    <string name="kagari_menu_open_in_browser">Open in browser</string>
 </resources>

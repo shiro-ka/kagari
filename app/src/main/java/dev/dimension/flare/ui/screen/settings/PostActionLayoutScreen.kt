@@ -668,6 +668,12 @@ private val PostActionFamily.icon: UiIcon
             PostActionFamily.Report -> UiIcon.Report
             PostActionFamily.MuteUser -> UiIcon.Mute
             PostActionFamily.BlockUser -> UiIcon.Block
+            PostActionFamily.BookmarkPublic -> UiIcon.Like
+            PostActionFamily.BookmarkPrivate -> UiIcon.KagariPrivateBookmark
+            PostActionFamily.Save -> UiIcon.KagariSave
+            PostActionFamily.Follow -> UiIcon.Follow
+            PostActionFamily.FollowPrivate -> UiIcon.KagariFollowPrivate
+            PostActionFamily.OpenInBrowser -> UiIcon.World
         }
 
 private val PostActionFamily.labelRes: Int
@@ -688,4 +694,10 @@ private val PostActionFamily.labelRes: Int
             PostActionFamily.Report -> R.string.settings_post_action_family_report
             PostActionFamily.MuteUser -> R.string.settings_post_action_family_mute_user
             PostActionFamily.BlockUser -> R.string.settings_post_action_family_block_user
+            PostActionFamily.BookmarkPublic -> R.string.kagari_post_action_family_bookmark_public
+            PostActionFamily.BookmarkPrivate -> R.string.kagari_post_action_family_bookmark_private
+            PostActionFamily.Save -> R.string.kagari_post_action_family_save
+            PostActionFamily.Follow -> R.string.kagari_post_action_family_follow
+            PostActionFamily.FollowPrivate -> R.string.kagari_post_action_family_follow_private
+            PostActionFamily.OpenInBrowser -> R.string.kagari_post_action_family_open_in_browser
         }

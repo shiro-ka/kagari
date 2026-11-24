@@ -7,6 +7,9 @@ import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkDataSource
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkDetail
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkTag
 import dev.dimension.flare.data.datasource.microblog.datasource.PinnableTimelineTabDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.PinnableTimelineTabSection
 import dev.dimension.flare.data.datasource.microblog.datasource.PostDataSource
@@ -44,6 +47,12 @@ import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.contentPostOrNull
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkKind
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
+import dev.dimension.flare.ui.model.mapper.isBookmarked
+import dev.dimension.flare.ui.model.mapper.pixivBookmarkCount
+import dev.dimension.flare.ui.model.mapper.withPixivBookmarkState
+import dev.dimension.flare.ui.model.mapper.withPixivFollowState
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -60,6 +69,7 @@ internal class PixivDataSource(
     GalleryDataSource,
     PostDataSource,
     RelationDataSource,
+    KagariPixivBookmarkDataSource,
     PostEventHandler.Handler {
     private val service =
         PixivService(
@@ -459,20 +469,146 @@ internal class PixivDataSource(
     ) {
         require(event is PostEvent.Pixiv)
         when (event) {
-            is PostEvent.Pixiv.Bookmark -> bookmark(event)
+            is PostEvent.Pixiv.Bookmark -> bookmark(event, updater)
+            is PostEvent.Pixiv.Follow -> follow(event, updater)
         }
     }
 
-    private suspend fun bookmark(event: PostEvent.Pixiv.Bookmark) {
-        val illustId = event.postKey.id.toLongOrNull() ?: throw IllegalArgumentException("Invalid Pixiv illust id: ${event.postKey.id}")
-        if (event.bookmarked) {
-            service.deleteBookmark(
-                illustId = illustId,
-            )
+    private suspend fun bookmark(
+        event: PostEvent.Pixiv.Bookmark,
+        updater: DatabaseUpdater,
+    ) {
+        val illustId = event.postKey.pixivIllustId()
+        val known = event.state ?: if (event.bookmarked) PixivBookmarkState.Bookmarked else PixivBookmarkState.None
+        val detail =
+            if (known.isBookmarked) {
+                service.bookmarkDetail(illustId).bookmarkDetail
+            } else {
+                null
+            }
+        val current = detail?.toBookmarkState() ?: PixivBookmarkState.None
+        val target =
+            when (event.kind) {
+                PixivBookmarkKind.MatchFollow -> followMatchedRestrict(event.authorKey)
+                PixivBookmarkKind.Public -> PixivRestrict.Public
+                PixivBookmarkKind.Private -> PixivRestrict.Private
+            }
+        val targetState = target.toBookmarkState()
+        if (current == targetState) {
+            updateBookmarkCache(updater, event.postKey, event.authorKey, PixivBookmarkState.None, -1)
+            service.deleteBookmark(illustId = illustId)
         } else {
+            updateBookmarkCache(updater, event.postKey, event.authorKey, targetState, if (current.isBookmarked) 0 else 1)
             service.addBookmark(
                 illustId = illustId,
+                restrict = target,
+                tags = detail?.tags.orEmpty().filter { it.isRegistered }.map { it.name },
             )
         }
     }
+
+    private suspend fun followMatchedRestrict(authorKey: MicroBlogKey?): PixivRestrict {
+        val userId = authorKey?.id?.toLongOrNull() ?: return PixivRestrict.Public
+        val followDetail = service.followDetail(userId).followDetail
+        return if (followDetail.isFollowed && followDetail.restrict == PixivRestrict.Private.value) {
+            PixivRestrict.Private
+        } else {
+            PixivRestrict.Public
+        }
+    }
+
+    private suspend fun follow(
+        event: PostEvent.Pixiv.Follow,
+        updater: DatabaseUpdater,
+    ) {
+        val userId = event.userKey.id.toLongOrNull() ?: throw IllegalArgumentException("Invalid Pixiv user id: ${event.userKey.id}")
+        val followed = !event.followed
+        updater.updateCache(event.postKey) { post ->
+            if (post is UiTimelineV2.Post) {
+                post.copy(
+                    actions =
+                        post.actions.withPixivFollowState(
+                            statusKey = event.postKey,
+                            accountKey = accountKey,
+                            userKey = event.userKey,
+                            followed = followed,
+                        ),
+                )
+            } else {
+                post
+            }
+        }
+        if (followed) {
+            service.followUser(
+                userId = userId,
+                restrict = if (event.isPrivate) PixivRestrict.Private else PixivRestrict.Public,
+            )
+        } else {
+            service.unfollowUser(userId = userId)
+        }
+    }
+
+    private suspend fun updateBookmarkCache(
+        updater: DatabaseUpdater,
+        postKey: MicroBlogKey,
+        authorKey: MicroBlogKey?,
+        state: PixivBookmarkState,
+        countDelta: Long,
+    ) {
+        updater.updateCache(postKey) { post ->
+            if (post is UiTimelineV2.Post) {
+                val count = post.actions.pixivBookmarkCount(postKey) ?: 0L
+                post.copy(
+                    actions =
+                        post.actions.withPixivBookmarkState(
+                            statusKey = postKey,
+                            accountKey = accountKey,
+                            authorKey = authorKey ?: post.user?.key,
+                            state = state,
+                            count = (count + countDelta).coerceAtLeast(0),
+                        ),
+                )
+            } else {
+                post
+            }
+        }
+    }
+
+    override suspend fun kagariPixivBookmarkDetail(statusKey: MicroBlogKey): KagariPixivBookmarkDetail {
+        val detail = service.bookmarkDetail(statusKey.pixivIllustId()).bookmarkDetail
+        return KagariPixivBookmarkDetail(
+            isBookmarked = detail.isBookmarked,
+            isPrivate = detail.isBookmarked && detail.restrict == PixivRestrict.Private.value,
+            tags = detail.tags.map { KagariPixivBookmarkTag(name = it.name, isRegistered = it.isRegistered) },
+        )
+    }
+
+    override suspend fun kagariPixivSaveBookmark(
+        statusKey: MicroBlogKey,
+        isPrivate: Boolean,
+        tags: List<String>,
+    ) {
+        val illustId = statusKey.pixivIllustId()
+        val wasBookmarked = service.bookmarkDetail(illustId).bookmarkDetail.isBookmarked
+        val restrict = if (isPrivate) PixivRestrict.Private else PixivRestrict.Public
+        service.addBookmark(
+            illustId = illustId,
+            restrict = restrict,
+            tags = tags,
+        )
+        updateBookmarkCache(postEventHandler, statusKey, null, restrict.toBookmarkState(), if (wasBookmarked) 0 else 1)
+    }
+
+    override suspend fun kagariPixivRemoveBookmark(statusKey: MicroBlogKey) {
+        service.deleteBookmark(illustId = statusKey.pixivIllustId())
+        updateBookmarkCache(postEventHandler, statusKey, null, PixivBookmarkState.None, -1)
+    }
+
+    private fun MicroBlogKey.pixivIllustId(): Long = id.toLongOrNull() ?: throw IllegalArgumentException("Invalid Pixiv illust id: $id")
+
+    private fun PixivRestrict.toBookmarkState(): PixivBookmarkState =
+        when (this) {
+            PixivRestrict.Public -> PixivBookmarkState.Public
+            PixivRestrict.Private -> PixivBookmarkState.Private
+        }
 }

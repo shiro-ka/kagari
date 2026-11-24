@@ -13,6 +13,7 @@ import dev.dimension.flare.data.network.pixiv.model.PixivIllustListResponse
 import dev.dimension.flare.data.platform.PixivCredential
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -36,11 +37,13 @@ internal abstract class PixivTimelineLoader(
             }
 
         return PagingResult(
-            data = response.illusts.map { it.toUiTimeline(accountKey) },
+            data = response.illusts.map { it.toUiTimeline(accountKey, knownBookmarkState.takeIf { _ -> it.isBookmarked }) },
             nextKey = response.nextUrl,
             endOfPaginationReached = response.nextUrl == null,
         )
     }
+
+    protected open val knownBookmarkState: PixivBookmarkState? = null
 
     protected abstract suspend fun loadFirstPage(pageSize: Int): PixivIllustListResponse
 
@@ -159,7 +162,7 @@ internal class PixivStatusDetailLoader(
             )
 
         return PagingResult(
-            data = listOf(response.illust.toUiTimeline(accountKey)),
+            data = listOf(response.illust.toUiTimeline(accountKey, service.bookmarkStateOf(response.illust))),
             endOfPaginationReached = true,
         )
     }
@@ -236,6 +239,9 @@ internal class PixivBookmarkTimelineLoader(
         } else {
             "pixiv_bookmark_${restrict.value}_$accountKey"
         }
+
+    override val knownBookmarkState: PixivBookmarkState =
+        if (restrict == PixivRestrict.Private) PixivBookmarkState.Private else PixivBookmarkState.Public
 
     override suspend fun loadFirstPage(pageSize: Int): PixivIllustListResponse {
         val credential = credentialFlow.first()

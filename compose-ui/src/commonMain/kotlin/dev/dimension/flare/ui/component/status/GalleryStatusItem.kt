@@ -132,6 +132,7 @@ private fun GalleryPostTile(
                 expanded = isMenuExpanded,
                 onDismissRequest = { isMenuExpanded = false },
                 kagariPlatformId = post.platformId,
+                kagariPost = post,
             )
         },
     ) {

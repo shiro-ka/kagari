@@ -11,6 +11,7 @@ import dev.dimension.flare.data.network.pixiv.api.createPixivAppResources
 import dev.dimension.flare.data.network.pixiv.api.createPixivAuthResources
 import dev.dimension.flare.data.network.pixiv.model.PixivBookmarkDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivCommentListResponse
+import dev.dimension.flare.data.network.pixiv.model.PixivFollowDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivIllustDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivIllustListResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivNullResponse
@@ -262,7 +263,7 @@ internal class PixivService private constructor(
         appResources.addBookmark(
             illustId = illustId,
             restrict = restrict.value,
-            tags = tags,
+            tags = tags.joinToString(" ").takeIf { it.isNotBlank() }?.let { listOf(it) }.orEmpty(),
         )
 
     suspend fun deleteBookmark(illustId: Long): PixivNullResponse =
@@ -277,6 +278,11 @@ internal class PixivService private constructor(
         appResources.followUser(
             userId = userId,
             restrict = restrict.value,
+        )
+
+    suspend fun followDetail(userId: Long): PixivFollowDetailResponse =
+        appResources.followDetail(
+            userId = userId,
         )
 
     suspend fun unfollowUser(userId: Long): PixivNullResponse =

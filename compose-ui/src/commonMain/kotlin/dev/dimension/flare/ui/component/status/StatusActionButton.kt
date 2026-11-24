@@ -9,7 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,6 +71,7 @@ public fun StatusActionButton(
     isStretched: Boolean = false,
     iconSize: Dp = StatusComponentDefaults.actionIconSize,
     iconWidth: Dp = minOf(iconSize, StatusComponentDefaults.actionIconSlotWidth),
+    onLongClicked: (() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val appearanceSettings = LocalTimelineAppearance.current
@@ -98,6 +100,16 @@ public fun StatusActionButton(
                             true
                         } else {
                             false
+                        }
+                    }
+                    if (onLongClicked != null) {
+                        onLongClick {
+                            if (enabled) {
+                                onLongClicked.invoke()
+                                true
+                            } else {
+                                false
+                            }
                         }
                     }
                 }
@@ -130,8 +142,9 @@ public fun StatusActionButton(
                 modifier =
                     Modifier
                         .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
-                        .clickable(
+                        .combinedClickable(
                             onClick = onClicked,
+                            onLongClick = onLongClicked,
                             enabled = enabled,
                             interactionSource = interactionSource,
                             indication =
@@ -195,8 +208,9 @@ public fun StatusActionButton(
                         Modifier
                             .then(if (isStretched) Modifier.clipToBounds() else Modifier)
                             .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
-                            .clickable(
+                            .combinedClickable(
                                 onClick = onClicked,
+                                onLongClick = onLongClicked,
                                 enabled = enabled,
                                 interactionSource = interactionSource,
                                 indication = null,

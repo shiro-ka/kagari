@@ -39,6 +39,7 @@ public fun StatusSummaryComponent(
             StatusActions(
                 items = item.actions,
                 kagariPlatformId = item.platformId,
+                kagariPost = item,
                 modifier = Modifier.fillMaxWidth().then(actionsModifier),
             )
         }

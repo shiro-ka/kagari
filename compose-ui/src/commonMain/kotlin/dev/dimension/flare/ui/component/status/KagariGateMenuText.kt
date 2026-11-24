@@ -23,9 +23,18 @@ import dev.dimension.flare.compose.ui.kagari_menu_detach_quote
 import dev.dimension.flare.compose.ui.kagari_menu_reattach_quote
 import dev.dimension.flare.compose.ui.kagari_menu_send_via_chat
 import dev.dimension.flare.compose.ui.kagari_menu_unpin_post
+import dev.dimension.flare.compose.ui.kagari_menu_open_in_browser
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_bookmark_private
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_bookmark_public
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_follow
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_follow_private
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_remove_bookmark
+import dev.dimension.flare.compose.ui.kagari_menu_pixiv_unfollow
+import dev.dimension.flare.compose.ui.kagari_menu_save
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.theme.PlatformTheme
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 internal fun ActionMenu.Item.Text.isKagariGate(): Boolean =
@@ -81,6 +90,7 @@ internal fun kagariGateMenuText(
     if (type == ActionMenu.Item.Text.Localized.Type.KagariSendViaChat) {
         return stringResource(Res.string.kagari_menu_send_via_chat)
     }
+    kagariPixivMenuText(type)?.let { return stringResource(it) }
     val title = stringResource(Res.string.kagari_menu_gate_title)
     val summary = kagariReplySummary(parameters)
     return if (summary == null) title else "$title $summary"
@@ -105,3 +115,16 @@ private fun kagariReplySummary(parameters: List<String>): String? {
             }.joinToString(separator)
     return stringResource(Res.string.kagari_menu_gate_reply, summary)
 }
+
+private fun kagariPixivMenuText(type: ActionMenu.Item.Text.Localized.Type): StringResource? =
+    when (type) {
+        ActionMenu.Item.Text.Localized.Type.KagariPixivBookmarkPublic -> Res.string.kagari_menu_pixiv_bookmark_public
+        ActionMenu.Item.Text.Localized.Type.KagariPixivBookmarkPrivate -> Res.string.kagari_menu_pixiv_bookmark_private
+        ActionMenu.Item.Text.Localized.Type.KagariPixivRemoveBookmark -> Res.string.kagari_menu_pixiv_remove_bookmark
+        ActionMenu.Item.Text.Localized.Type.KagariSave -> Res.string.kagari_menu_save
+        ActionMenu.Item.Text.Localized.Type.KagariPixivFollow -> Res.string.kagari_menu_pixiv_follow
+        ActionMenu.Item.Text.Localized.Type.KagariPixivFollowPrivate -> Res.string.kagari_menu_pixiv_follow_private
+        ActionMenu.Item.Text.Localized.Type.KagariPixivUnfollow -> Res.string.kagari_menu_pixiv_unfollow
+        ActionMenu.Item.Text.Localized.Type.KagariOpenInBrowser -> Res.string.kagari_menu_open_in_browser
+        else -> null
+    }

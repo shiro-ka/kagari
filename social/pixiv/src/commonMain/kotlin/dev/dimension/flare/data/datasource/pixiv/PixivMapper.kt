@@ -7,6 +7,9 @@ import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryOrientation
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.network.pixiv.PIXIV_IMAGE_REFERER
+import dev.dimension.flare.data.network.pixiv.PixivRestrict
+import dev.dimension.flare.data.network.pixiv.PixivService
+import dev.dimension.flare.data.network.pixiv.model.PixivBookmarkDetail
 import dev.dimension.flare.data.network.pixiv.model.PixivComment
 import dev.dimension.flare.data.network.pixiv.model.PixivCommentStamp
 import dev.dimension.flare.data.network.pixiv.model.PixivIllust
@@ -29,7 +32,12 @@ import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
 import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.model.bindMediaProxy
-import dev.dimension.flare.ui.model.mapper.pixivFavourite
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkKind
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
+import dev.dimension.flare.ui.model.mapper.pixivBookmark
+import dev.dimension.flare.ui.model.mapper.pixivFollow
+import dev.dimension.flare.ui.model.mapper.pixivOpenInBrowser
+import dev.dimension.flare.ui.model.mapper.pixivSave
 import dev.dimension.flare.ui.model.toUiImage
 import dev.dimension.flare.ui.model.withProxy
 import dev.dimension.flare.ui.render.parseHtml
@@ -45,8 +53,15 @@ import kotlinx.collections.immutable.toPersistentMap
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-internal fun PixivIllust.toUiTimeline(accountKey: MicroBlogKey): UiTimelineV2.Post {
+internal fun PixivIllust.toUiTimeline(
+    accountKey: MicroBlogKey,
+    bookmarkState: PixivBookmarkState? = null,
+): UiTimelineV2.Post {
     val statusKey = pixivIllustKey(id)
+    val authorKey = pixivUserKey(user.id)
+    val artworkUrl = "https://www.pixiv.net/artworks/$id"
+    val currentBookmarkState =
+        bookmarkState ?: if (isBookmarked) PixivBookmarkState.Bookmarked else PixivBookmarkState.None
     return UiTimelineV2.Post(
         platformId = PIXIV_PLATFORM_ID,
         images = toUiMedia(accountKey).toPersistentList(),
@@ -80,12 +95,18 @@ internal fun PixivIllust.toUiTimeline(accountKey: MicroBlogKey): UiTimelineV2.Po
                     count = UiNumber(totalView),
                     clickEvent = ClickEvent.Noop,
                 ),
-                ActionMenu.pixivFavourite(
-                    statusKey = statusKey,
-                    favourited = isBookmarked,
-                    count = totalBookmarks,
-                    accountKey = accountKey,
-                ),
+                *PixivBookmarkKind.entries
+                    .map { kind ->
+                        ActionMenu.pixivBookmark(
+                            kind = kind,
+                            statusKey = statusKey,
+                            state = currentBookmarkState,
+                            count = totalBookmarks,
+                            accountKey = accountKey,
+                            authorKey = authorKey,
+                        )
+                    }.toTypedArray(),
+                ActionMenu.pixivSave(statusKey),
                 ActionMenu.Item(
                     icon = UiIcon.Share,
                     text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Share),
@@ -95,10 +116,28 @@ internal fun PixivIllust.toUiTimeline(accountKey: MicroBlogKey): UiTimelineV2.Po
                                 .ShareSheet(
                                     statusKey = statusKey,
                                     accountType = AccountType.Specific(accountKey),
-                                    shareUrl = "https://www.pixiv.net/artworks/$id",
+                                    shareUrl = artworkUrl,
                                 ),
                         ),
                     actionFamily = PostActionFamily.Share,
+                ),
+                ActionMenu.pixivFollow(
+                    isPrivate = false,
+                    statusKey = statusKey,
+                    userKey = authorKey,
+                    followed = user.isFollowed,
+                    accountKey = accountKey,
+                ),
+                ActionMenu.pixivFollow(
+                    isPrivate = true,
+                    statusKey = statusKey,
+                    userKey = authorKey,
+                    followed = user.isFollowed,
+                    accountKey = accountKey,
+                ),
+                ActionMenu.pixivOpenInBrowser(
+                    statusKey = statusKey,
+                    url = artworkUrl,
                 ),
             ),
         poll = null,
@@ -253,6 +292,20 @@ internal fun PixivTrendTag.toUiHashtag(): UiHashtag =
         searchContent = tag,
     )
 
+internal suspend fun PixivService.bookmarkStateOf(illust: PixivIllust): PixivBookmarkState? =
+    if (illust.isBookmarked) {
+        runCatching { bookmarkDetail(illust.id).bookmarkDetail.toBookmarkState() }.getOrNull()
+    } else {
+        null
+    }
+
+internal fun PixivBookmarkDetail.toBookmarkState(): PixivBookmarkState =
+    when {
+        !isBookmarked -> PixivBookmarkState.None
+        restrict == PixivRestrict.Private.value -> PixivBookmarkState.Private
+        else -> PixivBookmarkState.Public
+    }
+
 internal fun pixivIllustKey(id: Long): MicroBlogKey = MicroBlogKey(id.toString(), PIXIV_HOST)
 
 private fun pixivCommentKey(
@@ -354,12 +407,7 @@ private fun parsePixivDate(value: String): Instant =
 
 internal fun UiTimelineV2.Post.toGalleryDetail(accountKey: MicroBlogKey): GalleryDetail {
     val actionItems = actions.filterIsInstance<ActionMenu.Item>()
-    val favouriteAction =
-        actionItems.firstOrNull { action ->
-            val text = action.text as? ActionMenu.Item.Text.Localized
-            text?.type == ActionMenu.Item.Text.Localized.Type.Favorite ||
-                text?.type == ActionMenu.Item.Text.Localized.Type.UnFavorite
-        }
+    val favouriteAction = actionItems.firstOrNull { action -> action.actionFamily == PostActionFamily.Favorite }
     val favouriteText = favouriteAction?.text as? ActionMenu.Item.Text.Localized
     val favourited = favouriteText?.type == ActionMenu.Item.Text.Localized.Type.UnFavorite
     val favouriteCount = favouriteAction?.count?.value ?: 0L
@@ -379,7 +427,7 @@ internal fun UiTimelineV2.Post.toGalleryDetail(accountKey: MicroBlogKey): Galler
         content = content.original.takeUnless { content -> content.isEmpty },
         isBookmarked = favourited,
         bookmarkAction =
-            ClickEvent.event(
+            favouriteAction?.clickEvent ?: ClickEvent.event(
                 accountKey = accountKey,
                 postEvent =
                     PostEvent.Pixiv.Bookmark(

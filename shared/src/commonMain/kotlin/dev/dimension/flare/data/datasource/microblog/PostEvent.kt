@@ -14,7 +14,8 @@ import dev.dimension.flare.ui.model.mapper.misskeyReact
 import dev.dimension.flare.ui.model.mapper.misskeyRenote
 import dev.dimension.flare.ui.model.mapper.nostrLike
 import dev.dimension.flare.ui.model.mapper.nostrRepost
-import dev.dimension.flare.ui.model.mapper.pixivFavourite
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkKind
+import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
 import dev.dimension.flare.ui.model.mapper.vvoFavorite
 import dev.dimension.flare.ui.model.mapper.vvoLike
 import dev.dimension.flare.ui.model.mapper.vvoLikeComment
@@ -487,16 +488,19 @@ public sealed interface PostEvent {
             public val bookmarked: Boolean,
             public val count: Long = 0,
             public val accountKey: MicroBlogKey,
-        ) : Pixiv,
-            UpdatePostActionMenuEvent {
-            public override fun nextActionMenu(): ActionMenu.Item =
-                ActionMenu.pixivFavourite(
-                    statusKey = postKey,
-                    favourited = !bookmarked,
-                    count = (count + if (!bookmarked) 1 else -1).coerceAtLeast(0),
-                    accountKey = accountKey,
-                )
-        }
+            public val kind: PixivBookmarkKind = PixivBookmarkKind.MatchFollow,
+            public val state: PixivBookmarkState? = null,
+            public val authorKey: MicroBlogKey? = null,
+        ) : Pixiv
+
+        @Serializable
+        public data class Follow(
+            public override val postKey: MicroBlogKey,
+            public val accountKey: MicroBlogKey,
+            public val userKey: MicroBlogKey,
+            public val followed: Boolean,
+            public val isPrivate: Boolean,
+        ) : Pixiv
     }
 
     @Serializable

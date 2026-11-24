@@ -88,3 +88,10 @@ public data class KagariSendViaChatRoute(
     val cid: String,
 ) : DeeplinkRoute.Status(),
     KagariDeeplink
+
+@Serializable
+public data class KagariPixivBookmarkRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+) : DeeplinkRoute.Status(),
+    KagariDeeplink

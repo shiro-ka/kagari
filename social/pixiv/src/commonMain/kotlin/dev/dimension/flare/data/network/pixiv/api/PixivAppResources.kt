@@ -8,6 +8,7 @@ import de.jensklingenberg.ktorfit.http.Path
 import de.jensklingenberg.ktorfit.http.Query
 import dev.dimension.flare.data.network.pixiv.model.PixivBookmarkDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivCommentListResponse
+import dev.dimension.flare.data.network.pixiv.model.PixivFollowDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivIllustDetailResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivIllustListResponse
 import dev.dimension.flare.data.network.pixiv.model.PixivNullResponse
@@ -152,6 +153,11 @@ internal interface PixivAppResources {
         @Field("user_id") userId: Long,
         @Field("restrict") restrict: String,
     ): PixivNullResponse
+
+    @GET("v1/user/follow/detail")
+    suspend fun followDetail(
+        @Query("user_id") userId: Long,
+    ): PixivFollowDetailResponse
 
     @POST("v1/user/follow/delete")
     @FormUrlEncoded

@@ -20,6 +20,7 @@ import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.CircleInfo
 import compose.icons.fontawesomeicons.solid.CircleUser
+import compose.icons.fontawesomeicons.solid.Download
 import compose.icons.fontawesomeicons.solid.Ellipsis
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.Eye
@@ -49,10 +50,14 @@ import compose.icons.fontawesomeicons.solid.Thumbtack
 import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.Trash
 import compose.icons.fontawesomeicons.solid.Tv
+import compose.icons.fontawesomeicons.solid.UserCheck
+import compose.icons.fontawesomeicons.solid.UserLock
 import compose.icons.fontawesomeicons.solid.UserPlus
 import compose.icons.fontawesomeicons.solid.UserSlash
 import compose.icons.fontawesomeicons.solid.Users
 import compose.icons.fontawesomeicons.solid.VolumeXmark
+import dev.dimension.flare.ui.icons.KagariPrivateBookmarkIcon
+import dev.dimension.flare.ui.icons.KagariPrivateBookmarkedIcon
 import dev.dimension.flare.ui.icons.Misskey
 import dev.dimension.flare.ui.icons.Nostr
 import dev.dimension.flare.ui.model.UiIcon
@@ -119,4 +124,9 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.KagariPin -> FontAwesomeIcons.Solid.Thumbtack
         UiIcon.KagariMuteThread -> FontAwesomeIcons.Solid.BellSlash
         UiIcon.KagariUnmuteThread -> FontAwesomeIcons.Solid.Bell
+        UiIcon.KagariPrivateBookmark -> KagariPrivateBookmarkIcon
+        UiIcon.KagariPrivateBookmarked -> KagariPrivateBookmarkedIcon
+        UiIcon.KagariFollowing -> FontAwesomeIcons.Solid.UserCheck
+        UiIcon.KagariFollowPrivate -> FontAwesomeIcons.Solid.UserLock
+        UiIcon.KagariSave -> FontAwesomeIcons.Solid.Download
     }

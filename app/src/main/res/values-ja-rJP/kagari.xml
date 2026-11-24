@@ -261,4 +261,19 @@
     <string name="kagari_post_action_family_renote_quote">リノート・引用</string>
     <string name="kagari_post_action_family_forward">転送</string>
     <string name="kagari_post_action_family_emoji_reaction">絵文字リアクション</string>
+    <string name="kagari_post_action_family_bookmark_public">公開でブックマーク</string>
+    <string name="kagari_post_action_family_bookmark_private">非公開でブックマーク</string>
+    <string name="kagari_post_action_family_save">保存</string>
+    <string name="kagari_post_action_family_follow">フォロー</string>
+    <string name="kagari_post_action_family_follow_private">非公開でフォロー</string>
+    <string name="kagari_post_action_family_open_in_browser">ブラウザで開く</string>
+    <string name="kagari_pixiv_bookmark_title">ブックマークの編集</string>
+    <string name="kagari_pixiv_bookmark_private">非公開にする</string>
+    <string name="kagari_pixiv_bookmark_tag_hint">タグ</string>
+    <string name="kagari_pixiv_bookmark_tag_add">追加</string>
+    <string name="kagari_pixiv_bookmark_save">保存</string>
+    <string name="kagari_pixiv_bookmark_remove">ブックマークを外す</string>
+    <string name="kagari_pixiv_bookmark_failed">ブックマークを更新できませんでした</string>
+    <string name="kagari_pixiv_bookmark_load_failed">ブックマークを読み込めませんでした</string>
+    <string name="kagari_pixiv_bookmark_retry">再読み込み</string>
 </resources>

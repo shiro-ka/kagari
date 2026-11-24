@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kagari_post_action_family_bookmark_public">公開でブックマーク</string>
+    <string name="kagari_post_action_family_bookmark_private">非公開でブックマーク</string>
+    <string name="kagari_post_action_family_save">保存</string>
+    <string name="kagari_post_action_family_follow">フォロー</string>
+    <string name="kagari_post_action_family_follow_private">非公開でフォロー</string>
+    <string name="kagari_post_action_family_open_in_browser">ブラウザで開く</string>
+</resources>

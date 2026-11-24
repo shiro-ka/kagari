@@ -128,6 +128,7 @@ import dev.dimension.flare.compose.ui.visibility_friends
 import dev.dimension.flare.compose.ui.visibility_self
 import dev.dimension.flare.compose.ui.vote
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.applyPostActionLayout
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.data.model.TimelineDisplayMode
@@ -165,8 +166,11 @@ import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.TranslationDisplayState
 import dev.dimension.flare.ui.model.UiCard
 import dev.dimension.flare.ui.model.UiPoll
+import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
+import dev.dimension.flare.ui.model.mapper.kagariPixivLongClickEvent
+import dev.dimension.flare.ui.model.onClicked
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
@@ -623,6 +627,7 @@ public fun CommonStatusComponent(
                         item.actions,
                         kagariAccountType = item.accountType,
                         kagariPlatformId = item.platformId,
+                        kagariPost = item,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1108,6 +1113,7 @@ internal fun StatusActions(
     isPost: Boolean = true,
     kagariAccountType: AccountType? = null,
     kagariPlatformId: String? = null,
+    kagariPost: UiTimelineV2.Post? = null,
 ) = CompositionLocalProvider(
     PlatformTextStyle provides
         PlatformTheme.typography.postBody.let {
@@ -1126,6 +1132,7 @@ internal fun StatusActions(
     if (displayItems.isEmpty()) return@CompositionLocalProvider
     val haptics = LocalHapticFeedback.current
     val launcher = LocalUriHandler.current
+    val kagariSave = rememberKagariSaveAction(kagariPost)
     val density = LocalDensity.current
     val isStretched = appearanceSettings.postActionStyle == PostActionStyle.Stretch
     val isAndroidPost = isPost && SystemUtils.isAndroid
@@ -1221,7 +1228,7 @@ internal fun StatusActions(
                         action.actions.fastForEach { subActions ->
                             when (subActions) {
                                 is ActionMenu.Item -> {
-                                    StatusActionItemMenu(subActions, closeMenu, launcher)
+                                    StatusActionItemMenu(subActions, closeMenu, launcher, kagariSave)
                                 }
 
                                 // nested group is not supported
@@ -1253,9 +1260,11 @@ internal fun StatusActions(
                                 index != displayItems.lastIndex,
                         isStretched = isStretched,
                         onClicked = {
-                            action.onClicked.let { onClick ->
-                                haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
-                                onClick.invoke(
+                            haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+                            if (kagariSave != null && action.actionFamily == PostActionFamily.Save) {
+                                kagariSave.invoke()
+                            } else {
+                                action.onClicked.invoke(
                                     ClickContext(
                                         launcher = {
                                             launcher.openUri(it)
@@ -1264,6 +1273,18 @@ internal fun StatusActions(
                                 )
                             }
                         },
+                        onLongClicked =
+                            kagariPost?.kagariPixivLongClickEvent(action)?.let { event ->
+                                {
+                                    event.onClicked.invoke(
+                                        ClickContext(
+                                            launcher = {
+                                                launcher.openUri(it)
+                                            },
+                                        ),
+                                    )
+                                }
+                            },
                     )
                 }
 
@@ -1280,6 +1301,7 @@ internal fun StatusActionsDropdownMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     kagariPlatformId: String? = null,
+    kagariPost: UiTimelineV2.Post? = null,
 ) {
     val appearanceSettings = LocalTimelineAppearance.current
     val postActionLayout =
@@ -1293,6 +1315,7 @@ internal fun StatusActionsDropdownMenu(
             }
         }
     val launcher = LocalUriHandler.current
+    val kagariSave = rememberKagariSaveAction(kagariPost)
     PlatformDropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
@@ -1301,7 +1324,7 @@ internal fun StatusActionsDropdownMenu(
             PlatformContentColor provides PlatformTheme.colorScheme.text,
             PlatformTextStyle provides PlatformTheme.typography.body,
         ) {
-            StatusActionMenuItems(displayItems.value, onDismissRequest, launcher)
+            StatusActionMenuItems(displayItems.value, onDismissRequest, launcher, kagariSave)
         }
     }
 }
@@ -1311,15 +1334,16 @@ private fun PlatformDropdownMenuScope.StatusActionMenuItems(
     items: List<ActionMenu>,
     closeMenu: () -> Unit,
     launcher: UriHandler,
+    kagariSave: (() -> Unit)?,
 ) {
     items.fastForEach { action ->
         when (action) {
             is ActionMenu.Item -> {
-                StatusActionItemMenu(action, closeMenu, launcher)
+                StatusActionItemMenu(action, closeMenu, launcher, kagariSave)
             }
 
             is ActionMenu.Group -> {
-                StatusActionMenuItems(action.actions, closeMenu, launcher)
+                StatusActionMenuItems(action.actions, closeMenu, launcher, kagariSave)
             }
 
             ActionMenu.Divider -> {
@@ -1370,6 +1394,7 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
     subActions: ActionMenu.Item,
     closeMenu: () -> Unit,
     launcher: UriHandler,
+    kagariSave: (() -> Unit)?,
 ) {
     val color = subActions.color?.toComposeColor() ?: PlatformContentColor.current
     PlatformDropdownMenuItem(
@@ -1397,15 +1422,36 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
         },
         onClick = {
             closeMenu.invoke()
-            subActions.onClicked.invoke(
-                ClickContext(
-                    launcher = {
-                        launcher.openUri(it)
-                    },
-                ),
-            )
+            if (kagariSave != null && subActions.actionFamily == PostActionFamily.Save) {
+                kagariSave.invoke()
+            } else {
+                subActions.onClicked.invoke(
+                    ClickContext(
+                        launcher = {
+                            launcher.openUri(it)
+                        },
+                    ),
+                )
+            }
         },
     )
+}
+
+@Composable
+private fun rememberKagariSaveAction(post: UiTimelineV2.Post?): (() -> Unit)? {
+    val config = LocalTimelineMediaActionConfig.current ?: return null
+    val target = post ?: return null
+    val media = target.images.firstOrNull() ?: return null
+    if (media is UiMedia.Ugoira && !config.canSaveUgoira) return null
+    return remember(config, target, media) {
+        {
+            config.handler.handle(
+                post = target,
+                media = media,
+                action = if (target.images.size > 1) TimelineMediaMenuAction.DownloadAll else TimelineMediaMenuAction.Download,
+            )
+        }
+    }
 }
 
 @Composable
@@ -1458,6 +1504,14 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.KagariDetachQuote,
                     ActionMenu.Item.Text.Localized.Type.KagariReattachQuote,
                     ActionMenu.Item.Text.Localized.Type.KagariSendViaChat,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivBookmarkPublic,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivBookmarkPrivate,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivRemoveBookmark,
+                    ActionMenu.Item.Text.Localized.Type.KagariSave,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivFollow,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivFollowPrivate,
+                    ActionMenu.Item.Text.Localized.Type.KagariPixivUnfollow,
+                    ActionMenu.Item.Text.Localized.Type.KagariOpenInBrowser,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)
