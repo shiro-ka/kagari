@@ -993,11 +993,8 @@ internal fun resolveMisskeyEmoji(
 ): String =
     name.trim(':').let {
         emojis.getOrElse(it) {
-            if (it.endsWith("@.")) {
-                "https://$accountHost/emoji/${it.dropLast(2)}.webp"
-            } else {
-                "https://$accountHost/emoji/$it.webp"
-            }
+            val localName = if (it.endsWith("@.")) it.dropLast(2) else it
+            MisskeyLocalEmojis.url(accountHost, localName) ?: "https://$accountHost/emoji/$localName.webp"
         }
     }
 

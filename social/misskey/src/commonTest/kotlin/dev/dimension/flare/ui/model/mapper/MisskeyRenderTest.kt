@@ -13,9 +13,11 @@ import dev.dimension.flare.data.network.misskey.api.model.Visibility
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.ui.humanizer.PlatformFormatter
+import dev.dimension.flare.ui.model.UiEmoji
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.postEventOrNull
+import kotlinx.collections.immutable.persistentListOf
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Single
 import org.koin.core.context.startKoin
@@ -141,6 +143,38 @@ class MisskeyRenderTest {
         assertEquals(2048L, pdf.size)
         assertTrue(pdf.sensitive)
         assertFalse(rendered.kagariFiles[1].sensitive)
+    }
+
+    @Test
+    fun localEmojiUrlComesFromCachedEmojiList() {
+        val host = "emoji-list.example"
+        assertEquals("https://$host/emoji/blobcat.webp", resolveMisskeyEmoji(":blobcat@.:", host, emptyMap()))
+
+        MisskeyLocalEmojis.update(
+            host,
+            mapOf(
+                "cats" to
+                    listOf(
+                        UiEmoji(
+                            shortcode = ":blobcat:",
+                            url = "https://media.$host/blobcat.png",
+                            category = "cats",
+                            searchKeywords = persistentListOf("blobcat"),
+                            insertText = " :blobcat: ",
+                        ),
+                    ),
+            ),
+        )
+
+        assertEquals("https://media.$host/blobcat.png", resolveMisskeyEmoji(":blobcat@.:", host, emptyMap()))
+        assertEquals("https://media.$host/blobcat.png", resolveMisskeyEmoji("blobcat", host, emptyMap()))
+        val noteEmojis = mapOf("blobcat" to "https://note.example/blobcat.png")
+        assertEquals("https://note.example/blobcat.png", resolveMisskeyEmoji("blobcat", host, noteEmojis))
+        assertEquals("https://$host/emoji/unknown.webp", resolveMisskeyEmoji(":unknown:", host, emptyMap()))
+        assertEquals(
+            "https://$host/emoji/blobcat@remote.example.webp",
+            resolveMisskeyEmoji(":blobcat@remote.example:", host, emptyMap()),
+        )
     }
 
     @Test
