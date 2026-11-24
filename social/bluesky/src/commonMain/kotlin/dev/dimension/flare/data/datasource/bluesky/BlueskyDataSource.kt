@@ -10,6 +10,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingData
 import androidx.paging.PagingState
 import androidx.paging.cachedIn
+import androidx.paging.filter
 import androidx.paging.map
 import app.bsky.actor.GetProfileQueryParams
 import app.bsky.bookmark.CreateBookmarkRequest
@@ -54,6 +55,7 @@ import dev.dimension.flare.data.datasource.microblog.PostDetailTabs
 import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.SearchOperation
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariAddableTimelineTabSection
 import dev.dimension.flare.data.datasource.microblog.datasource.ListDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.NotificationDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.PinnableTimelineTabDataSource
@@ -82,6 +84,7 @@ import dev.dimension.flare.data.datasource.microblog.KagariSortableSearch
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.ShortcutSpec
+import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineFilterConfig
 import dev.dimension.flare.data.model.tab.TimelinePostKind
 import dev.dimension.flare.data.model.tab.TimelineSpec
@@ -1120,46 +1123,68 @@ internal class BlueskyDataSource(
                 title = UiStrings.Feeds,
                 data =
                     feedHandler.data.map { paging ->
-                        paging.map { it.toTimelineCandidate(accountKey) }
+                        paging
+                            .filter { it.id != KAGARI_DISCOVER_FEED_URI }
+                            .map { it.toTimelineCandidate(accountKey).withBlueskyLogo() }
                     },
             ),
             PinnableTimelineTabSection(
                 title = UiStrings.List,
                 data =
                     listHandler.data.map { paging ->
-                        paging.map { it.toTimelineCandidate(accountKey) }
+                        paging.map { it.toTimelineCandidate(accountKey).withBlueskyLogo() }
                     },
             ),
         )
     }
 
-    override val defaultTabs by lazy {
-        persistentListOf(
-            BlueskyPlatformSpec.feedTimelineSpec
-                .candidate(
-                    data = TimelineSpec.AccountResourceData(accountKey, KAGARI_DISCOVER_FEED_URI),
-                    icon = IconType.Mixed(UiIcon.Bluesky, accountKey),
-                    title = UiStrings.KagariBlueskyDiscover.asText(),
-                    enabled = false,
-                ),
-            CommonTimelineSpecs.home
-                .candidate(
-                    data = TimelineSpec.AccountBasedData(accountKey),
-                    icon = IconType.Mixed(UiIcon.Home, accountKey),
-                    title = UiStrings.Following.asText(),
-                    filterConfig = TimelineFilterConfig(excludedKinds = listOf(TimelinePostKind.Reply)),
-                ),
+    private val followingTimelineTab: TimelineCandidate<*> by lazy {
+        CommonTimelineSpecs.home
+            .candidate(
+                data = TimelineSpec.AccountBasedData(accountKey),
+                icon = UiIcon.Home.withBlueskyLogo(),
+                title = UiStrings.Following.asText(),
+                filterConfig = TimelineFilterConfig(excludedKinds = listOf(TimelinePostKind.Reply)),
+            )
+    }
+
+    private val discoverTimelineTab: TimelineCandidate<*> by lazy {
+        BlueskyPlatformSpec.feedTimelineSpec
+            .candidate(
+                data = TimelineSpec.AccountResourceData(accountKey, KAGARI_DISCOVER_FEED_URI),
+                icon = UiIcon.KagariWandMagicSparkles.withBlueskyLogo(),
+                title = UiStrings.KagariBlueskyDiscover.asText(),
+            )
+    }
+
+    private val bookmarkTimelineTab: TimelineCandidate<*> by lazy {
+        BlueskyPlatformSpec.bookmarkTimelineSpec.candidate(
+            data = TimelineSpec.AccountBasedData(accountKey),
+            icon = UiIcon.Bookmark.withBlueskyLogo(),
         )
     }
 
-    override val builtInTimelineTabs by lazy {
+    override val defaultTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         persistentListOf(
-            CommonTimelineSpecs.home.candidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-                icon = IconType.FavIcon(accountKey.host),
-                filterConfig = TimelineFilterConfig(excludedKinds = listOf(TimelinePostKind.Reply)),
+            discoverTimelineTab,
+            followingTimelineTab,
+        )
+    }
+
+    override val builtInTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        persistentListOf(
+            followingTimelineTab,
+            discoverTimelineTab,
+            bookmarkTimelineTab,
+        )
+    }
+
+    override val kagariAddableTimelineTabSections: ImmutableList<KagariAddableTimelineTabSection> by lazy {
+        persistentListOf(
+            KagariAddableTimelineTabSection(
+                title = UiStrings.KagariPixivTabSectionUser,
+                tabs = builtInTimelineTabs,
             ),
-            BlueskyPlatformSpec.bookmarkTimelineSpec.candidate(TimelineSpec.AccountBasedData(accountKey)),
         )
     }
 
@@ -1307,3 +1332,10 @@ internal class BlueskyDataSource(
 internal inline fun <reified T : Any> T.bskyJson(): JsonContent = bskyJson.encodeAsJsonContent(this)
 
 private const val KAGARI_DISCOVER_FEED_URI = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
+
+private val blueskyLogo: IconType = IconType.Logo(UiIcon.Bluesky)
+
+private fun UiIcon.withBlueskyLogo(): IconType = IconType.Badged(IconType.Material(this), blueskyLogo)
+
+private fun <T : TimelineSpec.Data> TimelineCandidate<T>.withBlueskyLogo(): TimelineCandidate<T> =
+    copy(icon = IconType.Badged(icon, blueskyLogo))
