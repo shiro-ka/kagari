@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -13,6 +14,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -121,6 +123,7 @@ import dev.dimension.flare.compose.ui.tab_settings_default
 import dev.dimension.flare.compose.ui.tab_settings_filter_repost
 import dev.dimension.flare.compose.ui.weibo_friends_circle_title
 import dev.dimension.flare.compose.ui.weibo_private_following_title
+import dev.dimension.flare.data.model.AvatarShape
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
@@ -329,8 +332,15 @@ public fun TabIcon(
                     size = size,
                 )
             } else {
+                val badgeShape =
+                    when (LocalTimelineAppearance.current.avatarShape) {
+                        AvatarShape.CIRCLE -> CircleShape
+                        AvatarShape.SQUARE -> RoundedCornerShape(22)
+                    }
+                val badgeRing = size / 16
+                val badgeOffsetX = size / 3
                 Box(
-                    modifier = modifier,
+                    modifier = modifier.padding(end = badgeOffsetX),
                 ) {
                     TabIcon(
                         icon = icon.icon,
@@ -338,15 +348,28 @@ public fun TabIcon(
                         color = color,
                         size = size,
                     )
-                    TabIcon(
-                        icon = icon.badge,
+                    val badge = icon.badge
+                    val filledLogo = badge is IconType.Logo && (badge.icon == UiIcon.Pixiv || badge.icon == UiIcon.Fanbox)
+                    Box(
                         modifier =
                             Modifier
-                                .align(Alignment.BottomEnd),
-                        iconOnly = true,
-                        color = color,
-                        size = size / 2,
-                    )
+                                .align(Alignment.BottomEnd)
+                                .offset(x = badgeOffsetX, y = size / 12)
+                                .background(PlatformTheme.colorScheme.card, shape = badgeShape)
+                                .padding(badgeRing)
+                                .size(size / 2)
+                                .clip(badgeShape)
+                                .then(if (filledLogo) Modifier.background(Color.White) else Modifier),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        TabIcon(
+                            icon = badge,
+                            modifier = if (filledLogo) Modifier.scale(1.2f) else Modifier,
+                            iconOnly = true,
+                            color = color,
+                            size = size / 2,
+                        )
+                    }
                 }
             }
         }
