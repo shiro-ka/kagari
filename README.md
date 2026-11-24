@@ -1,9 +1,11 @@
-### kagari
+## kagari
 
 kagari is a fork of [Flare](https://github.com/flaresocialapp/Flare)
 
------
-
-License
+### License
 
 This project is licensed under the [AGPL-3.0](LICENSE) license.
+
+-----
+
+### Fn
