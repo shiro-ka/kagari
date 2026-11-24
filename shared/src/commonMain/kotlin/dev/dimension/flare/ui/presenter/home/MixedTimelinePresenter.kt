@@ -72,7 +72,7 @@ public class MixedTimelinePresenter(
                 } else if (tabs.isEmpty()) {
                     flowOf(emptyList())
                 } else {
-                    combine(tabs.map { timelineResolver.resolveLoader(it) }) { it.toList() }
+                    combine(tabs.map { timelineResolver.resolveMixedMemberLoader(it) }) { it.toList() }
                 }
             }
     }
@@ -127,7 +127,7 @@ public class SystemHomeMixedTimelinePresenter(
                 if (tabs.isEmpty()) {
                     flowOf(emptyList())
                 } else {
-                    combine(tabs.map { timelineResolver.resolveLoader(it) }) { it.toList() }
+                    combine(tabs.map { timelineResolver.resolveMixedMemberLoader(it) }) { it.toList() }
                 }
             }
     }

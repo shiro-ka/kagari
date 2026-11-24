@@ -3,7 +3,6 @@ package dev.dimension.flare.data.model.tab
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datastore.AppDataStore
 import dev.dimension.flare.model.AccountType
-import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiTimelineV2
 import kotlinx.coroutines.flow.Flow
@@ -26,14 +25,8 @@ public data class KagariTimelineSwitch(
     internal fun resolve(value: String?): String = value?.takeIf { stored -> options.any { it.value == stored } } ?: defaultValue
 }
 
-internal fun kagariTimelineSwitchKey(
-    specId: String,
-    accountKey: MicroBlogKey,
-): String = "$specId:$accountKey"
-
 @HiddenFromObjC
 public inline fun <reified S : Any, T> kagariSwitchAccountLoader(
-    specId: String,
     switch: KagariTimelineSwitch,
     crossinline factory: S.(data: T, value: String) -> RemoteLoader<UiTimelineV2>,
 ): TimelineLoaderFactory<T>
@@ -41,7 +34,7 @@ public inline fun <reified S : Any, T> kagariSwitchAccountLoader(
     TimelineLoaderFactory { data, context ->
         combine(
             context.accountServiceFlow(AccountType.Specific(data.accountKey)),
-            context.kagariSwitchValue(specId, data.accountKey, switch),
+            context.kagariSwitchValue(switch),
         ) { service, value ->
             require(service is S) {
                 "Expected ${S::class} for ${data.accountKey}, but got ${service::class}"

@@ -449,17 +449,13 @@ public fun interface TimelineLoaderFactory<T : TimelineSpec.Data> {
 @HiddenFromObjC
 public class TimelineLoaderContext internal constructor(
     private val accountService: AccountService,
-    private val kagariSwitchValues: (key: String, switch: KagariTimelineSwitch) -> Flow<String>,
+    private val kagariSwitchValues: (switch: KagariTimelineSwitch) -> Flow<String>,
 ) {
-    public constructor(accountService: AccountService) : this(accountService, { _, switch -> flowOf(switch.defaultValue) })
+    public constructor(accountService: AccountService) : this(accountService, { switch -> flowOf(switch.defaultValue) })
 
     public fun accountServiceFlow(accountType: AccountType): Flow<MicroblogDataSource> = accountService.accountServiceFlow(accountType)
 
-    public fun kagariSwitchValue(
-        specId: String,
-        accountKey: MicroBlogKey,
-        switch: KagariTimelineSwitch,
-    ): Flow<String> = kagariSwitchValues(kagariTimelineSwitchKey(specId, accountKey), switch)
+    public fun kagariSwitchValue(switch: KagariTimelineSwitch): Flow<String> = kagariSwitchValues(switch)
 }
 
 @HiddenFromObjC
@@ -646,11 +642,16 @@ public data class ShortcutSpec(
 @Single
 internal class TimelineResolver(
     private val data: PlatformRuntimeData,
-    accountService: AccountService,
+    private val accountService: AccountService,
 ) {
     private val kagariSwitchStore: KagariTimelineSwitchStore by koinInject()
 
-    private val loaderContext = TimelineLoaderContext(accountService) { key, switch -> kagariSwitchStore.value(key, switch) }
+    private val defaultLoaderContext = TimelineLoaderContext(accountService)
+
+    private fun tabLoaderContext(item: UiSourceTimelineTabItem): TimelineLoaderContext =
+        TimelineLoaderContext(accountService) { switch -> kagariSwitchStore.value(kagariSwitchKey(item), switch) }
+
+    private fun kagariSwitchKey(item: UiSourceTimelineTabItem): String = item.id
 
     val platforms get() = data.platforms
 
@@ -741,7 +742,19 @@ internal class TimelineResolver(
         when (item) {
             is UiSourceTimelineTabItem -> {
                 val source = item.source ?: return flowOf(notSupported())
-                resolveLoader(source)
+                resolveLoader(source, tabLoaderContext(item))
+            }
+
+            is UiGroupTimelineTabItem -> {
+                resolveGroupLoader(item)
+            }
+        }
+
+    fun resolveMixedMemberLoader(item: UiTimelineTabItem): Flow<RemoteLoader<UiTimelineV2>> =
+        when (item) {
+            is UiSourceTimelineTabItem -> {
+                val source = item.source ?: return flowOf(notSupported())
+                resolveLoader(source, defaultLoaderContext)
             }
 
             is UiGroupTimelineTabItem -> {
@@ -750,13 +763,13 @@ internal class TimelineResolver(
         }
 
     fun resolveLoader(target: TimelineTarget<out TimelineSpec.Data>): Flow<RemoteLoader<UiTimelineV2>> =
-        resolveLoader(target.toSource(target.spec.title, target.spec.icon))
+        resolveLoader(target.toSource(target.spec.title, target.spec.icon), defaultLoaderContext)
 
     fun kagariSwitchTarget(item: UiTimelineTabItem): Pair<String, KagariTimelineSwitch>? {
-        val source = (item as? UiSourceTimelineTabItem)?.source ?: return null
+        val sourceItem = item as? UiSourceTimelineTabItem ?: return null
+        val source = sourceItem.source ?: return null
         val switch = specs[source.specId]?.kagariSwitch ?: return null
-        val accountKey = resolveAccountKey(source) ?: return null
-        return kagariTimelineSwitchKey(source.specId, accountKey) to switch
+        return kagariSwitchKey(sourceItem) to switch
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -774,7 +787,10 @@ internal class TimelineResolver(
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun resolveLoader(source: TimelineSourceRef): Flow<RemoteLoader<UiTimelineV2>> =
+    private fun resolveLoader(
+        source: TimelineSourceRef,
+        context: TimelineLoaderContext,
+    ): Flow<RemoteLoader<UiTimelineV2>> =
         data.snapshots
             .map { it.timelinesById[source.specId] }
             .distinctUntilChanged { before, after -> before === after }
@@ -782,7 +798,7 @@ internal class TimelineResolver(
                 if (spec == null) {
                     flowOf(notSupported())
                 } else {
-                    runCatching { spec.createLoader(source.data) }.getOrElse { flowOf(notSupported()) }
+                    runCatching { spec.createLoader(source.data, context) }.getOrElse { flowOf(notSupported()) }
                 }
             }
 
@@ -794,7 +810,7 @@ internal class TimelineResolver(
                 if (tabs.isEmpty()) {
                     flowOf(notSupported())
                 } else {
-                    combine(tabs.map { resolveLoader(it) }) { loaders ->
+                    combine(tabs.map { resolveMixedMemberLoader(it) }) { loaders ->
                         MixedTimelineLoaderFactory.create(
                             loaders = loaders.toList(),
                             mergePolicy = item.mergePolicy,
@@ -825,8 +841,10 @@ internal class TimelineResolver(
         return (data as? TimelineSpec.AccountData)?.accountKey
     }
 
-    private fun <T : TimelineSpec.Data> TimelineSpec<T>.createLoader(encodedData: String): Flow<RemoteLoader<UiTimelineV2>> =
-        loaderFactory.create(decode(encodedData), loaderContext)
+    private fun <T : TimelineSpec.Data> TimelineSpec<T>.createLoader(
+        encodedData: String,
+        context: TimelineLoaderContext,
+    ): Flow<RemoteLoader<UiTimelineV2>> = loaderFactory.create(decode(encodedData), context)
 }
 
 public object TimelineDeepLinkRouteResolver {

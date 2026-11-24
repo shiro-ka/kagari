@@ -370,7 +370,7 @@ private fun pixivSwitchTimelineSpec(
         serializer = TimelineSpec.AccountBasedData.serializer(),
         targetId = { it.accountKey.toString() },
         loaderFactory =
-            kagariSwitchAccountLoader<PixivDataSource, TimelineSpec.AccountBasedData>(id, switch) { _, value ->
+            kagariSwitchAccountLoader<PixivDataSource, TimelineSpec.AccountBasedData>(switch) { _, value ->
                 factory(this, value)
             },
         kagariSwitch = switch,
