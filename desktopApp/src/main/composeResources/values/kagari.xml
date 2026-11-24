@@ -6,6 +6,7 @@
     <string name="kagari_post_action_family_follow">Follow</string>
     <string name="kagari_post_action_family_follow_private">Follow privately</string>
     <string name="kagari_post_action_family_open_in_browser">Open in browser</string>
+    <string name="kagari_post_action_family_view_count">Views</string>
     <string name="kagari_pixiv_ranking_day_title">Daily</string>
     <string name="kagari_pixiv_ranking_week_r18g_title">R-18G</string>
     <string name="kagari_edit_tab_with_badge">Show small icon</string>

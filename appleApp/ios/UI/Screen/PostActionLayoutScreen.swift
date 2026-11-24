@@ -204,6 +204,7 @@ private extension PostActionFamily {
         case .follow: return String(localized: "Follow")
         case .followPrivate: return String(localized: "Follow privately")
         case .openInBrowser: return String(localized: "Open in browser")
+        case .viewCount: return String(localized: "Views")
         }
     }
 
@@ -230,6 +231,7 @@ private extension PostActionFamily {
         case .follow: return .userPlus
         case .followPrivate: return .lock
         case .openInBrowser: return .globe
+        case .viewCount: return .eye
         }
     }
 }

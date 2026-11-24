@@ -1158,6 +1158,7 @@ internal fun StatusActions(
                     ActionMenu.Divider -> return@fastForEachIndexed
                 }
             val number = item.count
+            val alwaysShowNumber = item.actionFamily == PostActionFamily.ViewCount
             val icon = item.icon?.toImageVector() ?: FontAwesomeIcons.Solid.Ellipsis
             val iconWidth =
                 if (isAndroidPost) {
@@ -1187,7 +1188,12 @@ internal fun StatusActions(
                             } else {
                                 iconSlotWidth + padding * 2
                             }
-                        val trailingNumber = if (isAndroidPost) number.visibleActionNumber(appearanceSettings.showNumbers) else number
+                        val trailingNumber =
+                            if (isAndroidPost) {
+                                number.visibleActionNumber(appearanceSettings.showNumbers || alwaysShowNumber)
+                            } else {
+                                number
+                            }
                         Modifier.width(actionWidth + if (trailingNumber != null) trailingNumberWidth else 0.dp)
                     }
                 }
@@ -1254,6 +1260,7 @@ internal fun StatusActions(
                         enabled = action.enabled,
                         iconSize = iconSize,
                         iconWidth = iconWidth,
+                        alwaysShowNumber = alwaysShowNumber,
                         withTextMinWidth =
                             !isStretched && appearanceSettings.postActionFixedWidth &&
                                 action.count != null &&
@@ -1414,7 +1421,15 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
                     KagariGateMenuItemText(it, color)
                 } else {
                     PlatformText(
-                        text = it.asString(),
+                        text =
+                            if (subActions.actionFamily == PostActionFamily.ViewCount) {
+                                listOfNotNull(
+                                    it.asString(),
+                                    subActions.count?.humanized?.takeIf { count -> count.isNotEmpty() },
+                                ).joinToString(" ")
+                            } else {
+                                it.asString()
+                            },
                         color = color,
                     )
                 }
@@ -1512,6 +1527,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.KagariPixivFollowPrivate,
                     ActionMenu.Item.Text.Localized.Type.KagariPixivUnfollow,
                     ActionMenu.Item.Text.Localized.Type.KagariOpenInBrowser,
+                    ActionMenu.Item.Text.Localized.Type.KagariViewCount,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)

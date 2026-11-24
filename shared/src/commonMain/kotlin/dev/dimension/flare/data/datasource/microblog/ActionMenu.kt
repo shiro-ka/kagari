@@ -40,6 +40,7 @@ public enum class PostActionFamily {
     Follow,
     FollowPrivate,
     OpenInBrowser,
+    ViewCount,
 }
 
 public enum class PostActionPlacement {
@@ -198,6 +199,7 @@ public sealed class ActionMenu {
                     KagariPixivFollowPrivate,
                     KagariPixivUnfollow,
                     KagariOpenInBrowser,
+                    KagariViewCount,
                 }
             }
         }
@@ -239,7 +241,7 @@ public fun ImmutableList<ActionMenu>.applyPostActionLayout(config: PostActionLay
     forEach(::collect)
 
     val consumedIndexes = mutableSetOf<Int>()
-    val hiddenFamilies = config.hidden.toSet()
+    val hiddenFamilies = config.hidden.toSet() + PostActionLayoutHelpers.hiddenWhenUnplaced(config)
 
     fun pick(family: PostActionFamily): ActionMenu? =
         entries
@@ -308,6 +310,14 @@ public object PostActionLayoutHelpers {
             PostActionFamily.BlockUser,
         )
 
+    public val defaultHiddenFamilies: List<PostActionFamily> =
+        listOf(
+            PostActionFamily.ViewCount,
+        )
+
+    public fun hiddenWhenUnplaced(config: PostActionLayoutConfig): List<PostActionFamily> =
+        defaultHiddenFamilies.filterNot { it in config.primary || it in config.overflow || it in config.hidden }
+
     public fun normalizedForEdit(config: PostActionLayoutConfig): PostActionLayoutConfig = normalizedForEdit(config, allEditableFamilies)
 
     public fun normalizedForEdit(
@@ -315,7 +325,10 @@ public object PostActionLayoutHelpers {
         families: List<PostActionFamily>,
     ): PostActionLayoutConfig {
         val primary = config.primary.cleanFamilies(families)
-        val hidden = config.hidden.cleanFamilies(families).filterNot { it in primary }
+        val hidden =
+            (config.hidden.cleanFamilies(families) + hiddenWhenUnplaced(config).filter { it in families })
+                .distinct()
+                .filterNot { it in primary }
         val overflow =
             (
                 config.overflow.cleanFamilies(families).filterNot { it in primary || it in hidden } +

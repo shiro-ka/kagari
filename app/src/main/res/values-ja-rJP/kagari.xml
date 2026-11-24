@@ -267,6 +267,7 @@
     <string name="kagari_post_action_family_follow">フォロー</string>
     <string name="kagari_post_action_family_follow_private">非公開でフォロー</string>
     <string name="kagari_post_action_family_open_in_browser">ブラウザで開く</string>
+    <string name="kagari_post_action_family_view_count">閲覧数</string>
     <string name="kagari_pixiv_bookmark_title">ブックマークの編集</string>
     <string name="kagari_pixiv_bookmark_private">非公開にする</string>
     <string name="kagari_pixiv_bookmark_tag_hint">タグ</string>

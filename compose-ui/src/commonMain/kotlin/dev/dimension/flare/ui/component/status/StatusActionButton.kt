@@ -72,11 +72,12 @@ public fun StatusActionButton(
     iconSize: Dp = StatusComponentDefaults.actionIconSize,
     iconWidth: Dp = minOf(iconSize, StatusComponentDefaults.actionIconSlotWidth),
     onLongClicked: (() -> Unit)? = null,
+    alwaysShowNumber: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val appearanceSettings = LocalTimelineAppearance.current
     val iconSlotWidth = maxOf(StatusComponentDefaults.actionIconSlotWidth, iconWidth)
-    val displayNumber = number.visibleActionNumber(appearanceSettings.showNumbers)
+    val displayNumber = number.visibleActionNumber(appearanceSettings.showNumbers || alwaysShowNumber)
     val actionDescription = contentDescription?.takeIf { it.isNotBlank() }
     val accessibilityDescription =
         listOfNotNull(

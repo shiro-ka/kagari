@@ -123,6 +123,7 @@ public object KagariPostActionPlatforms {
                     PostActionFamily.Follow,
                     PostActionFamily.FollowPrivate,
                     PostActionFamily.OpenInBrowser,
+                    PostActionFamily.ViewCount,
                 ),
             FANBOX to
                 setOf(
@@ -138,6 +139,7 @@ public object KagariPostActionPlatforms {
             PostActionFamily.Follow,
             PostActionFamily.FollowPrivate,
             PostActionFamily.OpenInBrowser,
+            PostActionFamily.ViewCount,
         )
 
     private val defaultLayoutsByPlatform: Map<String, PostActionLayoutConfig> =
@@ -161,6 +163,7 @@ public object KagariPostActionPlatforms {
                             PostActionFamily.BookmarkPublic,
                             PostActionFamily.FollowPrivate,
                             PostActionFamily.OpenInBrowser,
+                            PostActionFamily.ViewCount,
                         ),
                 ),
         )

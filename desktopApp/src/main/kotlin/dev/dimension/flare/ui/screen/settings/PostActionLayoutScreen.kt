@@ -42,6 +42,7 @@ import dev.dimension.flare.kagari_post_action_family_follow
 import dev.dimension.flare.kagari_post_action_family_follow_private
 import dev.dimension.flare.kagari_post_action_family_open_in_browser
 import dev.dimension.flare.kagari_post_action_family_save
+import dev.dimension.flare.kagari_post_action_family_view_count
 import dev.dimension.flare.more
 import dev.dimension.flare.settings_post_action_family_block_user
 import dev.dimension.flare.settings_post_action_family_bookmark
@@ -483,6 +484,7 @@ private val PostActionFamily.icon: UiIcon
             PostActionFamily.Follow -> UiIcon.Follow
             PostActionFamily.FollowPrivate -> UiIcon.KagariFollowPrivate
             PostActionFamily.OpenInBrowser -> UiIcon.World
+            PostActionFamily.ViewCount -> UiIcon.Eye
         }
 
 private val PostActionFamily.label: StringResource
@@ -509,4 +511,5 @@ private val PostActionFamily.label: StringResource
             PostActionFamily.Follow -> Res.string.kagari_post_action_family_follow
             PostActionFamily.FollowPrivate -> Res.string.kagari_post_action_family_follow_private
             PostActionFamily.OpenInBrowser -> Res.string.kagari_post_action_family_open_in_browser
+            PostActionFamily.ViewCount -> Res.string.kagari_post_action_family_view_count
         }

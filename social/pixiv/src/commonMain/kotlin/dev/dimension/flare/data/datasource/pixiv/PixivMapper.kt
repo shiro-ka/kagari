@@ -92,8 +92,10 @@ internal fun PixivIllust.toUiTimeline(
             persistentListOf(
                 ActionMenu.Item(
                     icon = UiIcon.Eye,
+                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.KagariViewCount),
                     count = UiNumber(totalView),
                     clickEvent = ClickEvent.Noop,
+                    actionFamily = PostActionFamily.ViewCount,
                 ),
                 *PixivBookmarkKind.entries
                     .map { kind ->

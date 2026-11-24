@@ -315,6 +315,48 @@ class PostActionLayoutConfigTest {
         }
     }
 
+    @Test
+    fun viewCountIsHiddenWhenNotPlaced() {
+        val viewCount = action(PostActionFamily.ViewCount, UiIcon.Eye)
+        val favorite = action(PostActionFamily.Favorite, UiIcon.Heart)
+        val config =
+            PostActionLayoutConfig(
+                enabled = true,
+                primary = persistentListOf(PostActionFamily.Favorite),
+                overflow = persistentListOf(),
+            )
+
+        assertEquals(persistentListOf<ActionMenu>(favorite), persistentListOf(viewCount, favorite).applyPostActionLayout(config))
+        assertEquals(
+            persistentListOf<ActionMenu>(viewCount, favorite),
+            persistentListOf(viewCount, favorite)
+                .applyPostActionLayout(config.copy(primary = persistentListOf(PostActionFamily.ViewCount, PostActionFamily.Favorite))),
+        )
+    }
+
+    @Test
+    fun viewCountGoesToHiddenWhenEditingSavedLayoutWithoutIt() {
+        val families = KagariPostActionPlatforms.familiesFor(KagariPostActionPlatforms.PIXIV)
+        val normalized =
+            PostActionLayoutHelpers.normalizedForEdit(
+                PostActionLayoutConfig(
+                    enabled = true,
+                    primary = persistentListOf(PostActionFamily.Favorite),
+                    overflow = persistentListOf(PostActionFamily.Share),
+                ),
+                families,
+            )
+
+        assertTrue(PostActionFamily.ViewCount in normalized.hidden)
+        assertFalse(PostActionFamily.ViewCount in normalized.overflow)
+        assertTrue(
+            PostActionFamily.ViewCount in
+                KagariPlatformPostActionLayouts.Default
+                    .layoutFor(KagariPostActionPlatforms.PIXIV, PostActionLayoutConfig.Default)
+                    .hidden,
+        )
+    }
+
     private fun action(
         family: PostActionFamily,
         icon: UiIcon,

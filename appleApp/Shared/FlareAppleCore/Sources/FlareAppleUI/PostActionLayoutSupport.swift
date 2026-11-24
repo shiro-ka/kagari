@@ -160,6 +160,8 @@ public extension PostActionFamily {
             "Follow privately"
         case .openInBrowser:
             "Open in browser"
+        case .viewCount:
+            "Views"
         }
     }
 
@@ -207,6 +209,8 @@ public extension PostActionFamily {
             .lock
         case .openInBrowser:
             .globe
+        case .viewCount:
+            .eye
         }
     }
 }

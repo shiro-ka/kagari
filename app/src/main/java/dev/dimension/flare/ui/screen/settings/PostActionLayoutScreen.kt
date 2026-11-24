@@ -674,6 +674,7 @@ private val PostActionFamily.icon: UiIcon
             PostActionFamily.Follow -> UiIcon.Follow
             PostActionFamily.FollowPrivate -> UiIcon.KagariFollowPrivate
             PostActionFamily.OpenInBrowser -> UiIcon.World
+            PostActionFamily.ViewCount -> UiIcon.Eye
         }
 
 private val PostActionFamily.labelRes: Int
@@ -700,4 +701,5 @@ private val PostActionFamily.labelRes: Int
             PostActionFamily.Follow -> R.string.kagari_post_action_family_follow
             PostActionFamily.FollowPrivate -> R.string.kagari_post_action_family_follow_private
             PostActionFamily.OpenInBrowser -> R.string.kagari_post_action_family_open_in_browser
+            PostActionFamily.ViewCount -> R.string.kagari_post_action_family_view_count
         }

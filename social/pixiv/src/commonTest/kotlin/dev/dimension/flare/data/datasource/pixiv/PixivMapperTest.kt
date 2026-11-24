@@ -1,6 +1,7 @@
 package dev.dimension.flare.data.datasource.pixiv
 
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.network.pixiv.model.PixivIllust
 import dev.dimension.flare.data.network.pixiv.model.PixivImageUrls
 import dev.dimension.flare.data.network.pixiv.model.PixivMetaPage
@@ -44,6 +45,7 @@ class PixivMapperTest {
         val viewCountAction = assertIs<ActionMenu.Item>(post.actions.first())
         assertEquals(UiIcon.Eye, viewCountAction.icon)
         assertEquals(123L, viewCountAction.count?.value)
+        assertEquals(PostActionFamily.ViewCount, viewCountAction.actionFamily)
     }
 
     @Test
