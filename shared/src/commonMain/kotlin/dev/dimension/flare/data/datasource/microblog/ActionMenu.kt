@@ -200,6 +200,8 @@ public sealed class ActionMenu {
                     KagariPixivUnfollow,
                     KagariOpenInBrowser,
                     KagariViewCount,
+                    KagariShowMoreLikeThis,
+                    KagariShowLessLikeThis,
                 }
             }
         }

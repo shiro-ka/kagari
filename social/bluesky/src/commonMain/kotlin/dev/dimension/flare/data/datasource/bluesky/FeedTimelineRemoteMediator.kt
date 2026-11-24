@@ -8,6 +8,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.network.bluesky.BlueskyService
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.mapper.KagariFeedSource
 import sh.christian.ozone.api.AtUri
 
 @OptIn(ExperimentalPagingApi::class)
@@ -17,6 +18,20 @@ internal class FeedTimelineRemoteMediator(
     private val uri: String,
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val pagingKey = "feed_timeline_${accountKey}_$uri"
+
+    private var kagariFeedCache: KagariFeedSource? = null
+    private var kagariFeedChecked = false
+
+    private suspend fun kagariFeed(
+        service: BlueskyService,
+        refresh: Boolean,
+    ): KagariFeedSource? {
+        if (refresh || !kagariFeedChecked) {
+            kagariFeedCache = service.kagariFeedSource(uri)
+            kagariFeedChecked = true
+        }
+        return kagariFeedCache
+    }
 
     override suspend fun load(
         pageSize: Int,
@@ -57,7 +72,11 @@ internal class FeedTimelineRemoteMediator(
 
         return PagingResult(
             endOfPaginationReached = response.cursor == null,
-            data = response.feed.renderWithDownloadUrls(accountKey),
+            data =
+                response.feed.renderWithDownloadUrls(
+                    accountKey = accountKey,
+                    kagariFeed = kagariFeed(service, refresh = request == PagingRequest.Refresh),
+                ),
             nextKey = response.cursor,
         )
     }

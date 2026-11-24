@@ -25,6 +25,8 @@ import compose.icons.fontawesomeicons.solid.Download
 import compose.icons.fontawesomeicons.solid.Ellipsis
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.Eye
+import compose.icons.fontawesomeicons.solid.FaceFrown
+import compose.icons.fontawesomeicons.solid.FaceSmile
 import compose.icons.fontawesomeicons.solid.Fire
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
@@ -139,4 +141,6 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.KagariFire -> FontAwesomeIcons.Solid.Fire
         UiIcon.KagariUserGroup -> FontAwesomeIcons.Solid.UserGroup
         UiIcon.KagariTrophy -> FontAwesomeIcons.Solid.Trophy
+        UiIcon.KagariFaceSmile -> FontAwesomeIcons.Solid.FaceSmile
+        UiIcon.KagariFaceFrown -> FontAwesomeIcons.Solid.FaceFrown
     }

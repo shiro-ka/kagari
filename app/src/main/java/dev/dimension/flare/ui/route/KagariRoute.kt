@@ -33,6 +33,17 @@ internal data class KagariMuteThreadDialogRoute(
 ) : Route.Status
 
 @Serializable
+internal data class KagariFeedFeedbackDialogRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val feedUri: String,
+    val feedServiceDid: String,
+    val feedContext: String?,
+    val reqId: String?,
+    val more: Boolean,
+) : Route.Status
+
+@Serializable
 internal data class KagariVerificationDialogRoute(
     val accountType: AccountType,
     val userKey: MicroBlogKey,
@@ -173,6 +184,18 @@ internal fun KagariDeeplink.toKagariRoute(): Route =
             KagariPixivBookmarkSheetRoute(
                 statusKey = statusKey,
                 accountType = accountType,
+            )
+        }
+
+        is KagariFeedFeedbackRoute -> {
+            KagariFeedFeedbackDialogRoute(
+                statusKey = statusKey,
+                accountType = accountType,
+                feedUri = feedUri,
+                feedServiceDid = feedServiceDid,
+                feedContext = feedContext,
+                reqId = reqId,
+                more = more,
             )
         }
     }

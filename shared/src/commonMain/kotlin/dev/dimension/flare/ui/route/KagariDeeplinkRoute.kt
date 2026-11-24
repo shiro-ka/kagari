@@ -95,3 +95,15 @@ public data class KagariPixivBookmarkRoute(
     val accountType: AccountType,
 ) : DeeplinkRoute.Status(),
     KagariDeeplink
+
+@Serializable
+public data class KagariFeedFeedbackRoute(
+    val statusKey: MicroBlogKey,
+    val accountType: AccountType,
+    val feedUri: String,
+    val feedServiceDid: String,
+    val feedContext: String?,
+    val reqId: String?,
+    val more: Boolean,
+) : DeeplinkRoute.Status(),
+    KagariDeeplink

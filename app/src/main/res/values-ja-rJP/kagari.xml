@@ -291,4 +291,6 @@
     <string name="kagari_pixiv_private_following_title">非公開フォロー</string>
     <string name="kagari_pixiv_public_bookmarks_title">公開ブックマーク</string>
     <string name="kagari_pixiv_recommended_title">おすすめ</string>
+    <string name="kagari_feed_feedback_sent">フィードの運営者にフィードバックを送りました</string>
+    <string name="kagari_feed_feedback_failed">フィードバックを送れませんでした。もう一度お試しください</string>
 </resources>

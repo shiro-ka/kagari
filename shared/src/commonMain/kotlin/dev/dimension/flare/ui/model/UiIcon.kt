@@ -81,6 +81,8 @@ public enum class UiIcon {
     KagariFire,
     KagariUserGroup,
     KagariTrophy,
+    KagariFaceSmile,
+    KagariFaceFrown,
 }
 
 /**

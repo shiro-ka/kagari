@@ -83,4 +83,6 @@
     <string name="kagari_pixiv_private_following_title">Private follows</string>
     <string name="kagari_pixiv_public_bookmarks_title">Public bookmarks</string>
     <string name="kagari_pixiv_recommended_title">Recommended</string>
+    <string name="kagari_menu_show_more_like_this">Show more like this</string>
+    <string name="kagari_menu_show_less_like_this">Show less like this</string>
 </resources>

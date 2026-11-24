@@ -31,6 +31,8 @@ import dev.dimension.flare.compose.ui.kagari_menu_pixiv_follow_private
 import dev.dimension.flare.compose.ui.kagari_menu_pixiv_remove_bookmark
 import dev.dimension.flare.compose.ui.kagari_menu_pixiv_unfollow
 import dev.dimension.flare.compose.ui.kagari_menu_save
+import dev.dimension.flare.compose.ui.kagari_menu_show_less_like_this
+import dev.dimension.flare.compose.ui.kagari_menu_show_more_like_this
 import dev.dimension.flare.compose.ui.kagari_menu_view_count
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.ui.component.platform.PlatformText
@@ -128,5 +130,7 @@ private fun kagariPixivMenuText(type: ActionMenu.Item.Text.Localized.Type): Stri
         ActionMenu.Item.Text.Localized.Type.KagariPixivUnfollow -> Res.string.kagari_menu_pixiv_unfollow
         ActionMenu.Item.Text.Localized.Type.KagariOpenInBrowser -> Res.string.kagari_menu_open_in_browser
         ActionMenu.Item.Text.Localized.Type.KagariViewCount -> Res.string.kagari_menu_view_count
+        ActionMenu.Item.Text.Localized.Type.KagariShowMoreLikeThis -> Res.string.kagari_menu_show_more_like_this
+        ActionMenu.Item.Text.Localized.Type.KagariShowLessLikeThis -> Res.string.kagari_menu_show_less_like_this
         else -> null
     }

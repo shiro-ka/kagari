@@ -6,6 +6,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import dev.dimension.flare.ui.component.BottomSheetSceneStrategy
 import dev.dimension.flare.ui.route.KagariDetachQuoteDialogRoute
+import dev.dimension.flare.ui.route.KagariFeedFeedbackDialogRoute
 import dev.dimension.flare.ui.route.KagariHideReplyDialogRoute
 import dev.dimension.flare.ui.route.KagariProfileEditScreenRoute
 import dev.dimension.flare.ui.route.KagariStarterPackScreenRoute
@@ -18,6 +19,7 @@ import dev.dimension.flare.ui.screen.profile.KagariProfileEditScreen
 import dev.dimension.flare.ui.screen.profile.KagariStarterPackScreen
 import dev.dimension.flare.ui.screen.profile.KagariVerificationDialog
 import dev.dimension.flare.ui.screen.status.action.KagariDetachQuoteDialog
+import dev.dimension.flare.ui.screen.status.action.KagariFeedFeedbackAction
 import dev.dimension.flare.ui.screen.status.action.KagariHideReplyDialog
 import dev.dimension.flare.ui.screen.status.action.KagariMuteThreadAction
 import dev.dimension.flare.ui.screen.status.action.KagariPinPostAction
@@ -71,6 +73,20 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
             accountType = args.accountType,
             rootUri = args.rootUri,
             mute = args.mute,
+            onBack = onBack,
+        )
+    }
+    entry<KagariFeedFeedbackDialogRoute>(
+        metadata = DialogSceneStrategy.dialog(),
+    ) { args ->
+        KagariFeedFeedbackAction(
+            statusKey = args.statusKey,
+            accountType = args.accountType,
+            feedUri = args.feedUri,
+            feedServiceDid = args.feedServiceDid,
+            feedContext = args.feedContext,
+            reqId = args.reqId,
+            more = args.more,
             onBack = onBack,
         )
     }

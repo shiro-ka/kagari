@@ -24,10 +24,14 @@ import app.bsky.feed.ReasonRepost
 import app.bsky.feed.ReplyRef
 import app.bsky.feed.ReplyRefParentUnion
 import app.bsky.feed.ReplyRefRootUnion
+import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.di.BlueskyTestKoinModule
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.route.KagariFeedFeedbackRoute
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.koin.core.context.startKoin
@@ -199,6 +203,51 @@ class BlueskyRenderTest {
         val reposted = timelinePostItemOf(listOf(repost).render(accountKey, urls).single())
         assertEquals(direct, assertNotNull(reposted.presentation.repost).images.single())
     }
+
+    @Test
+    fun feedPostsOfferFeedbackOnlyWhenTheFeedAcceptsInteractions() {
+        val feed = KagariFeedSource(uri = "at://did:plc:owner/app.bsky.feed.generator/whats-hot", serviceDid = "did:web:discover.bsky.app")
+        val post =
+            createPostView(
+                uri = "at://did:plc:author/app.bsky.feed.post/feedback",
+                author = createProfile("author", "author.bsky.social"),
+                text = "feedback",
+            )
+        val item = FeedViewPost(post = post, feedContext = "context", reqId = "request")
+        val statusKey = MicroBlogKey(id = post.uri.atUri, host = accountKey.host)
+
+        val offered = assertIs<UiTimelineV2.Post>(listOf(item).render(accountKey, kagariFeed = feed).single())
+        assertEquals(
+            listOf(true, false).map { more ->
+                ClickEvent.Deeplink(
+                    KagariFeedFeedbackRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        feedUri = feed.uri,
+                        feedServiceDid = feed.serviceDid,
+                        feedContext = "context",
+                        reqId = "request",
+                        more = more,
+                    ),
+                )
+            },
+            offered.feedbackClickEvents(),
+        )
+
+        val plain = assertIs<UiTimelineV2.Post>(listOf(item).render(accountKey).single())
+        assertEquals(emptyList<ClickEvent>(), plain.feedbackClickEvents())
+    }
+
+    private fun UiTimelineV2.Post.feedbackClickEvents(): List<ClickEvent> =
+        actions
+            .filterIsInstance<ActionMenu.Group>()
+            .flatMap { it.actions }
+            .filterIsInstance<ActionMenu.Item>()
+            .filter {
+                val text = it.text as? ActionMenu.Item.Text.Localized
+                text?.type == ActionMenu.Item.Text.Localized.Type.KagariShowMoreLikeThis ||
+                    text?.type == ActionMenu.Item.Text.Localized.Type.KagariShowLessLikeThis
+            }.map { it.clickEvent }
 
     @Test
     fun postRender_mapsMediaImages() {

@@ -1528,6 +1528,8 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.KagariPixivUnfollow,
                     ActionMenu.Item.Text.Localized.Type.KagariOpenInBrowser,
                     ActionMenu.Item.Text.Localized.Type.KagariViewCount,
+                    ActionMenu.Item.Text.Localized.Type.KagariShowMoreLikeThis,
+                    ActionMenu.Item.Text.Localized.Type.KagariShowLessLikeThis,
                     -> null
                 }
             resource?.let { stringResource(it, *parameters.toTypedArray()) } ?: kagariGateMenuText(type, parameters)

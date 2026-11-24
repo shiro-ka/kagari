@@ -546,7 +546,8 @@ private val ListNotificationsNotificationReason.type: UiTimelineV2.Message.Type
 internal fun List<FeedViewPost>.render(
     accountKey: MicroBlogKey,
     downloadUrls: Map<String, String> = emptyMap(),
-): List<UiTimelineV2> = this.map { it.render(accountKey, downloadUrls) }
+    kagariFeed: KagariFeedSource? = null,
+): List<UiTimelineV2> = this.map { it.render(accountKey, downloadUrls, kagariFeed) }
 
 internal fun List<ListNotificationsNotification>.render(
     accountKey: MicroBlogKey,
@@ -735,8 +736,14 @@ internal fun List<ListNotificationsNotification>.render(
 private fun FeedViewPost.render(
     accountKey: MicroBlogKey,
     downloadUrls: Map<String, String>,
+    kagariFeed: KagariFeedSource?,
 ): UiTimelineV2 {
-    val renderedPost = post.render(accountKey, downloadUrls)
+    val renderedPost =
+        post.render(
+            accountKey = accountKey,
+            downloadUrls = downloadUrls,
+            kagariFeedItem = kagariFeed?.let { KagariFeedItem(feed = it, feedContext = feedContext, reqId = reqId) },
+        )
     val feedReason = reason
     val message =
         when (val reason = feedReason) {
@@ -881,6 +888,7 @@ private fun PostView.renderTimelineItem(
 internal fun PostView.render(
     accountKey: MicroBlogKey,
     downloadUrls: Map<String, String> = emptyMap(),
+    kagariFeedItem: KagariFeedItem? = null,
 ): UiTimelineV2.Post {
     val user = author.render(accountKey)
     val isFromMe = user.key == accountKey
@@ -1053,6 +1061,7 @@ internal fun PostView.render(
                                         ),
                                 ),
                             )
+                            addAll(kagariFeedFeedbackMenu(accountKey, statusKey, kagariFeedItem))
 
                             if (isFromMe) {
                                 add(
