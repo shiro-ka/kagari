@@ -24,6 +24,7 @@ import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.model.toAccountType
 import dev.dimension.flare.ui.model.ClickEvent
+import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.KagariFile
 import dev.dimension.flare.ui.model.UiEmoji
 import dev.dimension.flare.ui.model.UiHandle
@@ -555,6 +556,7 @@ private fun Note.renderStatus(accountKey: MicroBlogKey): UiTimelineV2.Post {
                 append(id)
             }
         }
+    val urlPreviewTarget = kagariUrlPreviewTarget()
     return UiTimelineV2.Post(
         images =
             files
@@ -791,6 +793,8 @@ private fun Note.renderStatus(accountKey: MicroBlogKey): UiTimelineV2.Post {
             },
         statusKey = statusKey,
         card = null,
+        kagariEmbed = urlPreviewTarget?.let { KagariEmbed.MisskeyUrlPreview(it) },
+        kagariCardWithQuote = urlPreviewTarget != null,
         createdAt = Instant.parse(createdAt).toUi(),
         visibility = renderedVisibility,
         emojiReactions = reaction,
@@ -844,6 +848,78 @@ private fun DriveFile.toUi(): UiMedia? {
         return null
     }
 }
+
+private fun Note.kagariUrlPreviewTarget(): String? {
+    val source = text?.takeIf { it.isNotEmpty() } ?: return null
+    val renoteUrls = setOfNotNull(renote?.url, renote?.uri)
+    return kagariExtractUrls(misskeyParser.parse(source))
+        .filter { it !in renoteUrls }
+        .firstOrNull { it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true) }
+}
+
+private fun kagariExtractUrls(root: moe.tlaster.mfm.parser.tree.Node): List<String> {
+    val found = mutableListOf<String>()
+
+    fun visit(node: moe.tlaster.mfm.parser.tree.Node) {
+        when (node) {
+            is UrlNode -> {
+                found += node.url
+            }
+
+            is LinkNode -> {
+                if (!node.silent) {
+                    found += node.url
+                }
+                node.content.forEach(::visit)
+            }
+
+            is RootNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is QuoteNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is CenterNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is BoldNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is SmallNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is ItalicNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is StrikeNode -> {
+                node.content.forEach(::visit)
+            }
+
+            is FnNode -> {
+                node.content.forEach(::visit)
+            }
+
+            else -> {}
+        }
+    }
+    visit(root)
+    val urls = mutableListOf<String>()
+    found.distinct().forEach { url ->
+        val withoutHash = url.replace(kagariUrlHash, "")
+        if (urls.none { it.replace(kagariUrlHash, "") == withoutHash }) {
+            urls += url
+        }
+    }
+    return urls
+}
+
+private val kagariUrlHash = Regex("#[^#]*$")
 
 private fun DriveFile.toKagariFile(): KagariFile? {
     if (type.startsWith("image/") || type.startsWith("video/") || type.startsWith("audio/")) {

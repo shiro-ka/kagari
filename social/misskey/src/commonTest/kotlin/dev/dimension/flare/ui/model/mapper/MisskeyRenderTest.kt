@@ -13,6 +13,7 @@ import dev.dimension.flare.data.network.misskey.api.model.Visibility
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.model.ReferenceType
 import dev.dimension.flare.ui.humanizer.PlatformFormatter
+import dev.dimension.flare.ui.model.KagariEmbed
 import dev.dimension.flare.ui.model.UiEmoji
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
@@ -175,6 +176,42 @@ class MisskeyRenderTest {
             "https://$host/emoji/blobcat@remote.example.webp",
             resolveMisskeyEmoji(":blobcat@remote.example:", host, emptyMap()),
         )
+    }
+
+    @Test
+    fun firstLinkBecomesUrlPreviewTarget() {
+        val note =
+            createNote(
+                id = "note-links",
+                user = createUser("user-links"),
+                text = "?[silent](https://silent.example/) https://first.example/a#top https://first.example/a#bottom https://second.example/",
+            )
+
+        val rendered = rootPostOf(note.render(accountKey))
+
+        val embed = assertIs<KagariEmbed.MisskeyUrlPreview>(rendered.kagariEmbed)
+        assertEquals("https://first.example/a#top", embed.url)
+        assertTrue(rendered.kagariCardWithQuote)
+        assertEquals(null, rendered.card)
+    }
+
+    @Test
+    fun quotedNoteLinkIsNotUrlPreviewTarget() {
+        val user = createUser("user-quote-link")
+        val quoted = createNote("quoted-remote", user, "quoted").copy(url = "https://remote.example/notes/quoted#x")
+        val note = createNote("quoting", user, "https://remote.example/notes/quoted#x", renote = quoted)
+
+        val rendered = rootPostOf(note.render(accountKey))
+
+        assertEquals(null, rendered.kagariEmbed)
+        assertFalse(rendered.kagariCardWithQuote)
+    }
+
+    @Test
+    fun noteWithoutLinkHasNoUrlPreviewTarget() {
+        val rendered = rootPostOf(createNote("no-link", createUser("user-no-link"), "plain text").render(accountKey))
+
+        assertEquals(null, rendered.kagariEmbed)
     }
 
     @Test

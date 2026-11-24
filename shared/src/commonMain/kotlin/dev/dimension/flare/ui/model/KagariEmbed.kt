@@ -42,6 +42,12 @@ public sealed interface KagariEmbed {
     ) : KagariEmbed
 
     @Serializable
+    @Immutable
+    public data class MisskeyUrlPreview public constructor(
+        val url: String,
+    ) : KagariEmbed
+
+    @Serializable
     public enum class Kind {
         Feed,
         UserList,

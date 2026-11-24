@@ -254,15 +254,22 @@ public fun CommonStatusComponent(
         val showsFiles = item.kagariFiles.isNotEmpty() && showMedia
         val kagariMadoVoice = kagariRememberMadoVoice(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
         val kagariTokimekiPoll = kagariRememberTokimekiPoll(item.accountType, item.kagariEmbed?.takeIf { !isQuote })
+        val kagariMisskeyCard =
+            kagariRememberMisskeyUrlCard(
+                item.accountType,
+                item.kagariEmbed?.takeIf { !isQuote && appearanceSettings.showLinkPreview && item.images.isEmpty() },
+            )
+        val displayCard = item.card ?: kagariMisskeyCard
         val showsCard =
-            item.card != null && appearanceSettings.showLinkPreview && item.images.isEmpty() &&
+            displayCard != null && appearanceSettings.showLinkPreview && item.images.isEmpty() &&
                 (quotes.isEmpty() || item.kagariCardWithQuote) && kagariMadoVoice == null && kagariTokimekiPoll == null
         val showsQuotes = quotes.isNotEmpty() && !isQuote
         val kagariEmbed =
             item.kagariEmbed?.takeIf {
                 !isQuote &&
                     (it !is KagariEmbed.MadoVoice || kagariMadoVoice != null) &&
-                    (it !is KagariEmbed.TokimekiPoll || kagariTokimekiPoll != null)
+                    (it !is KagariEmbed.TokimekiPoll || kagariTokimekiPoll != null) &&
+                    it !is KagariEmbed.MisskeyUrlPreview
             }
         val showsAttachments = showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
@@ -557,7 +564,7 @@ public fun CommonStatusComponent(
                     Spacer(modifier = Modifier.height(if (showsImages) 8.dp else firstAttachmentSpacing))
                     KagariFilesComponent(files = item.kagariFiles)
                 }
-                item.card?.let { card ->
+                displayCard?.let { card ->
                     if (showsCard) {
                         Spacer(modifier = Modifier.height(if (showsFiles) 8.dp else firstAttachmentSpacing))
                         StatusCardComponent(

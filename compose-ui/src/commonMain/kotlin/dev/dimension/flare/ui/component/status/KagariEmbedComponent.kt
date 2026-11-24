@@ -51,6 +51,7 @@ internal fun KagariEmbedComponent(
         is KagariEmbed.Unavailable -> KagariEmbedUnavailable(embed, modifier)
         is KagariEmbed.MadoVoice -> madoVoice?.let { KagariMadoEmbedCard(it, modifier) }
         is KagariEmbed.TokimekiPoll -> tokimekiPoll?.let { KagariTokimekiPollCard(it, modifier) }
+        is KagariEmbed.MisskeyUrlPreview -> Unit
     }
 }
 
