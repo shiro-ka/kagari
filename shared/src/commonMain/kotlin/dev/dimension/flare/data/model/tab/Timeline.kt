@@ -29,13 +29,16 @@ import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.presenter.home.SystemHomeMixedTimelinePresenter
 import dev.dimension.flare.ui.presenter.home.TimelinePresenter
 import dev.dimension.flare.ui.route.DeeplinkRoute
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -46,6 +49,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import org.koin.core.annotation.Single
 import kotlin.native.HiddenFromObjC
+import kotlin.time.Duration.Companion.seconds
 
 @Immutable
 @Serializable
@@ -223,6 +227,27 @@ public class UiGroupTimelineTabItem internal constructor(
             enabled = updatedPresentation.enabled,
         )
     }
+}
+
+internal fun UiSourceTimelineTabItem.withEnabled(enabled: Boolean): UiSourceTimelineTabItem {
+    val current = presentation ?: TimelinePresentation()
+    val updatedPresentation =
+        current.withOverrides(
+            titleOverride = current.titleOverride,
+            iconOverride = current.iconOverride,
+            appearancePatch = current.appearance,
+            enabled = enabled,
+            filterConfig = current.filterConfig,
+        )
+    return UiSourceTimelineTabItem(
+        id = id,
+        source = source,
+        presentation = updatedPresentation,
+        title = title,
+        icon = icon,
+        appearancePatch = updatedPresentation.appearance,
+        enabled = updatedPresentation.enabled,
+    )
 }
 
 public val UiTimelineTabItem.isSystemHomeMixedTimeline: Boolean
@@ -463,29 +488,30 @@ public data class TimelineCandidate<T : TimelineSpec.Data>(
     val icon: IconType = target.spec.icon,
     val appearancePatch: AppearancePatch? = null,
     val filterConfig: TimelineFilterConfig = TimelineFilterConfig(),
-    val enabled: Boolean = true,
 ) {
     public val id: String get() = target.spec.itemId(target.data)
 
-    internal val presentation: TimelinePresentation
-        get() =
-            TimelinePresentation(
-                appearanceOverride = appearancePatch?.takeUnless { it == AppearancePatch.EMPTY }?.toBag(),
-                enabled = enabled,
-                filterConfig = filterConfig,
-            )
+    internal fun presentation(enabled: Boolean): TimelinePresentation =
+        TimelinePresentation(
+            appearanceOverride = appearancePatch?.takeUnless { it == AppearancePatch.EMPTY }?.toBag(),
+            enabled = enabled,
+            filterConfig = filterConfig,
+        )
 }
 
-public fun TimelineCandidate<*>.toUiTimelineTabItem(): UiSourceTimelineTabItem {
+public fun TimelineCandidate<*>.toUiTimelineTabItem(): UiSourceTimelineTabItem = toUiTimelineTabItem(enabled = true)
+
+internal fun TimelineCandidate<*>.toUiTimelineTabItem(enabled: Boolean): UiSourceTimelineTabItem {
+    val candidatePresentation = presentation(enabled)
     val source = target.toSource(title, icon)
     return UiSourceTimelineTabItem(
         id = id,
         source = source,
-        presentation = presentation,
+        presentation = candidatePresentation,
         title = title,
         icon = icon,
-        appearancePatch = presentation.appearance,
-        enabled = presentation.enabled,
+        appearancePatch = candidatePresentation.appearance,
+        enabled = candidatePresentation.enabled,
     )
 }
 
@@ -530,14 +556,12 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
         title: UiText = this.title,
         icon: IconType = this.icon,
         filterConfig: TimelineFilterConfig = TimelineFilterConfig(),
-        enabled: Boolean = true,
     ): TimelineCandidate<T> =
         TimelineCandidate(
             target = target(data),
             title = title,
             icon = icon,
             filterConfig = filterConfig,
-            enabled = enabled,
         )
 
     public fun galleryCandidate(
@@ -650,10 +674,28 @@ internal class TimelineResolver(
 
     fun toTabItem(candidate: TimelineCandidate<*>): UiSourceTimelineTabItem = candidate.toUiTimelineTabItem()
 
+    suspend fun toNewTabItem(candidate: TimelineCandidate<*>): UiSourceTimelineTabItem =
+        candidate.toUiTimelineTabItem(enabled = canJoinTimeline(candidate.toUiTimelineTabItem()))
+
+    suspend fun withJoinTimelineDefault(item: UiTimelineTabItem): UiTimelineTabItem =
+        when (item) {
+            is UiSourceTimelineTabItem -> item.withEnabled(canJoinTimeline(item))
+            is UiGroupTimelineTabItem -> item
+        }
+
+    private suspend fun canJoinTimeline(item: UiTimelineTabItem): Boolean =
+        try {
+            val loader = withTimeoutOrNull(5.seconds) { resolveLoader(item).first() }
+            (loader as? CacheableRemoteLoader<*>)?.canJoinTimeline == true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+
     fun toTabItem(loaderKey: String): UiTimelineTabItem = toTabItem(decodeTimelineLoaderKey(loaderKey))
 
-    fun toSlot(candidate: TimelineCandidate<*>): TimelineSlot =
-        candidate.target.toSource(candidate.title, candidate.icon).toSlot(presentation = candidate.presentation)
+    suspend fun toNewSlot(candidate: TimelineCandidate<*>): TimelineSlot = toSlot(toNewTabItem(candidate))
 
     fun toSlot(item: UiTimelineTabItem): TimelineSlot =
         when (item) {

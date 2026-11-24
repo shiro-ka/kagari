@@ -50,8 +50,8 @@ public abstract class PinTabsPresenter<T> : PresenterBase<PinTabsPresenter.State
 
             override fun pinTab(item: T) {
                 appScope.launch {
+                    val tabItem = timelineResolver.withJoinTimelineDefault(getTimelineTabItem(item))
                     settingsRepository.updateTabSettingsV2 {
-                        val tabItem = getTimelineTabItem(item)
                         if (homeSlots.any { it.id == tabItem.id }) {
                             return@updateTabSettingsV2 this
                         }

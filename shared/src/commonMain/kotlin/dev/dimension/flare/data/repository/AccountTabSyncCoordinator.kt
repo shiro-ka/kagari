@@ -80,8 +80,8 @@ internal class AccountTabSyncCoordinator(
         if (defaultTabs.isEmpty()) {
             return
         }
+        val defaultSlots = defaultTabs.map { timelineResolver.toNewSlot(it) }
         settingsRepository.updateTabSettingsV2 {
-            val defaultSlots = defaultTabs.map(timelineResolver::toSlot)
             val shouldEnableSystemHomeMixedTimeline =
                 homeSlots.anySystemHomeMixedTimeline() ||
                     homeSlots.countNonSystemHomeTabs() < 2
