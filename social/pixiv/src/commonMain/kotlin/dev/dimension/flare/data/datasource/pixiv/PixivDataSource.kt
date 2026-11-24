@@ -30,6 +30,7 @@ import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.model.tab.ShortcutSpec
 import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineSpec
+import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
 import dev.dimension.flare.data.network.pixiv.PixivService
@@ -132,56 +133,43 @@ internal class PixivDataSource(
     private val userTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         val data = TimelineSpec.AccountBasedData(accountKey)
         persistentListOf(
-            CommonTimelineSpecs.home.galleryCandidate(
-                data = data,
-                icon = IconType.Material(UiIcon.Pixiv),
-            ),
+            PixivPlatformSpec.switchableFollowingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
+            PixivPlatformSpec.followingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
+            PixivPlatformSpec.privateFollowingTimelineSpec.galleryCandidate(data, icon = UiIcon.Home.withPixivLogo()),
             CommonTimelineSpecs.discover.galleryCandidate(
                 data = data,
-                icon = IconType.Material(UiIcon.Pixiv),
+                icon = UiIcon.KagariWandMagicSparkles.withPixivLogo(),
             ),
-            PixivPlatformSpec.followingTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.privateFollowingTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(data),
-        )
-    }
-
-    private val builtInRankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
-        val data = TimelineSpec.AccountBasedData(accountKey)
-        persistentListOf(
-            PixivPlatformSpec.rankingDayTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingWeekTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingMonthTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingDayMaleTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingDayFemaleTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingWeekOriginalTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingWeekRookieTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingDayMangaTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.switchableBookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
+            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
+            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(data, icon = UiIcon.Bookmark.withPixivLogo()),
         )
     }
 
     private val rankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         val data = TimelineSpec.AccountBasedData(accountKey)
-        (builtInRankingTimelineTabs + PixivPlatformSpec.rankingDayAiTimelineSpec.galleryCandidate(data))
-            .toImmutableList()
+        persistentListOf(
+            PixivPlatformSpec.rankingDayTimelineSpec,
+            PixivPlatformSpec.rankingWeekTimelineSpec,
+            PixivPlatformSpec.rankingMonthTimelineSpec,
+            PixivPlatformSpec.rankingDayMaleTimelineSpec,
+            PixivPlatformSpec.rankingDayFemaleTimelineSpec,
+            PixivPlatformSpec.rankingWeekOriginalTimelineSpec,
+            PixivPlatformSpec.rankingWeekRookieTimelineSpec,
+            PixivPlatformSpec.rankingDayMangaTimelineSpec,
+        ).map { it.galleryCandidate(data, icon = rankingIcon) }.toImmutableList()
     }
 
     private val r18RankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         val data = TimelineSpec.AccountBasedData(accountKey)
         persistentListOf(
-            PixivPlatformSpec.rankingDayR18TimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingWeekR18TimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingDayR18AiTimelineSpec.galleryCandidate(data),
-            PixivPlatformSpec.rankingWeekR18GTimelineSpec.galleryCandidate(data),
-        )
+            PixivPlatformSpec.rankingDayR18TimelineSpec,
+            PixivPlatformSpec.rankingWeekR18TimelineSpec,
+            PixivPlatformSpec.rankingWeekR18GTimelineSpec,
+        ).map { it.galleryCandidate(data, icon = rankingIcon) }.toImmutableList()
     }
 
     override val builtInTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
-        (userTimelineTabs + builtInRankingTimelineTabs).toImmutableList()
-    }
-
-    override val addableTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         (userTimelineTabs + rankingTimelineTabs + r18RankingTimelineTabs).toImmutableList()
     }
 
@@ -434,7 +422,7 @@ internal class PixivDataSource(
             restrict = restrict,
         )
 
-    fun followingTimelineLoader(restrict: PixivRestrict = PixivRestrict.Public): RemoteLoader<UiTimelineV2> =
+    fun followingTimelineLoader(restrict: PixivFollowRestrict = PixivFollowRestrict.Public): RemoteLoader<UiTimelineV2> =
         PixivFollowingTimelineLoader(
             service = service,
             accountKey = accountKey,
@@ -629,3 +617,9 @@ internal class PixivDataSource(
             PixivRestrict.Private -> PixivBookmarkState.Private
         }
 }
+
+private val pixivLogo: IconType = IconType.Logo(UiIcon.Pixiv)
+
+private val rankingIcon: IconType = UiIcon.KagariTrophy.withPixivLogo()
+
+private fun UiIcon.withPixivLogo(): IconType = IconType.Badged(IconType.Material(this), pixivLogo)

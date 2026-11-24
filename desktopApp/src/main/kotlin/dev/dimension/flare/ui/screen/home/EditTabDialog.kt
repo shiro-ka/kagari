@@ -50,6 +50,11 @@ import dev.dimension.flare.home_tab_popular_title
 import dev.dimension.flare.illustrations_title
 import dev.dimension.flare.kagari_pixiv_ranking_day_title
 import dev.dimension.flare.kagari_pixiv_ranking_week_r18g_title
+import dev.dimension.flare.kagari_pixiv_following_switchable_title
+import dev.dimension.flare.kagari_pixiv_bookmark_switchable_title
+import dev.dimension.flare.kagari_timeline_switch_all
+import dev.dimension.flare.kagari_timeline_switch_public
+import dev.dimension.flare.kagari_timeline_switch_private
 import dev.dimension.flare.liked_title
 import dev.dimension.flare.manga_title
 import dev.dimension.flare.mastodon_tab_local_title
@@ -329,6 +334,16 @@ private val UiStrings.desktopStringResource: StringResource
             UiStrings.KagariPixivRankingDay -> Res.string.kagari_pixiv_ranking_day_title
 
             UiStrings.KagariPixivRankingWeekR18G -> Res.string.kagari_pixiv_ranking_week_r18g_title
+
+            UiStrings.KagariPixivFollowingSwitchable -> Res.string.kagari_pixiv_following_switchable_title
+
+            UiStrings.KagariPixivBookmarkSwitchable -> Res.string.kagari_pixiv_bookmark_switchable_title
+
+            UiStrings.KagariTimelineSwitchAll -> Res.string.kagari_timeline_switch_all
+
+            UiStrings.KagariTimelineSwitchPublic -> Res.string.kagari_timeline_switch_public
+
+            UiStrings.KagariTimelineSwitchPrivate -> Res.string.kagari_timeline_switch_private
 
             UiStrings.CredentialImport -> Res.string.ok
 

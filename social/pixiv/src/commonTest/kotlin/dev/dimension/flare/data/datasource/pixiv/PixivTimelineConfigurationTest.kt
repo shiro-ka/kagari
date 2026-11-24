@@ -1,8 +1,10 @@
 package dev.dimension.flare.data.datasource.pixiv
 
+import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
 import dev.dimension.flare.data.network.pixiv.PixivService
+import dev.dimension.flare.data.platform.CommonTimelineSpecs
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.asText
@@ -14,21 +16,20 @@ import kotlin.test.assertTrue
 
 class PixivTimelineConfigurationTest {
     @Test
-    fun additionalRankingsAreOnlyInTheTabPicker() {
+    fun tabPickerHasNoHomeOrAiRankings() {
         val account = MicroBlogKey("test", "pixiv.net")
         val source = PixivDataSource(account, emptyFlow()) {}
-        val builtInIds = source.builtInTimelineTabs.map { it.target.spec.id }
-        val newIds =
+        val ids = source.addableTimelineTabs.map { it.target.spec.id }
+        val removedIds =
             listOf(
+                CommonTimelineSpecs.home.id,
                 "pixiv.ranking.day_ai",
-                "pixiv.ranking.day_r18",
-                "pixiv.ranking.week_r18",
                 "pixiv.ranking.day_r18_ai",
-                "pixiv.ranking.week_r18g",
             )
 
-        assertTrue(builtInIds.none { it in newIds })
-        assertEquals(builtInIds + newIds, source.addableTimelineTabs.map { it.target.spec.id })
+        assertTrue(ids.none { it in removedIds })
+        assertTrue("pixiv.following.switchable" in ids)
+        assertTrue("pixiv.bookmark.switchable" in ids)
     }
 
     @Test
@@ -52,7 +53,6 @@ class PixivTimelineConfigurationTest {
             listOf(
                 "pixiv.ranking.day_r18",
                 "pixiv.ranking.week_r18",
-                "pixiv.ranking.day_r18_ai",
                 "pixiv.ranking.week_r18g",
             ),
             sections.last().tabs.map { it.target.spec.id },
@@ -64,8 +64,13 @@ class PixivTimelineConfigurationTest {
         val service = PixivService()
         val account = MicroBlogKey("test", "pixiv.net")
         assertTrue(PixivHomeTimelineLoader(service, account).canJoinTimeline)
-        for (restrict in PixivRestrict.entries) {
+        for (restrict in PixivFollowRestrict.entries) {
             assertTrue(PixivFollowingTimelineLoader(service, account, restrict).canJoinTimeline)
+        }
+        for (restrict in PixivRestrict.entries) {
+            assertFalse(
+                PixivBookmarkTimelineLoader(service, emptyFlow(), account, restrict).canJoinTimeline,
+            )
         }
         assertFalse(PixivDiscoverTimelineLoader(service, account).canJoinTimeline)
         for (mode in PixivRankingMode.entries) {

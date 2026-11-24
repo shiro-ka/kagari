@@ -281,4 +281,9 @@
     <string name="kagari_edit_tab_with_badge">小さいアイコンを表示</string>
     <string name="kagari_edit_tab_icon">アイコン</string>
     <string name="kagari_edit_tab_badge_icon">小さいアイコン</string>
+    <string name="kagari_pixiv_following_switchable_title">フォロー新着(切り替え)</string>
+    <string name="kagari_pixiv_bookmark_switchable_title">ブックマーク(切り替え)</string>
+    <string name="kagari_timeline_switch_all">すべて</string>
+    <string name="kagari_timeline_switch_public">公開</string>
+    <string name="kagari_timeline_switch_private">非公開</string>
 </resources>

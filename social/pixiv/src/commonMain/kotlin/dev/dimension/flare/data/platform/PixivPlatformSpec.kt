@@ -1,9 +1,13 @@
 package dev.dimension.flare.data.platform
 
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
+import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.pixiv.PixivDataSource
 import dev.dimension.flare.data.model.tab.TimelineSpec
+import dev.dimension.flare.data.model.tab.KagariTimelineSwitch
 import dev.dimension.flare.data.model.tab.accountLoader
+import dev.dimension.flare.data.model.tab.kagariSwitchAccountLoader
+import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
 import dev.dimension.flare.model.AccountType
@@ -14,6 +18,7 @@ import dev.dimension.flare.model.PlatformMetadata
 import dev.dimension.flare.model.PlatformSpec
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiStrings
+import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.asType
 import dev.dimension.flare.ui.presenter.login.LoginPlatformProvider
 import dev.dimension.flare.ui.presenter.login.PixivLoginProvider
@@ -87,9 +92,46 @@ public data object PixivPlatformSpec :
             targetId = { it.accountKey.toString() },
             loaderFactory =
                 accountLoader<PixivDataSource, TimelineSpec.AccountBasedData> {
-                    followingTimelineLoader(PixivRestrict.Private)
+                    followingTimelineLoader(PixivFollowRestrict.Private)
                 },
         )
+
+    internal val switchableFollowingTimelineSpec =
+        pixivSwitchTimelineSpec(
+            id = PIXIV_FOLLOWING_SWITCHABLE,
+            title = UiStrings.KagariPixivFollowingSwitchable,
+            icon = UiIcon.Follow,
+            switch =
+                KagariTimelineSwitch(
+                    options =
+                        listOf(
+                            KagariTimelineSwitch.Option(PixivFollowRestrict.All.value, UiStrings.KagariTimelineSwitchAll),
+                            KagariTimelineSwitch.Option(PixivFollowRestrict.Public.value, UiStrings.KagariTimelineSwitchPublic),
+                            KagariTimelineSwitch.Option(PixivFollowRestrict.Private.value, UiStrings.KagariTimelineSwitchPrivate),
+                        ),
+                    defaultValue = PixivFollowRestrict.All.value,
+                ),
+        ) { value ->
+            followingTimelineLoader(PixivFollowRestrict.entries.firstOrNull { it.value == value } ?: PixivFollowRestrict.All)
+        }
+
+    internal val switchableBookmarkTimelineSpec =
+        pixivSwitchTimelineSpec(
+            id = PIXIV_BOOKMARK_SWITCHABLE,
+            title = UiStrings.KagariPixivBookmarkSwitchable,
+            icon = UiIcon.Heart,
+            switch =
+                KagariTimelineSwitch(
+                    options =
+                        listOf(
+                            KagariTimelineSwitch.Option(PixivRestrict.Public.value, UiStrings.KagariTimelineSwitchPublic),
+                            KagariTimelineSwitch.Option(PixivRestrict.Private.value, UiStrings.KagariTimelineSwitchPrivate),
+                        ),
+                    defaultValue = PixivRestrict.Public.value,
+                ),
+        ) { value ->
+            bookmarkTimelineLoader(PixivRestrict.entries.firstOrNull { it.value == value } ?: PixivRestrict.Public)
+        }
 
     internal val rankingDayTimelineSpec =
         pixivRankingTimelineSpec(
@@ -188,8 +230,10 @@ public data object PixivPlatformSpec :
             CommonTimelineSpecs.discover,
             followingTimelineSpec,
             privateFollowingTimelineSpec,
+            switchableFollowingTimelineSpec,
             bookmarkTimelineSpec,
             privateBookmarkTimelineSpec,
+            switchableBookmarkTimelineSpec,
             rankingDayTimelineSpec,
             rankingWeekTimelineSpec,
             rankingMonthTimelineSpec,
@@ -279,6 +323,8 @@ private const val PIXIV_FOLLOWING: String = "pixiv.following"
 private const val PIXIV_BOOKMARK: String = "pixiv.bookmark"
 private const val PIXIV_PRIVATE_FOLLOWING: String = "pixiv.following.private"
 private const val PIXIV_PRIVATE_BOOKMARK: String = "pixiv.bookmark.private"
+private const val PIXIV_FOLLOWING_SWITCHABLE: String = "pixiv.following.switchable"
+private const val PIXIV_BOOKMARK_SWITCHABLE: String = "pixiv.bookmark.switchable"
 private const val PIXIV_RANKING_DAY: String = "pixiv.ranking.day"
 private const val PIXIV_RANKING_WEEK: String = "pixiv.ranking.week"
 private const val PIXIV_RANKING_MONTH: String = "pixiv.ranking.month"
@@ -308,4 +354,24 @@ private fun pixivRankingTimelineSpec(
             accountLoader<PixivDataSource, TimelineSpec.AccountBasedData> {
                 rankingTimelineLoader(mode)
             },
+    )
+
+private fun pixivSwitchTimelineSpec(
+    id: String,
+    title: UiStrings,
+    icon: UiIcon,
+    switch: KagariTimelineSwitch,
+    factory: PixivDataSource.(value: String) -> RemoteLoader<UiTimelineV2>,
+): TimelineSpec<TimelineSpec.AccountBasedData> =
+    TimelineSpec(
+        id = id,
+        title = title,
+        icon = icon.asType(),
+        serializer = TimelineSpec.AccountBasedData.serializer(),
+        targetId = { it.accountKey.toString() },
+        loaderFactory =
+            kagariSwitchAccountLoader<PixivDataSource, TimelineSpec.AccountBasedData>(id, switch) { _, value ->
+                factory(this, value)
+            },
+        kagariSwitch = switch,
     )

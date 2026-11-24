@@ -54,6 +54,11 @@ import dev.dimension.flare.compose.ui.kagari_pixiv_ranking_week_r18g_title
 import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_ranking
 import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_ranking_r18
 import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_user
+import dev.dimension.flare.compose.ui.kagari_pixiv_following_switchable_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_bookmark_switchable_title
+import dev.dimension.flare.compose.ui.kagari_timeline_switch_all
+import dev.dimension.flare.compose.ui.kagari_timeline_switch_public
+import dev.dimension.flare.compose.ui.kagari_timeline_switch_private
 import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
 import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.kagari_tab_bluesky_discover
@@ -499,6 +504,16 @@ internal val UiStrings.res: StringResource
             UiStrings.KagariPixivTabSectionRanking -> Res.string.kagari_pixiv_tab_section_ranking
 
             UiStrings.KagariPixivTabSectionRankingR18 -> Res.string.kagari_pixiv_tab_section_ranking_r18
+
+            UiStrings.KagariPixivFollowingSwitchable -> Res.string.kagari_pixiv_following_switchable_title
+
+            UiStrings.KagariPixivBookmarkSwitchable -> Res.string.kagari_pixiv_bookmark_switchable_title
+
+            UiStrings.KagariTimelineSwitchAll -> Res.string.kagari_timeline_switch_all
+
+            UiStrings.KagariTimelineSwitchPublic -> Res.string.kagari_timeline_switch_public
+
+            UiStrings.KagariTimelineSwitchPrivate -> Res.string.kagari_timeline_switch_private
 
             UiStrings.Articles -> Res.string.profile_tab_articles
 

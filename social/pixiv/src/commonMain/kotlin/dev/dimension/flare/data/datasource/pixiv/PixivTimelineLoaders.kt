@@ -3,6 +3,7 @@ package dev.dimension.flare.data.datasource.pixiv
 import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
+import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
 import dev.dimension.flare.data.network.pixiv.PixivSearchSort
@@ -93,11 +94,11 @@ internal class PixivRankingTimelineLoader(
 internal class PixivFollowingTimelineLoader(
     service: PixivService,
     accountKey: MicroBlogKey,
-    private val restrict: PixivRestrict = PixivRestrict.Public,
+    private val restrict: PixivFollowRestrict = PixivFollowRestrict.Public,
 ) : PixivTimelineLoader(service, accountKey) {
     override val canJoinTimeline: Boolean = true
     override val pagingKey: String =
-        if (restrict == PixivRestrict.Public) {
+        if (restrict == PixivFollowRestrict.Public) {
             "pixiv_following_$accountKey"
         } else {
             "pixiv_following_${restrict.value}_$accountKey"

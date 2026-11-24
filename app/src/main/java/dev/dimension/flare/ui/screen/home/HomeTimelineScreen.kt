@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -42,6 +43,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.LocalContentColor
@@ -127,6 +129,7 @@ import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.model.takeSuccessOr
 import dev.dimension.flare.ui.presenter.HomeTimelineWithTabsPresenter
 import dev.dimension.flare.ui.presenter.home.DeepLinkPresenter
+import dev.dimension.flare.ui.presenter.home.KagariTimelineSwitchPresenter
 import dev.dimension.flare.ui.presenter.home.LoggedInPresenter
 import dev.dimension.flare.ui.presenter.home.LoggedInState
 import dev.dimension.flare.ui.presenter.invoke
@@ -625,12 +628,16 @@ private fun KagariTimelineItemContentBody(
             start = contentPadding.calculateStartPadding(layoutDirection),
             end = contentPadding.calculateEndPadding(layoutDirection),
         )
+    val switchState = remember(item) { KagariTimelineSwitchPresenter(item) }.invoke()
+    val showSwitch = switchState.options.isNotEmpty()
     val state =
         rememberTimelineItemPresenterWithLazyListState(
             item = item,
             isHomeTimeline = isHomeTimeline,
             lazyStaggeredGridState = lazyStaggeredGridState,
-            leadingItemCount = if (changeLogState?.changeLog != null && changeLogState.shouldShowChangeLog.takeSuccessOr(false)) 1 else 0,
+            leadingItemCount =
+                (if (changeLogState?.changeLog != null && changeLogState.shouldShowChangeLog.takeSuccessOr(false)) 1 else 0) +
+                    (if (showSwitch) 1 else 0),
         )
     val latestState by rememberUpdatedState(state)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -689,6 +696,14 @@ private fun KagariTimelineItemContentBody(
                         .semantics { testTagsAsResourceId = true }
                         .then(if (isCurrentlyVisible) Modifier.testTag("home-timeline-list") else Modifier),
             ) {
+                if (showSwitch) {
+                    item(
+                        key = "kagari_timeline_switch",
+                        span = StaggeredGridItemSpan.FullLine,
+                    ) {
+                        KagariTimelineSwitchBar(switchState)
+                    }
+                }
                 changeLogState?.shouldShowChangeLog?.onSuccess {
                     changeLogState.changeLog?.let { changelog ->
                         if (it) {
@@ -789,6 +804,25 @@ private fun KagariTimelineItemContentBody(
             }
         },
     )
+}
+
+@Composable
+private fun KagariTimelineSwitchBar(state: KagariTimelineSwitchPresenter.State) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        state.options.forEach { option ->
+            FilterChip(
+                selected = option.value == state.selected,
+                onClick = { state.select(option.value) },
+                label = { FlareText(option.title) },
+            )
+        }
+    }
 }
 
 @Composable

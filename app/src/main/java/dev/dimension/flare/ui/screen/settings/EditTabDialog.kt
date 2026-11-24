@@ -270,6 +270,16 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.KagariPixivRankingWeekR18G -> R.string.kagari_pixiv_ranking_week_r18g_title
 
+            UiStrings.KagariPixivFollowingSwitchable -> R.string.kagari_pixiv_following_switchable_title
+
+            UiStrings.KagariPixivBookmarkSwitchable -> R.string.kagari_pixiv_bookmark_switchable_title
+
+            UiStrings.KagariTimelineSwitchAll -> R.string.kagari_timeline_switch_all
+
+            UiStrings.KagariTimelineSwitchPublic -> R.string.kagari_timeline_switch_public
+
+            UiStrings.KagariTimelineSwitchPrivate -> R.string.kagari_timeline_switch_private
+
             UiStrings.CredentialImport -> R.string.login_button
 
             UiStrings.ExternalSigner -> R.string.login_button

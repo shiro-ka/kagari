@@ -151,7 +151,7 @@ internal class PixivService private constructor(
 
     suspend fun recommendedManga(): PixivIllustListResponse = appResources.recommendedManga()
 
-    suspend fun followedIllusts(restrict: PixivRestrict = PixivRestrict.Public): PixivIllustListResponse =
+    suspend fun followedIllusts(restrict: PixivFollowRestrict = PixivFollowRestrict.Public): PixivIllustListResponse =
         appResources.followedIllusts(
             restrict = restrict.value,
         )
@@ -320,6 +320,14 @@ private suspend fun PixivTokenResponse.toCredentialFallback(credentialFlow: Flow
 internal enum class PixivRestrict(
     val value: String,
 ) {
+    Public("public"),
+    Private("private"),
+}
+
+internal enum class PixivFollowRestrict(
+    val value: String,
+) {
+    All("all"),
     Public("public"),
     Private("private"),
 }

@@ -447,10 +447,19 @@ public fun interface TimelineLoaderFactory<T : TimelineSpec.Data> {
 }
 
 @HiddenFromObjC
-public class TimelineLoaderContext(
+public class TimelineLoaderContext internal constructor(
     private val accountService: AccountService,
+    private val kagariSwitchValues: (key: String, switch: KagariTimelineSwitch) -> Flow<String>,
 ) {
+    public constructor(accountService: AccountService) : this(accountService, { _, switch -> flowOf(switch.defaultValue) })
+
     public fun accountServiceFlow(accountType: AccountType): Flow<MicroblogDataSource> = accountService.accountServiceFlow(accountType)
+
+    public fun kagariSwitchValue(
+        specId: String,
+        accountKey: MicroBlogKey,
+        switch: KagariTimelineSwitch,
+    ): Flow<String> = kagariSwitchValues(kagariTimelineSwitchKey(specId, accountKey), switch)
 }
 
 @HiddenFromObjC
@@ -530,6 +539,7 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
     val serializer: KSerializer<T>,
     val targetId: (data: T) -> String,
     val loaderFactory: TimelineLoaderFactory<T>,
+    val kagariSwitch: KagariTimelineSwitch? = null,
 ) {
     public constructor(
         id: String,
@@ -538,6 +548,7 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
         serializer: KSerializer<T>,
         targetId: (data: T) -> String,
         loaderFactory: TimelineLoaderFactory<T>,
+        kagariSwitch: KagariTimelineSwitch? = null,
     ) : this(
         id = id,
         title = title.asText(),
@@ -545,6 +556,7 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
         serializer = serializer,
         targetId = targetId,
         loaderFactory = loaderFactory,
+        kagariSwitch = kagariSwitch,
     )
 
     public fun itemId(data: T): String = "$id:${targetId(data)}"
@@ -636,7 +648,9 @@ internal class TimelineResolver(
     private val data: PlatformRuntimeData,
     accountService: AccountService,
 ) {
-    private val loaderContext = TimelineLoaderContext(accountService)
+    private val kagariSwitchStore: KagariTimelineSwitchStore by koinInject()
+
+    private val loaderContext = TimelineLoaderContext(accountService) { key, switch -> kagariSwitchStore.value(key, switch) }
 
     val platforms get() = data.platforms
 
@@ -737,6 +751,13 @@ internal class TimelineResolver(
 
     fun resolveLoader(target: TimelineTarget<out TimelineSpec.Data>): Flow<RemoteLoader<UiTimelineV2>> =
         resolveLoader(target.toSource(target.spec.title, target.spec.icon))
+
+    fun kagariSwitchTarget(item: UiTimelineTabItem): Pair<String, KagariTimelineSwitch>? {
+        val source = (item as? UiSourceTimelineTabItem)?.source ?: return null
+        val switch = specs[source.specId]?.kagariSwitch ?: return null
+        val accountKey = resolveAccountKey(source) ?: return null
+        return kagariTimelineSwitchKey(source.specId, accountKey) to switch
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     fun resolveAccountKey(item: UiTimelineTabItem): MicroBlogKey? =
