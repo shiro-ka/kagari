@@ -46,8 +46,8 @@ internal data class Tweet(
 //    val isTranslatable: kotlin.Boolean = false,
     @SerialName(value = "rest_id")
     val restId: kotlin.String,
-//    @SerialName(value = "views")
-//    val views: TweetView,
+    @SerialName(value = "views")
+    val views: TweetView? = null,
 //    @Contextual @SerialName(value = "__typename")
 //    val typename: TypeName? = null,
 //    @SerialName(value = "birdwatch_pivot")

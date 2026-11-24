@@ -210,7 +210,10 @@ public sealed class ActionMenu {
 
 @HiddenFromObjC
 public fun ImmutableList<ActionMenu>.applyPostActionLayout(config: PostActionLayoutConfig): ImmutableList<ActionMenu> {
-    if (!config.enabled) return this
+    if (!config.enabled) {
+        return filterNot { it is ActionMenu.Item && it.actionFamily in PostActionLayoutHelpers.defaultHiddenFamilies }
+            .toPersistentList()
+    }
 
     var nextIndex = 0
     val entries = mutableListOf<PostActionEntry>()

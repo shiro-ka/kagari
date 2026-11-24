@@ -825,6 +825,15 @@ internal fun Tweet.renderStatus(
                     count = legacy?.favoriteCount?.toLong() ?: 0,
                     accountKey = accountKey,
                 ),
+                views?.count?.toLongOrNull()?.let { viewCount ->
+                    ActionMenu.Item(
+                        icon = UiIcon.Eye,
+                        text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.KagariViewCount),
+                        count = UiNumber(viewCount),
+                        clickEvent = ClickEvent.Noop,
+                        actionFamily = PostActionFamily.ViewCount,
+                    )
+                },
                 ActionMenu.Group(
                     displayItem =
                         ActionMenu.Item(

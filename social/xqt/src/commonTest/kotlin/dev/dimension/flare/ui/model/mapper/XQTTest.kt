@@ -1,6 +1,8 @@
 package dev.dimension.flare.ui.model.mapper
 
 import dev.dimension.flare.common.isWebPlatform
+import dev.dimension.flare.data.datasource.microblog.ActionMenu
+import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.network.xqt.XQT_JSON
 import dev.dimension.flare.data.network.xqt.model.Entities
 import dev.dimension.flare.data.network.xqt.model.Hashtag
@@ -11,6 +13,7 @@ import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichText
 import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichTextTag
 import dev.dimension.flare.data.network.xqt.model.Tweet
 import dev.dimension.flare.data.network.xqt.model.TweetLegacy
+import dev.dimension.flare.data.network.xqt.model.TweetView
 import dev.dimension.flare.data.network.xqt.model.TwitterArticle
 import dev.dimension.flare.data.network.xqt.model.TwitterArticleBlock
 import dev.dimension.flare.data.network.xqt.model.TwitterArticleContentState
@@ -960,6 +963,71 @@ class XQTTest {
         assertTrue(result.renderRuns.any { it is RenderContent.BlockImage && it.url == mediaUrl }, "Media figure present")
         assertTrue(textRuns.any { it.text == "End" && it.style.italic }, "End should be italic")
     }
+
+    @Test
+    fun renderStatus_viewCount_addsViewCountAction() {
+        val tweet = createPlainTweet(views = TweetView(state = TweetView.State.enabledWithCount, count = "12345"))
+
+        val viewCount =
+            tweet
+                .renderStatus(accountKey)
+                .actions
+                .filterIsInstance<ActionMenu.Item>()
+                .single { it.actionFamily == PostActionFamily.ViewCount }
+
+        assertEquals(12345L, viewCount.count?.value)
+    }
+
+    @Test
+    fun renderStatus_viewCountWithoutNumber_hasNoViewCountAction() {
+        listOf(
+            null,
+            TweetView(state = TweetView.State.Enabled),
+            TweetView(state = TweetView.State.enabledWithCount, count = "abc"),
+        ).forEach { views ->
+            val actions =
+                createPlainTweet(views = views)
+                    .renderStatus(accountKey)
+                    .actions
+                    .filterIsInstance<ActionMenu.Item>()
+
+            assertTrue(actions.none { it.actionFamily == PostActionFamily.ViewCount })
+        }
+    }
+
+    @Test
+    fun decodeTweet_unknownViewState_keepsTweet() {
+        val tweet =
+            XQT_JSON.decodeFromString(
+                Tweet.serializer(),
+                """{"rest_id":"1","views":{"state":"SomethingNew","count":"10"}}""",
+            )
+
+        assertEquals("1", tweet.restId)
+        assertEquals("10", tweet.views?.count)
+    }
+
+    private fun createPlainTweet(views: TweetView? = null): Tweet =
+        Tweet(
+            restId = "123",
+            views = views,
+            legacy =
+                TweetLegacy(
+                    idStr = "123",
+                    fullText = "hello",
+                    displayTextRange = emptyList(),
+                    entities = Entities(),
+                    createdAt = "Wed Oct 10 20:19:24 +0000 2018",
+                    favoriteCount = 0,
+                    favorited = false,
+                    isQuoteStatus = false,
+                    lang = "en",
+                    quoteCount = 0,
+                    replyCount = 0,
+                    retweetCount = 0,
+                    retweeted = false,
+                ),
+        )
 
     private fun createArticleTweet(
         id: String,

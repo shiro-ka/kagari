@@ -62,6 +62,7 @@ public object KagariPostActionPlatforms {
                     PostActionFamily.Report,
                     PostActionFamily.MuteUser,
                     PostActionFamily.BlockUser,
+                    PostActionFamily.ViewCount,
                 ),
             MASTODON to
                 setOf(

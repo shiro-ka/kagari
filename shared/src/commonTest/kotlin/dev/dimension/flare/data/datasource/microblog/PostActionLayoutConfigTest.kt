@@ -335,6 +335,22 @@ class PostActionLayoutConfigTest {
     }
 
     @Test
+    fun viewCountIsHiddenWhenLayoutIsDisabled() {
+        val viewCount = action(PostActionFamily.ViewCount, UiIcon.Eye)
+        val favorite = action(PostActionFamily.Favorite, UiIcon.Heart)
+
+        assertEquals(
+            listOf<ActionMenu>(favorite),
+            persistentListOf(viewCount, favorite).applyPostActionLayout(PostActionLayoutConfig.Default),
+        )
+    }
+
+    @Test
+    fun xqtCanPlaceViewCount() {
+        assertTrue(PostActionFamily.ViewCount in KagariPostActionPlatforms.familiesFor(KagariPostActionPlatforms.XQT))
+    }
+
+    @Test
     fun viewCountGoesToHiddenWhenEditingSavedLayoutWithoutIt() {
         val families = KagariPostActionPlatforms.familiesFor(KagariPostActionPlatforms.PIXIV)
         val normalized =
