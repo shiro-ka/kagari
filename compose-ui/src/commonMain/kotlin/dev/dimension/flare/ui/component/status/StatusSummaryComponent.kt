@@ -36,7 +36,11 @@ public fun StatusSummaryComponent(
             ) {}
         }
         if (LocalTimelineAppearance.current.postActionStyle != PostActionStyle.Hidden) {
-            StatusActions(items = item.actions, modifier = Modifier.fillMaxWidth().then(actionsModifier))
+            StatusActions(
+                items = item.actions,
+                kagariPlatformId = item.platformId,
+                modifier = Modifier.fillMaxWidth().then(actionsModifier),
+            )
         }
     }
 }

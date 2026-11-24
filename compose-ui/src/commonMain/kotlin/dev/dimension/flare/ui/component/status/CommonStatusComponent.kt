@@ -622,6 +622,7 @@ public fun CommonStatusComponent(
                     StatusActions(
                         item.actions,
                         kagariAccountType = item.accountType,
+                        kagariPlatformId = item.platformId,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1106,6 +1107,7 @@ internal fun StatusActions(
     modifier: Modifier = Modifier,
     isPost: Boolean = true,
     kagariAccountType: AccountType? = null,
+    kagariPlatformId: String? = null,
 ) = CompositionLocalProvider(
     PlatformTextStyle provides
         PlatformTheme.typography.postBody.let {
@@ -1115,9 +1117,11 @@ internal fun StatusActions(
     PlatformContentColor provides StatusComponentDefaults.secondaryColor,
 ) {
     val appearanceSettings = LocalTimelineAppearance.current
+    val postActionLayout =
+        appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
     val displayItems =
-        remember(items, appearanceSettings.postActionLayout) {
-            items.applyPostActionLayout(appearanceSettings.postActionLayout).filterNot { it == ActionMenu.Divider }
+        remember(items, postActionLayout) {
+            items.applyPostActionLayout(postActionLayout).filterNot { it == ActionMenu.Divider }
         }
     if (displayItems.isEmpty()) return@CompositionLocalProvider
     val haptics = LocalHapticFeedback.current
@@ -1275,9 +1279,11 @@ internal fun StatusActionsDropdownMenu(
     items: ImmutableList<ActionMenu>,
     expanded: Boolean,
     onDismissRequest: () -> Unit,
+    kagariPlatformId: String? = null,
 ) {
     val appearanceSettings = LocalTimelineAppearance.current
-    val postActionLayout = appearanceSettings.postActionLayout
+    val postActionLayout =
+        appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
     val displayItems =
         remember(items, postActionLayout) {
             lazy(LazyThreadSafetyMode.NONE) {

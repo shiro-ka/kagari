@@ -289,13 +289,18 @@ public object PostActionLayoutHelpers {
             PostActionFamily.BlockUser,
         )
 
-    public fun normalizedForEdit(config: PostActionLayoutConfig): PostActionLayoutConfig {
-        val primary = config.primary.cleanFamilies()
-        val hidden = config.hidden.cleanFamilies().filterNot { it in primary }
+    public fun normalizedForEdit(config: PostActionLayoutConfig): PostActionLayoutConfig = normalizedForEdit(config, allEditableFamilies)
+
+    public fun normalizedForEdit(
+        config: PostActionLayoutConfig,
+        families: List<PostActionFamily>,
+    ): PostActionLayoutConfig {
+        val primary = config.primary.cleanFamilies(families)
+        val hidden = config.hidden.cleanFamilies(families).filterNot { it in primary }
         val overflow =
             (
-                config.overflow.cleanFamilies().filterNot { it in primary || it in hidden } +
-                    allEditableFamilies.filterNot { it in primary || it in hidden || it in config.overflow }
+                config.overflow.cleanFamilies(families).filterNot { it in primary || it in hidden } +
+                    families.filterNot { it in primary || it in hidden || it in config.overflow }
             ).distinct()
         return config.copy(
             primary = primary.toPersistentList(),
@@ -307,9 +312,16 @@ public object PostActionLayoutHelpers {
     public fun withEnabled(
         config: PostActionLayoutConfig,
         enabled: Boolean,
+    ): PostActionLayoutConfig = withEnabled(config, enabled, allEditableFamilies)
+
+    public fun withEnabled(
+        config: PostActionLayoutConfig,
+        enabled: Boolean,
+        families: List<PostActionFamily>,
     ): PostActionLayoutConfig =
         normalizedForEdit(
             config.copy(enabled = enabled),
+            families,
         )
 
     public fun familiesFor(
@@ -336,6 +348,13 @@ public object PostActionLayoutHelpers {
         config: PostActionLayoutConfig,
         family: PostActionFamily,
         placement: PostActionPlacement,
+    ): PostActionLayoutConfig = moveTo(config, family, placement, allEditableFamilies)
+
+    public fun moveTo(
+        config: PostActionLayoutConfig,
+        family: PostActionFamily,
+        placement: PostActionPlacement,
+        families: List<PostActionFamily>,
     ): PostActionLayoutConfig {
         val primary = config.primary.filterNot { it == family }.toMutableList()
         val overflow = config.overflow.filterNot { it == family }.toMutableList()
@@ -351,6 +370,7 @@ public object PostActionLayoutHelpers {
                 overflow = overflow.toPersistentList(),
                 hidden = hidden.toPersistentList(),
             ),
+            families,
         )
     }
 
@@ -359,6 +379,14 @@ public object PostActionLayoutHelpers {
         placement: PostActionPlacement,
         from: PostActionFamily,
         to: PostActionFamily,
+    ): PostActionLayoutConfig = moveWithin(config, placement, from, to, allEditableFamilies)
+
+    public fun moveWithin(
+        config: PostActionLayoutConfig,
+        placement: PostActionPlacement,
+        from: PostActionFamily,
+        to: PostActionFamily,
+        families: List<PostActionFamily>,
     ): PostActionLayoutConfig {
         if (from == to) return config
         return when (placement) {
@@ -391,7 +419,7 @@ public object PostActionLayoutHelpers {
                             .toPersistentList(),
                 )
             }
-        }.let(::normalizedForEdit)
+        }.let { normalizedForEdit(it, families) }
     }
 
     public fun moveAt(
@@ -399,27 +427,42 @@ public object PostActionLayoutHelpers {
         placement: PostActionPlacement,
         fromIndex: Int,
         toOffset: Int,
+    ): PostActionLayoutConfig = moveAt(config, placement, fromIndex, toOffset, allEditableFamilies)
+
+    public fun moveAt(
+        config: PostActionLayoutConfig,
+        placement: PostActionPlacement,
+        fromIndex: Int,
+        toOffset: Int,
+        families: List<PostActionFamily>,
     ): PostActionLayoutConfig {
-        val families = familiesFor(config, placement).toMutableList()
-        if (fromIndex !in families.indices) return config
-        val item = families.removeAt(fromIndex)
+        val placed = familiesFor(config, placement).toMutableList()
+        if (fromIndex !in placed.indices) return config
+        val item = placed.removeAt(fromIndex)
         val destination = if (toOffset > fromIndex) toOffset - 1 else toOffset
-        families.add(destination.coerceIn(0, families.size), item)
-        return replaceFamilies(config, placement, families)
+        placed.add(destination.coerceIn(0, placed.size), item)
+        return replaceFamilies(config, placement, placed, families)
     }
 
     public fun moveBy(
         config: PostActionLayoutConfig,
         family: PostActionFamily,
         offset: Int,
+    ): PostActionLayoutConfig = moveBy(config, family, offset, allEditableFamilies)
+
+    public fun moveBy(
+        config: PostActionLayoutConfig,
+        family: PostActionFamily,
+        offset: Int,
+        families: List<PostActionFamily>,
     ): PostActionLayoutConfig {
         val placement = placementOf(config, family)
-        val families = familiesFor(config, placement)
-        val fromIndex = families.indexOf(family)
+        val placed = familiesFor(config, placement)
+        val fromIndex = placed.indexOf(family)
         if (fromIndex == -1) return config
-        val toIndex = (fromIndex + offset).coerceIn(families.indices)
+        val toIndex = (fromIndex + offset).coerceIn(placed.indices)
         if (fromIndex == toIndex) return config
-        return moveWithin(config, placement, family, families[toIndex])
+        return moveWithin(config, placement, family, placed[toIndex], families)
     }
 
     public fun apply(
@@ -445,13 +488,14 @@ public object PostActionLayoutHelpers {
     private fun replaceFamilies(
         config: PostActionLayoutConfig,
         placement: PostActionPlacement,
+        placed: List<PostActionFamily>,
         families: List<PostActionFamily>,
     ): PostActionLayoutConfig =
         when (placement) {
-            PostActionPlacement.ButtonRow -> config.copy(primary = families.toPersistentList())
-            PostActionPlacement.MoreMenu -> config.copy(overflow = families.toPersistentList())
-            PostActionPlacement.Hidden -> config.copy(hidden = families.toPersistentList())
-        }.let(::normalizedForEdit)
+            PostActionPlacement.ButtonRow -> config.copy(primary = placed.toPersistentList())
+            PostActionPlacement.MoreMenu -> config.copy(overflow = placed.toPersistentList())
+            PostActionPlacement.Hidden -> config.copy(hidden = placed.toPersistentList())
+        }.let { normalizedForEdit(it, families) }
 }
 
 private data class PostActionEntry(
@@ -460,8 +504,8 @@ private data class PostActionEntry(
     val family: PostActionFamily?,
 )
 
-private fun Iterable<PostActionFamily>.cleanFamilies(): List<PostActionFamily> =
-    filter { it in PostActionLayoutHelpers.allEditableFamilies }.distinct()
+private fun Iterable<PostActionFamily>.cleanFamilies(families: List<PostActionFamily>): List<PostActionFamily> =
+    filter { it in families }.distinct()
 
 private fun MutableList<PostActionFamily>.move(
     from: PostActionFamily,

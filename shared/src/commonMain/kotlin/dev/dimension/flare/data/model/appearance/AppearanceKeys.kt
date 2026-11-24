@@ -4,6 +4,7 @@ import dev.dimension.flare.common.isWebPlatform
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlin.native.HiddenFromObjC
+import dev.dimension.flare.data.datasource.microblog.KagariPlatformPostActionLayouts as AppearanceKagariPlatformPostActionLayouts
 import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig as AppearancePostActionLayoutConfig
 import dev.dimension.flare.data.model.AvatarShape as AppearanceAvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior as AppearanceBottomBarBehavior
@@ -70,6 +71,12 @@ public object AppearanceKeys {
     public object KagariSearchTop : Global<Boolean>("app.kagari_search_top", false, Boolean.serializer())
 
     public object KagariShortenLinks : Global<Boolean>("app.kagari_shorten_links", true, Boolean.serializer())
+
+    public object KagariPostActionLayoutByPlatform : Global<AppearanceKagariPlatformPostActionLayouts>(
+        "app.kagari_post_action_layout_by_platform",
+        AppearanceKagariPlatformPostActionLayouts.Default,
+        AppearanceKagariPlatformPostActionLayouts.serializer(),
+    )
 
     public object ShowSensitiveContent : PerTimeline<Boolean>("timeline.show_sensitive_content", false, Boolean.serializer())
 
@@ -156,6 +163,7 @@ public object AppearanceKeys {
             KagariShowHiddenReplies,
             KagariSearchTop,
             KagariShortenLinks,
+            KagariPostActionLayoutByPlatform,
             ShowSensitiveContent,
             ExpandContentWarning,
             ExpandMediaSize,

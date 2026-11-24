@@ -1,6 +1,7 @@
 package dev.dimension.flare.data.model.appearance
 
 import androidx.compose.runtime.Immutable
+import dev.dimension.flare.data.datasource.microblog.KagariPlatformPostActionLayouts
 import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig
 import dev.dimension.flare.data.model.AvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior
@@ -59,6 +60,7 @@ public data class TimelineAppearance(
     val absoluteTimestamp: Boolean = AppearanceKeys.AbsoluteTimestamp.default,
     val showPlatformLogo: Boolean = AppearanceKeys.ShowPlatformLogo.default,
     val timelineDisplayMode: TimelineDisplayMode = AppearanceKeys.TimelineDisplayMode.default,
+    val kagariPostActionLayouts: KagariPlatformPostActionLayouts = AppearanceKeys.KagariPostActionLayoutByPlatform.default,
     val aiConfig: AiConfig = AiConfig(),
     val lineLimit: Int = 5,
     val showTranslateButton: Boolean = true,
@@ -120,6 +122,7 @@ public fun AppearancePatch.toTimelineAppearance(override: AppearancePatch?): Tim
         absoluteTimestamp = getTimelineValue(AppearanceKeys.AbsoluteTimestamp, override),
         showPlatformLogo = getTimelineValue(AppearanceKeys.ShowPlatformLogo, override),
         timelineDisplayMode = getTimelineValue(AppearanceKeys.TimelineDisplayMode, override),
+        kagariPostActionLayouts = get(AppearanceKeys.KagariPostActionLayoutByPlatform),
     )
 
 public fun TimelineAppearance.withPatch(patch: AppearancePatch?): TimelineAppearance {
