@@ -342,12 +342,10 @@ public fun TabIcon(
                         icon = icon.badge,
                         modifier =
                             Modifier
-                                .align(Alignment.BottomEnd)
-                                .background(PlatformTheme.colorScheme.card, shape = CircleShape)
-                                .padding(1.5.dp),
+                                .align(Alignment.BottomEnd),
                         iconOnly = true,
                         color = color,
-                        size = size * 0.6f - 3.dp,
+                        size = size / 2,
                     )
                 }
             }
