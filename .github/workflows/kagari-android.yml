@@ -166,7 +166,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: [apk, emulator]
+    needs: apk
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
