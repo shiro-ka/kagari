@@ -49,6 +49,11 @@ import dev.dimension.flare.compose.ui.home_tab_me_title
 import dev.dimension.flare.compose.ui.home_tab_notifications_title
 import dev.dimension.flare.compose.ui.home_tab_popular_title
 import dev.dimension.flare.compose.ui.illustrations_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_ranking_day_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_ranking_week_r18g_title
+import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_ranking
+import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_ranking_r18
+import dev.dimension.flare.compose.ui.kagari_pixiv_tab_section_user
 import dev.dimension.flare.compose.ui.kagari_profile_tab_starter_packs
 import dev.dimension.flare.compose.ui.kagari_profile_tab_videos
 import dev.dimension.flare.compose.ui.kagari_tab_bluesky_discover
@@ -424,6 +429,16 @@ internal val UiStrings.res: StringResource
             UiStrings.KagariStarterPacks -> Res.string.kagari_profile_tab_starter_packs
 
             UiStrings.KagariBlueskyDiscover -> Res.string.kagari_tab_bluesky_discover
+
+            UiStrings.KagariPixivRankingDay -> Res.string.kagari_pixiv_ranking_day_title
+
+            UiStrings.KagariPixivRankingWeekR18G -> Res.string.kagari_pixiv_ranking_week_r18g_title
+
+            UiStrings.KagariPixivTabSectionUser -> Res.string.kagari_pixiv_tab_section_user
+
+            UiStrings.KagariPixivTabSectionRanking -> Res.string.kagari_pixiv_tab_section_ranking
+
+            UiStrings.KagariPixivTabSectionRankingR18 -> Res.string.kagari_pixiv_tab_section_ranking_r18
 
             UiStrings.Articles -> Res.string.profile_tab_articles
 

@@ -68,4 +68,9 @@
     <string name="kagari_menu_pixiv_follow_private">非公開でフォロー</string>
     <string name="kagari_menu_pixiv_unfollow">フォロー解除</string>
     <string name="kagari_menu_open_in_browser">ブラウザで開く</string>
+    <string name="kagari_pixiv_ranking_day_title">デイリー</string>
+    <string name="kagari_pixiv_ranking_week_r18g_title">R-18G</string>
+    <string name="kagari_pixiv_tab_section_user">ユーザー</string>
+    <string name="kagari_pixiv_tab_section_ranking">ランキング</string>
+    <string name="kagari_pixiv_tab_section_ranking_r18">ランキング(R-18)</string>
 </resources>

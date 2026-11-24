@@ -48,6 +48,8 @@ import dev.dimension.flare.home_tab_me_title
 import dev.dimension.flare.home_tab_notifications_title
 import dev.dimension.flare.home_tab_popular_title
 import dev.dimension.flare.illustrations_title
+import dev.dimension.flare.kagari_pixiv_ranking_day_title
+import dev.dimension.flare.kagari_pixiv_ranking_week_r18g_title
 import dev.dimension.flare.liked_title
 import dev.dimension.flare.manga_title
 import dev.dimension.flare.mastodon_tab_local_title
@@ -318,7 +320,13 @@ private val UiStrings.desktopStringResource: StringResource
             UiStrings.RepostedBy, UiStrings.LikedBy, UiStrings.Reactions, UiStrings.AllReactions,
             UiStrings.QrLoginNewCode, UiStrings.QrLoginRetrySave,
             UiStrings.KagariVideos, UiStrings.KagariStarterPacks, UiStrings.KagariBlueskyDiscover,
+            UiStrings.KagariPixivTabSectionUser, UiStrings.KagariPixivTabSectionRanking,
+            UiStrings.KagariPixivTabSectionRankingR18,
             -> Res.string.ok
+
+            UiStrings.KagariPixivRankingDay -> Res.string.kagari_pixiv_ranking_day_title
+
+            UiStrings.KagariPixivRankingWeekR18G -> Res.string.kagari_pixiv_ranking_week_r18g_title
 
             UiStrings.CredentialImport -> Res.string.ok
 

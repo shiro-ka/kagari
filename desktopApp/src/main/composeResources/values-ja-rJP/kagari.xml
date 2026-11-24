@@ -6,4 +6,6 @@
     <string name="kagari_post_action_family_follow">フォロー</string>
     <string name="kagari_post_action_family_follow_private">非公開でフォロー</string>
     <string name="kagari_post_action_family_open_in_browser">ブラウザで開く</string>
+    <string name="kagari_pixiv_ranking_day_title">デイリー</string>
+    <string name="kagari_pixiv_ranking_week_r18g_title">R-18G</string>
 </resources>

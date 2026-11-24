@@ -276,4 +276,6 @@
     <string name="kagari_pixiv_bookmark_failed">ブックマークを更新できませんでした</string>
     <string name="kagari_pixiv_bookmark_load_failed">ブックマークを読み込めませんでした</string>
     <string name="kagari_pixiv_bookmark_retry">再読み込み</string>
+    <string name="kagari_pixiv_ranking_day_title">デイリー</string>
+    <string name="kagari_pixiv_ranking_week_r18g_title">R-18G</string>
 </resources>

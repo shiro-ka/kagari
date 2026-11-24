@@ -4,6 +4,8 @@ import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
 import dev.dimension.flare.data.network.pixiv.PixivService
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.UiStrings
+import dev.dimension.flare.ui.model.asText
 import kotlinx.coroutines.flow.emptyFlow
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,10 +24,39 @@ class PixivTimelineConfigurationTest {
                 "pixiv.ranking.day_r18",
                 "pixiv.ranking.week_r18",
                 "pixiv.ranking.day_r18_ai",
+                "pixiv.ranking.week_r18g",
             )
 
         assertTrue(builtInIds.none { it in newIds })
         assertEquals(builtInIds + newIds, source.addableTimelineTabs.map { it.target.spec.id })
+    }
+
+    @Test
+    fun tabPickerSectionsCoverEveryAddableTab() {
+        val account = MicroBlogKey("test", "pixiv.net")
+        val source = PixivDataSource(account, emptyFlow()) {}
+        val sections = source.kagariAddableTimelineTabSections
+        assertEquals(
+            listOf(
+                UiStrings.KagariPixivTabSectionUser.asText(),
+                UiStrings.KagariPixivTabSectionRanking.asText(),
+                UiStrings.KagariPixivTabSectionRankingR18.asText(),
+            ),
+            sections.map { it.title },
+        )
+        assertEquals(
+            source.addableTimelineTabs.map { it.target.spec.id },
+            sections.flatMap { section -> section.tabs.map { it.target.spec.id } },
+        )
+        assertEquals(
+            listOf(
+                "pixiv.ranking.day_r18",
+                "pixiv.ranking.week_r18",
+                "pixiv.ranking.day_r18_ai",
+                "pixiv.ranking.week_r18g",
+            ),
+            sections.last().tabs.map { it.target.spec.id },
+        )
     }
 
     @Test

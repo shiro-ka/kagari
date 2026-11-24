@@ -91,6 +91,13 @@ public data object PixivPlatformSpec :
                 },
         )
 
+    internal val rankingDayTimelineSpec =
+        pixivRankingTimelineSpec(
+            id = PIXIV_RANKING_DAY,
+            title = UiStrings.KagariPixivRankingDay,
+            mode = PixivRankingMode.Day,
+        )
+
     internal val rankingWeekTimelineSpec =
         pixivRankingTimelineSpec(
             id = PIXIV_RANKING_WEEK,
@@ -168,6 +175,13 @@ public data object PixivPlatformSpec :
             mode = PixivRankingMode.DayR18Ai,
         )
 
+    internal val rankingWeekR18GTimelineSpec =
+        pixivRankingTimelineSpec(
+            id = PIXIV_RANKING_WEEK_R18G,
+            title = UiStrings.KagariPixivRankingWeekR18G,
+            mode = PixivRankingMode.WeekR18G,
+        )
+
     override val timelineSpecs: ImmutableList<TimelineSpec<out TimelineSpec.Data>> =
         persistentListOf(
             CommonTimelineSpecs.home,
@@ -176,6 +190,7 @@ public data object PixivPlatformSpec :
             privateFollowingTimelineSpec,
             bookmarkTimelineSpec,
             privateBookmarkTimelineSpec,
+            rankingDayTimelineSpec,
             rankingWeekTimelineSpec,
             rankingMonthTimelineSpec,
             rankingDayMaleTimelineSpec,
@@ -187,6 +202,7 @@ public data object PixivPlatformSpec :
             rankingDayR18TimelineSpec,
             rankingWeekR18TimelineSpec,
             rankingDayR18AiTimelineSpec,
+            rankingWeekR18GTimelineSpec,
         )
 
     override fun deepLinks(accountKey: MicroBlogKey): ImmutableList<PlatformDeepLink<*>> =
@@ -263,6 +279,7 @@ private const val PIXIV_FOLLOWING: String = "pixiv.following"
 private const val PIXIV_BOOKMARK: String = "pixiv.bookmark"
 private const val PIXIV_PRIVATE_FOLLOWING: String = "pixiv.following.private"
 private const val PIXIV_PRIVATE_BOOKMARK: String = "pixiv.bookmark.private"
+private const val PIXIV_RANKING_DAY: String = "pixiv.ranking.day"
 private const val PIXIV_RANKING_WEEK: String = "pixiv.ranking.week"
 private const val PIXIV_RANKING_MONTH: String = "pixiv.ranking.month"
 private const val PIXIV_RANKING_DAY_MALE: String = "pixiv.ranking.day_male"
@@ -274,6 +291,7 @@ private const val PIXIV_RANKING_DAY_AI: String = "pixiv.ranking.day_ai"
 private const val PIXIV_RANKING_DAY_R18: String = "pixiv.ranking.day_r18"
 private const val PIXIV_RANKING_WEEK_R18: String = "pixiv.ranking.week_r18"
 private const val PIXIV_RANKING_DAY_R18_AI: String = "pixiv.ranking.day_r18_ai"
+private const val PIXIV_RANKING_WEEK_R18G: String = "pixiv.ranking.week_r18g"
 
 private fun pixivRankingTimelineSpec(
     id: String,

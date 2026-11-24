@@ -89,6 +89,11 @@ public enum class UiStrings {
     KagariVideos,
     KagariStarterPacks,
     KagariBlueskyDiscover,
+    KagariPixivRankingDay,
+    KagariPixivRankingWeekR18G,
+    KagariPixivTabSectionUser,
+    KagariPixivTabSectionRanking,
+    KagariPixivTabSectionRankingR18,
 }
 
 public fun UiStrings.asText(): UiText = UiText.Localized(this)

@@ -7,6 +7,7 @@ import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariAddableTimelineTabSection
 import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkDataSource
 import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkDetail
 import dev.dimension.flare.data.datasource.microblog.datasource.KagariPixivBookmarkTag
@@ -128,61 +129,77 @@ internal class PixivDataSource(
         )
     }
 
-    override val builtInTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+    private val userTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        val data = TimelineSpec.AccountBasedData(accountKey)
         persistentListOf(
             CommonTimelineSpecs.home.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
+                data = data,
                 icon = IconType.Material(UiIcon.Pixiv),
             ),
             CommonTimelineSpecs.discover.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
+                data = data,
                 icon = IconType.Material(UiIcon.Pixiv),
             ),
-            PixivPlatformSpec.followingTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.privateFollowingTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingWeekTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingMonthTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingDayMaleTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingDayFemaleTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingWeekOriginalTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingWeekRookieTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
-            PixivPlatformSpec.rankingDayMangaTimelineSpec.galleryCandidate(
-                data = TimelineSpec.AccountBasedData(accountKey),
-            ),
+            PixivPlatformSpec.followingTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.privateFollowingTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.bookmarkTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.privateBookmarkTimelineSpec.galleryCandidate(data),
         )
     }
 
-    override val addableTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+    private val builtInRankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
         val data = TimelineSpec.AccountBasedData(accountKey)
-        buildList {
-            addAll(builtInTimelineTabs)
-            add(PixivPlatformSpec.rankingDayAiTimelineSpec.galleryCandidate(data))
-            add(PixivPlatformSpec.rankingDayR18TimelineSpec.galleryCandidate(data))
-            add(PixivPlatformSpec.rankingWeekR18TimelineSpec.galleryCandidate(data))
-            add(PixivPlatformSpec.rankingDayR18AiTimelineSpec.galleryCandidate(data))
-        }.toImmutableList()
+        persistentListOf(
+            PixivPlatformSpec.rankingDayTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingWeekTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingMonthTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingDayMaleTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingDayFemaleTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingWeekOriginalTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingWeekRookieTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingDayMangaTimelineSpec.galleryCandidate(data),
+        )
+    }
+
+    private val rankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        val data = TimelineSpec.AccountBasedData(accountKey)
+        (builtInRankingTimelineTabs + PixivPlatformSpec.rankingDayAiTimelineSpec.galleryCandidate(data))
+            .toImmutableList()
+    }
+
+    private val r18RankingTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        val data = TimelineSpec.AccountBasedData(accountKey)
+        persistentListOf(
+            PixivPlatformSpec.rankingDayR18TimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingWeekR18TimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingDayR18AiTimelineSpec.galleryCandidate(data),
+            PixivPlatformSpec.rankingWeekR18GTimelineSpec.galleryCandidate(data),
+        )
+    }
+
+    override val builtInTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        (userTimelineTabs + builtInRankingTimelineTabs).toImmutableList()
+    }
+
+    override val addableTimelineTabs: ImmutableList<TimelineCandidate<*>> by lazy {
+        (userTimelineTabs + rankingTimelineTabs + r18RankingTimelineTabs).toImmutableList()
+    }
+
+    override val kagariAddableTimelineTabSections: ImmutableList<KagariAddableTimelineTabSection> by lazy {
+        persistentListOf(
+            KagariAddableTimelineTabSection(
+                title = UiStrings.KagariPixivTabSectionUser,
+                tabs = userTimelineTabs,
+            ),
+            KagariAddableTimelineTabSection(
+                title = UiStrings.KagariPixivTabSectionRanking,
+                tabs = rankingTimelineTabs,
+            ),
+            KagariAddableTimelineTabSection(
+                title = UiStrings.KagariPixivTabSectionRankingR18,
+                tabs = r18RankingTimelineTabs,
+            ),
+        )
     }
 
     override val shortcuts: ImmutableList<ShortcutSpec> by lazy {

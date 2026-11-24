@@ -11,6 +11,7 @@ import androidx.paging.map
 import dev.dimension.flare.common.PagingState
 import dev.dimension.flare.common.toPagingState
 import dev.dimension.flare.data.datasource.microblog.capabilities
+import dev.dimension.flare.data.datasource.microblog.datasource.KagariAddableTimelineTabSection
 import dev.dimension.flare.data.datasource.microblog.datasource.PinnableTimelineTabSection
 import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
@@ -20,14 +21,11 @@ import dev.dimension.flare.data.repository.accountServiceFlow
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
-import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.model.collectAsUiState
 import dev.dimension.flare.ui.model.map
 import dev.dimension.flare.ui.presenter.PresenterBase
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.map
 
@@ -53,7 +51,7 @@ public class PinnableTimelineTabPresenter(
     private val accountRepository: AccountRepository by koinInject()
 
     private data class Sections(
-        val addableTabs: ImmutableList<TimelineCandidate<*>>,
+        val addableSections: List<KagariAddableTimelineTabSection>,
         val pinnableTabs: List<PinnableTimelineTabSection>,
     )
 
@@ -64,11 +62,11 @@ public class PinnableTimelineTabPresenter(
         ).map { service ->
             val tabCatalog = service.capabilities.tabCatalog
             Sections(
-                addableTabs =
+                addableSections =
                     tabCatalog
                         ?.configuration
-                        ?.addableTimelineTabs
-                        ?: persistentListOf(),
+                        ?.kagariAddableTimelineTabSections
+                        .orEmpty(),
                 pinnableTabs =
                     tabCatalog
                         ?.pinnable
@@ -85,22 +83,22 @@ public class PinnableTimelineTabPresenter(
 
         val tabs =
             sections.map { sections ->
-                val defaultSection =
-                    if (sections.addableTabs.isEmpty()) {
-                        null
-                    } else {
-                        PinnableTimelineTab(
-                            title = UiStrings.Default.asText(),
-                            data =
-                                PagingState.Success.ImmutableSuccess(
-                                    sections.addableTabs
-                                        .map<TimelineCandidate<*>, UiTimelineTabItem> { it.toUiTimelineTabItem() }
-                                        .toImmutableList(),
-                                ),
-                        )
-                    }
+                val addableSections =
+                    sections.addableSections
+                        .filter { it.tabs.isNotEmpty() }
+                        .map { section ->
+                            PinnableTimelineTab(
+                                title = section.title,
+                                data =
+                                    PagingState.Success.ImmutableSuccess(
+                                        section.tabs
+                                            .map<TimelineCandidate<*>, UiTimelineTabItem> { it.toUiTimelineTabItem() }
+                                            .toImmutableList(),
+                                    ),
+                            )
+                        }
                 (
-                    listOfNotNull(defaultSection) +
+                    addableSections +
                         sections.pinnableTabs.map { section ->
                             val pagingState =
                                 remember(section) {

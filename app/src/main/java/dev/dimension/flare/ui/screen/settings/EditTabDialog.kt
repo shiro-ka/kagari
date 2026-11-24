@@ -258,9 +258,15 @@ private val UiStrings.androidStringRes: Int
             UiStrings.RepostedBy, UiStrings.LikedBy, UiStrings.Reactions, UiStrings.AllReactions,
             UiStrings.QrLoginNewCode, UiStrings.QrLoginRetrySave,
             UiStrings.KagariVideos, UiStrings.KagariStarterPacks,
+            UiStrings.KagariPixivTabSectionUser, UiStrings.KagariPixivTabSectionRanking,
+            UiStrings.KagariPixivTabSectionRankingR18,
             -> R.string.login_button
 
             UiStrings.KagariBlueskyDiscover -> R.string.kagari_tab_bluesky_discover
+
+            UiStrings.KagariPixivRankingDay -> R.string.kagari_pixiv_ranking_day_title
+
+            UiStrings.KagariPixivRankingWeekR18G -> R.string.kagari_pixiv_ranking_week_r18g_title
 
             UiStrings.CredentialImport -> R.string.login_button
 

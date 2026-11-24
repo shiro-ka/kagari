@@ -339,6 +339,7 @@ internal enum class PixivRankingMode(
     DayR18("day_r18"),
     WeekR18("week_r18"),
     DayR18Ai("day_r18_ai"),
+    WeekR18G("week_r18g"),
 }
 
 internal enum class PixivSearchSort(
