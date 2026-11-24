@@ -536,9 +536,21 @@ internal class XQTDataSource(
         )
 
     override suspend fun postDetailTabs(statusKey: MicroBlogKey): PostDetailTabs =
+        postDetailTabs(
+            statusKey = statusKey,
+            isOwnPost =
+                tryRun {
+                    loader.status(statusKey).contentPostOrNull()?.user?.key == accountKey
+                }.getOrDefault(false),
+        )
+
+    internal fun postDetailTabs(
+        statusKey: MicroBlogKey,
+        isOwnPost: Boolean,
+    ): PostDetailTabs =
         PostDetailTabs(
             tabs =
-                listOf(
+                listOfNotNull(
                     PostDetailTab(
                         id = "replies",
                         title = UiStrings.Replies.asText(),
@@ -565,8 +577,17 @@ internal class XQTDataSource(
                     PostDetailTab(
                         id = "reposted-by",
                         title = UiStrings.RepostedBy.asText(),
-                        loader = { RepostedByLoader(service, accountKey, statusKey) },
+                        loader = { TweetUsersLoader(service, accountKey, statusKey, TweetUsers.RepostedBy) },
                     ),
+                    if (isOwnPost) {
+                        PostDetailTab(
+                            id = "liked-by",
+                            title = UiStrings.LikedBy.asText(),
+                            loader = { TweetUsersLoader(service, accountKey, statusKey, TweetUsers.LikedBy) },
+                        )
+                    } else {
+                        null
+                    },
                 ),
             replyTabId = "replies",
         )

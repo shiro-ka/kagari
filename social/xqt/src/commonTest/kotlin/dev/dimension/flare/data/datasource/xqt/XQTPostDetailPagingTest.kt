@@ -62,9 +62,12 @@ class XQTPostDetailPagingTest {
     fun replyFiltersPreserveTheLegacyDefaultCacheAndIsolateOtherOrders() =
         runTest {
             val source = XQTDataSource(accountKey, flowOf(XQTCredential(chocolate = "")))
-            val catalog = source.postDetailTabs(focalKey)
+            val catalog = source.postDetailTabs(focalKey, isOwnPost = false)
             assertEquals(listOf("replies", "quotes", "reposted-by"), catalog.tabs.map { it.id })
             assertEquals(UiStrings.RepostedBy.asText(), catalog.tabs.last().title)
+            val own = source.postDetailTabs(focalKey, isOwnPost = true)
+            assertEquals(listOf("replies", "quotes", "reposted-by", "liked-by"), own.tabs.map { it.id })
+            assertEquals(UiStrings.LikedBy.asText(), own.tabs.last().title)
             assertEquals("replies", catalog.replyTabId)
             val replies = catalog.tabs.first()
             val filter = assertNotNull(replies.filter)
@@ -236,7 +239,7 @@ class XQTPostDetailPagingTest {
                     HttpStatusCode.OK to body
                 },
             ) { ktorfit ->
-                val loader = RepostedByLoader(ktorfit.createUserListApi(), accountKey, focalKey)
+                val loader = TweetUsersLoader(ktorfit.createUserListApi(), accountKey, focalKey, TweetUsers.RepostedBy)
                 val first = loader.load(20, PagingRequest.Refresh)
                 val firstUser = assertIs<UiTimelineV2.User>(first.data.single())
                 assertEquals(MicroBlogKey("21", "x.com"), firstUser.value.key)
@@ -253,7 +256,7 @@ class XQTPostDetailPagingTest {
     fun repostedByDistinguishesAnEmptyTimelineFromRequestErrors() =
         runTest {
             withKtorfit(response = { HttpStatusCode.OK to repostedByPage() }) { ktorfit ->
-                val loader = RepostedByLoader(ktorfit.createUserListApi(), accountKey, focalKey)
+                val loader = TweetUsersLoader(ktorfit.createUserListApi(), accountKey, focalKey, TweetUsers.RepostedBy)
                 val result = loader.load(20, PagingRequest.Refresh)
                 assertEquals(emptyList(), result.data)
                 assertNull(result.nextKey)
@@ -261,9 +264,33 @@ class XQTPostDetailPagingTest {
             val error = """{"data":{"retweeters_timeline":{"timeline":{"instructions":[]}}},"errors":[{"message":"Unavailable"}]}"""
             for (response in listOf(HttpStatusCode.Forbidden to "{}", HttpStatusCode.OK to error)) {
                 withKtorfit(response = { response }) { ktorfit ->
-                    val loader = RepostedByLoader(ktorfit.createUserListApi(), accountKey, focalKey)
+                    val loader = TweetUsersLoader(ktorfit.createUserListApi(), accountKey, focalKey, TweetUsers.RepostedBy)
                     assertFails { loader.load(20, PagingRequest.Refresh) }
                 }
+            }
+        }
+
+    @Test
+    fun likedByReadsTheFavoritersTimeline() =
+        runTest {
+            withKtorfit(
+                response = { request ->
+                    assertEquals("Favoriters", request.url.segments.last())
+                    val variables = request.variables()
+                    assertEquals(focalKey.id, variables.getValue("tweetId").jsonPrimitive.content)
+                    assertEquals("false", variables.getValue("includePromotedContent").jsonPrimitive.content)
+                    HttpStatusCode.OK to likedByPage(addEntries(userEntry(31), bottomCursor("next")))
+                },
+            ) { ktorfit ->
+                val loader = TweetUsersLoader(ktorfit.createUserListApi(), accountKey, focalKey, TweetUsers.LikedBy)
+                val first = loader.load(20, PagingRequest.Refresh)
+                assertEquals(MicroBlogKey("31", "x.com"), assertIs<UiTimelineV2.User>(first.data.single()).value.key)
+                assertEquals("next", first.nextKey)
+            }
+            val error = """{"data":{"favoriters_timeline":{"timeline":{"instructions":[]}}},"errors":[{"message":"Unavailable"}]}"""
+            withKtorfit(response = { HttpStatusCode.OK to error }) { ktorfit ->
+                val loader = TweetUsersLoader(ktorfit.createUserListApi(), accountKey, focalKey, TweetUsers.LikedBy)
+                assertFails { loader.load(20, PagingRequest.Refresh) }
             }
         }
 
@@ -306,6 +333,9 @@ class XQTPostDetailPagingTest {
 
     private fun repostedByPage(vararg instructions: String): String =
         """{"data":{"retweeters_timeline":{"timeline":{"instructions":[${instructions.joinToString()}]}}}}"""
+
+    private fun likedByPage(vararg instructions: String): String =
+        """{"data":{"favoriters_timeline":{"timeline":{"instructions":[${instructions.joinToString()}]}}}}"""
 
     private fun userEntry(id: Int): String =
         """
