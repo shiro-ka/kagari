@@ -69,6 +69,24 @@ public struct TabIcon: View {
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: faviconCornerRadius, style: .continuous))
                 .id(favIcon.host)
+        case .logo(let logo):
+            MaterialTabIcon(icon: logo.icon)
+                .frame(width: size, height: size)
+        case .badged(let badged):
+            if iconOnly {
+                TabIcon(icon: badged.icon, size: size, iconOnly: true)
+            } else {
+                ZStack(
+                    alignment: .bottomTrailing
+                ) {
+                    TabIcon(icon: badged.icon, size: size)
+                    TabIcon(icon: badged.badge, size: size / 2 - 4, iconOnly: true)
+                        .padding(2)
+                        .background(Color.white)
+                        .clipShape(.circle)
+                }
+                .frame(width: size, height: size)
+            }
         }
     }
 }

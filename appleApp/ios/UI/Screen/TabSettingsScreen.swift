@@ -293,10 +293,10 @@ struct EditTabSheet: View {
                     presenter.state.setIcon(value: value)
                 }),
                 availableIcons: presenter.state.availableIcons,
-                withAvatar: presenter.state.withAvatar,
-                canUseAvatar: !titleAndIconOnly && presenter.state.canUseAvatar,
+                withAvatar: presenter.state.withBadge,
+                canUseAvatar: !titleAndIconOnly && presenter.state.canUseBadge,
                 onWithAvatarChange: { value in
-                    presenter.state.setWithAvatar(value: value)
+                    presenter.state.setWithBadge(value: value)
                 },
                 enabled: $enabled,
                 filterConfig: $filterConfig,

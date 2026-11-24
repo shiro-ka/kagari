@@ -17,12 +17,15 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,9 +70,9 @@ internal fun TimelinePresentationEditor(
     availableIcons: ImmutableList<IconType>,
     showIconPicker: Boolean,
     onShowIconPickerChange: (Boolean) -> Unit,
-    withAvatar: Boolean,
-    canUseAvatar: Boolean,
-    onWithAvatarChange: (Boolean) -> Unit,
+    withBadge: Boolean,
+    canUseBadge: Boolean,
+    onWithBadgeChange: (Boolean) -> Unit,
     enabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     filterConfig: TimelineFilterConfig,
@@ -79,6 +82,8 @@ internal fun TimelinePresentationEditor(
     onAppearancePatchChange: (AppearancePatch) -> Unit,
     onIconChange: (IconType) -> Unit,
     modifier: Modifier = Modifier,
+    badgeIcon: IconType? = null,
+    onBadgeIconChange: (IconType) -> Unit = {},
     showEnabled: Boolean = true,
     showAppearanceOverrides: Boolean = true,
     behaviorContent: (@Composable ColumnScope.() -> Unit)? = null,
@@ -120,28 +125,30 @@ internal fun TimelinePresentationEditor(
             showIconPicker = showIconPicker,
             onShowIconPickerChange = onShowIconPickerChange,
             onIconChange = onIconChange,
+            badgeIcon = badgeIcon,
+            onBadgeIconChange = onBadgeIconChange,
             label = label,
             placeholder = placeholder,
         )
 
-        if (canUseAvatar || showEnabled) {
+        if (canUseBadge || showEnabled) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
-                if (canUseAvatar) {
+                if (canUseBadge) {
                     SegmentedListItem(
-                        onClick = { onWithAvatarChange(!withAvatar) },
+                        onClick = { onWithBadgeChange(!withBadge) },
                         shapes =
                             if (showEnabled || behaviorContent == null) {
                                 ListItemDefaults.first()
                             } else {
                                 ListItemDefaults.single()
                             },
-                        content = { Text(text = stringResource(id = R.string.edit_tab_with_avatar)) },
+                        content = { Text(text = stringResource(id = R.string.kagari_edit_tab_with_badge)) },
                         trailingContent = {
                             Checkbox(
-                                checked = withAvatar,
-                                onCheckedChange = onWithAvatarChange,
+                                checked = withBadge,
+                                onCheckedChange = onWithBadgeChange,
                             )
                         },
                     )
@@ -151,7 +158,7 @@ internal fun TimelinePresentationEditor(
                         onClick = { onEnabledChange(!enabled) },
                         shapes =
                             when {
-                                canUseAvatar -> ListItemDefaults.item()
+                                canUseBadge -> ListItemDefaults.item()
                                 behaviorContent == null -> ListItemDefaults.first()
                                 else -> ListItemDefaults.first()
                             },
@@ -170,7 +177,7 @@ internal fun TimelinePresentationEditor(
                         filterConfig = filterConfig,
                         onClick = { showFilterDialog = true },
                         shapes =
-                            if (canUseAvatar || showEnabled) {
+                            if (canUseBadge || showEnabled) {
                                 ListItemDefaults.last()
                             } else {
                                 ListItemDefaults.single()
@@ -677,6 +684,7 @@ internal fun TimelinePresentationEditor(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TimelinePresentationHeaderEditor(
     text: TextFieldState,
@@ -686,10 +694,13 @@ internal fun TimelinePresentationHeaderEditor(
     onShowIconPickerChange: (Boolean) -> Unit,
     onIconChange: (IconType) -> Unit,
     modifier: Modifier = Modifier,
+    badgeIcon: IconType? = null,
+    onBadgeIconChange: (IconType) -> Unit = {},
     label: @Composable (() -> Unit)? = null,
     placeholder: @Composable (() -> Unit)? = null,
 ) {
     val title = UiText.Raw(text.text.toString())
+    var editingBadge by remember { mutableStateOf(false) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -714,9 +725,26 @@ internal fun TimelinePresentationHeaderEditor(
                         ),
                 ) {
                     Card(
-                        modifier = Modifier.sizeIn(maxHeight = 256.dp, maxWidth = 384.dp),
+                        modifier = Modifier.sizeIn(maxHeight = 320.dp, maxWidth = 384.dp),
                         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 3.dp),
                     ) {
+                        val pickingBadge = editingBadge && badgeIcon != null
+                        if (badgeIcon != null) {
+                            SecondaryTabRow(
+                                selectedTabIndex = if (pickingBadge) 1 else 0,
+                            ) {
+                                Tab(
+                                    selected = !pickingBadge,
+                                    onClick = { editingBadge = false },
+                                    text = { Text(text = stringResource(id = R.string.kagari_edit_tab_icon)) },
+                                )
+                                Tab(
+                                    selected = pickingBadge,
+                                    onClick = { editingBadge = true },
+                                    text = { Text(text = stringResource(id = R.string.kagari_edit_tab_badge_icon)) },
+                                )
+                            }
+                        }
                         LazyVerticalGrid(columns = GridCells.FixedSize(48.dp)) {
                             items(availableIcons) { selectedIcon ->
                                 TabIcon(
@@ -726,7 +754,11 @@ internal fun TimelinePresentationHeaderEditor(
                                         Modifier
                                             .padding(4.dp)
                                             .clickable {
-                                                onIconChange(selectedIcon)
+                                                if (pickingBadge) {
+                                                    onBadgeIconChange(selectedIcon)
+                                                } else {
+                                                    onIconChange(selectedIcon)
+                                                }
                                                 onShowIconPickerChange(false)
                                             },
                                     size = 48.dp,

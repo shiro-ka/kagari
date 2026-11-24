@@ -76,6 +76,10 @@ public enum class UiIcon {
     KagariFollowing,
     KagariFollowPrivate,
     KagariSave,
+    KagariWandMagicSparkles,
+    KagariCompass,
+    KagariFire,
+    KagariUserGroup,
 }
 
 /**
@@ -133,6 +137,10 @@ public val TabPickerUiIcons: List<UiIcon> =
         UiIcon.Pin,
         UiIcon.Check,
         UiIcon.UnFavourite,
+        UiIcon.KagariWandMagicSparkles,
+        UiIcon.KagariCompass,
+        UiIcon.KagariFire,
+        UiIcon.KagariUserGroup,
     )
 
 private val iconTypes = UiIcon.entries.map(IconType::Material)

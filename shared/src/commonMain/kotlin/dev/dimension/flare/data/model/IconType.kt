@@ -41,4 +41,23 @@ public sealed class IconType {
         @SerialName("userKey")
         val accountKey: MicroBlogKey,
     ) : IconType()
+
+    @Immutable
+    @Serializable
+    public data class Logo(
+        val icon: UiIcon,
+    ) : IconType()
+
+    @Immutable
+    @Serializable
+    public data class Badged(
+        val icon: IconType,
+        val badge: IconType,
+    ) : IconType()
 }
+
+public fun IconType.asLogo(): IconType =
+    when (this) {
+        is IconType.Material -> IconType.Logo(icon)
+        else -> this
+    }

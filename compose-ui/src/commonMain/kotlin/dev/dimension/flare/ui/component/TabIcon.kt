@@ -115,6 +115,7 @@ import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.xqtHost
 import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.PlatformTextStyle
+import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.onLoading
@@ -292,8 +293,67 @@ public fun TabIcon(
         is IconType.FavIcon -> {
             FavIcon(icon.host, modifier, contentDescription?.let(UiText::Raw), size)
         }
+
+        is IconType.Logo -> {
+            FAIcon(
+                imageVector = icon.icon.toImageVector(),
+                contentDescription = contentDescription,
+                modifier =
+                    modifier
+                        .size(size),
+                tint = icon.icon.brandColor ?: color,
+            )
+        }
+
+        is IconType.Badged -> {
+            if (iconOnly) {
+                TabIcon(
+                    icon = icon.icon,
+                    contentDescription = contentDescription,
+                    modifier = modifier,
+                    iconOnly = true,
+                    color = color,
+                    size = size,
+                )
+            } else {
+                Box(
+                    modifier = modifier,
+                ) {
+                    TabIcon(
+                        icon = icon.icon,
+                        contentDescription = contentDescription,
+                        color = color,
+                        size = size,
+                    )
+                    TabIcon(
+                        icon = icon.badge,
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .background(PlatformTheme.colorScheme.card, shape = CircleShape)
+                                .padding(2.dp),
+                        iconOnly = true,
+                        color = color,
+                        size = size / 2 - 4.dp,
+                    )
+                }
+            }
+        }
     }
 }
+
+private val UiIcon.brandColor: Color?
+    get() =
+        when (this) {
+            UiIcon.Bluesky -> Color(0xFF1185FE)
+            UiIcon.Mastodon -> Color(0xFF6364FF)
+            UiIcon.Misskey -> Color(0xFF86B300)
+            UiIcon.Pixiv, UiIcon.Fanbox -> Color(0xFF0096FA)
+            UiIcon.Twitter, UiIcon.X -> Color(0xFF1D9BF0)
+            UiIcon.Weibo -> Color(0xFFE6162D)
+            UiIcon.Nostr -> Color(0xFF8E30EB)
+            else -> null
+        }
 
 @Composable
 public fun FavIcon(

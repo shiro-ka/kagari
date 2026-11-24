@@ -18,12 +18,14 @@ import compose.icons.fontawesomeicons.solid.At
 import compose.icons.fontawesomeicons.solid.Bell
 import compose.icons.fontawesomeicons.solid.Bookmark
 import compose.icons.fontawesomeicons.solid.Check
+import compose.icons.fontawesomeicons.solid.Compass
 import compose.icons.fontawesomeicons.solid.CircleInfo
 import compose.icons.fontawesomeicons.solid.CircleUser
 import compose.icons.fontawesomeicons.solid.Download
 import compose.icons.fontawesomeicons.solid.Ellipsis
 import compose.icons.fontawesomeicons.solid.EllipsisVertical
 import compose.icons.fontawesomeicons.solid.Eye
+import compose.icons.fontawesomeicons.solid.Fire
 import compose.icons.fontawesomeicons.solid.Gear
 import compose.icons.fontawesomeicons.solid.Globe
 import compose.icons.fontawesomeicons.solid.EyeSlash
@@ -51,11 +53,13 @@ import compose.icons.fontawesomeicons.solid.BellSlash
 import compose.icons.fontawesomeicons.solid.Trash
 import compose.icons.fontawesomeicons.solid.Tv
 import compose.icons.fontawesomeicons.solid.UserCheck
+import compose.icons.fontawesomeicons.solid.UserGroup
 import compose.icons.fontawesomeicons.solid.UserLock
 import compose.icons.fontawesomeicons.solid.UserPlus
 import compose.icons.fontawesomeicons.solid.UserSlash
 import compose.icons.fontawesomeicons.solid.Users
 import compose.icons.fontawesomeicons.solid.VolumeXmark
+import compose.icons.fontawesomeicons.solid.WandMagicSparkles
 import dev.dimension.flare.ui.icons.KagariPrivateBookmarkIcon
 import dev.dimension.flare.ui.icons.KagariPrivateBookmarkedIcon
 import dev.dimension.flare.ui.icons.Misskey
@@ -129,4 +133,8 @@ public fun UiIcon.toImageVector(): ImageVector =
         UiIcon.KagariFollowing -> FontAwesomeIcons.Solid.UserCheck
         UiIcon.KagariFollowPrivate -> FontAwesomeIcons.Solid.UserLock
         UiIcon.KagariSave -> FontAwesomeIcons.Solid.Download
+        UiIcon.KagariWandMagicSparkles -> FontAwesomeIcons.Solid.WandMagicSparkles
+        UiIcon.KagariCompass -> FontAwesomeIcons.Solid.Compass
+        UiIcon.KagariFire -> FontAwesomeIcons.Solid.Fire
+        UiIcon.KagariUserGroup -> FontAwesomeIcons.Solid.UserGroup
     }

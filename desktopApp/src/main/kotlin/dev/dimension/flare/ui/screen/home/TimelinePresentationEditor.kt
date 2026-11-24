@@ -42,7 +42,9 @@ import dev.dimension.flare.data.model.tab.TimelineFilterConfig
 import dev.dimension.flare.data.model.tab.TimelinePostContent
 import dev.dimension.flare.data.model.tab.TimelinePostKind
 import dev.dimension.flare.edit_tab_enabled
-import dev.dimension.flare.edit_tab_with_avatar
+import dev.dimension.flare.kagari_edit_tab_badge_icon
+import dev.dimension.flare.kagari_edit_tab_icon
+import dev.dimension.flare.kagari_edit_tab_with_badge
 import dev.dimension.flare.ok
 import dev.dimension.flare.settings_appearance_absolute_timestamp
 import dev.dimension.flare.settings_appearance_absolute_timestamp_description
@@ -116,6 +118,8 @@ import dev.dimension.flare.tab_settings_filter_title
 import dev.dimension.flare.tab_settings_filter_video
 import dev.dimension.flare.ui.component.TabIcon
 import dev.dimension.flare.ui.model.UiText
+import io.github.composefluent.component.AccentButton
+import io.github.composefluent.component.Button
 import io.github.composefluent.component.CardExpanderItem
 import io.github.composefluent.component.CheckBox
 import io.github.composefluent.component.ContentDialog
@@ -143,9 +147,9 @@ internal fun TimelinePresentationEditor(
     availableIcons: List<IconType>,
     showIconPicker: Boolean,
     onShowIconPickerChange: (Boolean) -> Unit,
-    withAvatar: Boolean,
-    canUseAvatar: Boolean,
-    onWithAvatarChange: (Boolean) -> Unit,
+    withBadge: Boolean,
+    canUseBadge: Boolean,
+    onWithBadgeChange: (Boolean) -> Unit,
     enabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     filterConfig: TimelineFilterConfig,
@@ -155,6 +159,8 @@ internal fun TimelinePresentationEditor(
     onAppearancePatchChange: (AppearancePatch) -> Unit,
     onIconChange: (IconType) -> Unit,
     modifier: Modifier = Modifier,
+    badgeIcon: IconType? = null,
+    onBadgeIconChange: (IconType) -> Unit = {},
     showEnabled: Boolean = true,
     showAppearanceOverrides: Boolean = true,
     behaviorContent: (@Composable () -> Unit)? = null,
@@ -196,21 +202,23 @@ internal fun TimelinePresentationEditor(
             showIconPicker = showIconPicker,
             onShowIconPickerChange = onShowIconPickerChange,
             onIconChange = onIconChange,
+            badgeIcon = badgeIcon,
+            onBadgeIconChange = onBadgeIconChange,
             header = header,
             placeholder = placeholder,
         )
 
-        if (canUseAvatar) {
+        if (canUseBadge) {
             Row(
-                modifier = Modifier.clickable { onWithAvatarChange(!withAvatar) },
+                modifier = Modifier.clickable { onWithBadgeChange(!withBadge) },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 CheckBox(
-                    checked = withAvatar,
-                    onCheckStateChange = onWithAvatarChange,
+                    checked = withBadge,
+                    onCheckStateChange = onWithBadgeChange,
                 )
-                Text(text = stringResource(Res.string.edit_tab_with_avatar))
+                Text(text = stringResource(Res.string.kagari_edit_tab_with_badge))
             }
         }
         if (showEnabled) {
@@ -864,10 +872,13 @@ internal fun TimelinePresentationHeaderEditor(
     onShowIconPickerChange: (Boolean) -> Unit,
     onIconChange: (IconType) -> Unit,
     modifier: Modifier = Modifier,
+    badgeIcon: IconType? = null,
+    onBadgeIconChange: (IconType) -> Unit = {},
     header: (@Composable () -> Unit)? = null,
     placeholder: (@Composable () -> Unit)? = null,
 ) {
     val title = UiText.Raw(text.text.toString())
+    var editingBadge by remember { mutableStateOf(false) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -885,23 +896,48 @@ internal fun TimelinePresentationHeaderEditor(
                 onDismissRequest = { onShowIconPickerChange(false) },
                 placement = FlyoutPlacement.BottomAlignedStart,
             ) {
-                LazyVerticalGrid(
-                    columns = GridCells.FixedSize(48.dp),
-                    modifier = Modifier.heightIn(max = 300.dp).widthIn(max = 300.dp),
+                val pickingBadge = editingBadge && badgeIcon != null
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(availableIcons) { selectedIcon ->
-                        TabIcon(
-                            icon = selectedIcon,
-                            title = title,
-                            modifier =
-                                Modifier
-                                    .padding(4.dp)
-                                    .clickable {
-                                        onIconChange(selectedIcon)
-                                        onShowIconPickerChange(false)
-                                    },
-                            size = 48.dp,
-                        )
+                    if (badgeIcon != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            IconTargetButton(
+                                selected = !pickingBadge,
+                                onClick = { editingBadge = false },
+                                text = stringResource(Res.string.kagari_edit_tab_icon),
+                            )
+                            IconTargetButton(
+                                selected = pickingBadge,
+                                onClick = { editingBadge = true },
+                                text = stringResource(Res.string.kagari_edit_tab_badge_icon),
+                            )
+                        }
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.FixedSize(48.dp),
+                        modifier = Modifier.heightIn(max = 300.dp).widthIn(max = 300.dp),
+                    ) {
+                        items(availableIcons) { selectedIcon ->
+                            TabIcon(
+                                icon = selectedIcon,
+                                title = title,
+                                modifier =
+                                    Modifier
+                                        .padding(4.dp)
+                                        .clickable {
+                                            if (pickingBadge) {
+                                                onBadgeIconChange(selectedIcon)
+                                            } else {
+                                                onIconChange(selectedIcon)
+                                            }
+                                            onShowIconPickerChange(false)
+                                        },
+                                size = 48.dp,
+                            )
+                        }
                     }
                 }
             }
@@ -914,6 +950,23 @@ internal fun TimelinePresentationHeaderEditor(
             placeholder = placeholder,
             lineLimits = TextFieldLineLimits.SingleLine,
         )
+    }
+}
+
+@Composable
+private fun IconTargetButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    text: String,
+) {
+    if (selected) {
+        AccentButton(onClick = onClick) {
+            Text(text = text)
+        }
+    } else {
+        Button(onClick = onClick) {
+            Text(text = text)
+        }
     }
 }
 

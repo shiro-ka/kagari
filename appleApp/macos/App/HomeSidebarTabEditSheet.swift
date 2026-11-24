@@ -89,10 +89,10 @@ struct HomeSidebarTabEditSheet: View {
                     Text("tab_settings_edit_icon_header")
                         .font(.headline)
 
-                    if presenter.state.canUseAvatar {
+                    if presenter.state.canUseBadge {
                         Toggle(isOn: Binding(
-                            get: { presenter.state.withAvatar },
-                            set: { presenter.state.setWithAvatar(value: $0) }
+                            get: { presenter.state.withBadge },
+                            set: { presenter.state.setWithBadge(value: $0) }
                         )) {
                             Text("tab_settings_edit_use_avatar")
                         }
