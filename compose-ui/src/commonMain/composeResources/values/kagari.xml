@@ -79,6 +79,9 @@
     <string name="kagari_timeline_switch_all">All</string>
     <string name="kagari_timeline_switch_public">Public</string>
     <string name="kagari_timeline_switch_private">Private</string>
+    <string name="kagari_misskey_with_renotes">Renotes</string>
+    <string name="kagari_misskey_with_replies">Replies</string>
+    <string name="kagari_misskey_with_files">With files only</string>
     <string name="kagari_pixiv_public_following_title">Public follows</string>
     <string name="kagari_pixiv_private_following_title">Private follows</string>
     <string name="kagari_pixiv_public_bookmarks_title">Public bookmarks</string>

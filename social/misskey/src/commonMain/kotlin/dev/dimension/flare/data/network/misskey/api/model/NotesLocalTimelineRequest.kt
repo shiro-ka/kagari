@@ -25,6 +25,7 @@ import kotlinx.serialization.Serializable
 internal data class NotesLocalTimelineRequest(
     @SerialName(value = "withFiles") val withFiles: kotlin.Boolean? = false,
     @SerialName(value = "withReplies") val withReplies: kotlin.Boolean? = false,
+    @SerialName(value = "withRenotes") val withRenotes: kotlin.Boolean? = true,
     @SerialName(value = "fileType") val fileType: kotlin.collections.List<kotlin.String>? = null,
     @SerialName(value = "excludeNsfw") val excludeNsfw: kotlin.Boolean? = false,
     @SerialName(value = "limit") val limit: kotlin.Int? = 10,

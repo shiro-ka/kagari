@@ -32,6 +32,7 @@ import dev.dimension.flare.ui.route.DeeplinkRoute
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -535,7 +536,7 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
     val serializer: KSerializer<T>,
     val targetId: (data: T) -> String,
     val loaderFactory: TimelineLoaderFactory<T>,
-    val kagariSwitch: KagariTimelineSwitch? = null,
+    val kagariSwitch: KagariTimelineSwitchProvider<T>? = null,
 ) {
     public constructor(
         id: String,
@@ -544,7 +545,7 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
         serializer: KSerializer<T>,
         targetId: (data: T) -> String,
         loaderFactory: TimelineLoaderFactory<T>,
-        kagariSwitch: KagariTimelineSwitch? = null,
+        kagariSwitch: KagariTimelineSwitchProvider<T>? = null,
     ) : this(
         id = id,
         title = title.asText(),
@@ -603,6 +604,15 @@ public data class TimelineSpec<T : TimelineSpec.Data>(
 
     @OptIn(ExperimentalSerializationApi::class)
     internal fun decode(encodedData: String): T = ProtoBuf.decodeFromHexString(serializer, encodedData)
+
+    internal fun resolveKagariSwitch(
+        encodedData: String,
+        context: TimelineLoaderContext,
+    ): Flow<KagariTimelineSwitch?> {
+        val provider = kagariSwitch ?: return flowOf(null)
+        val data = runCatching { decode(encodedData) }.getOrNull() ?: return flowOf(null)
+        return provider.switch(data, context)
+    }
 
     public interface Data
 
@@ -765,11 +775,16 @@ internal class TimelineResolver(
     fun resolveLoader(target: TimelineTarget<out TimelineSpec.Data>): Flow<RemoteLoader<UiTimelineV2>> =
         resolveLoader(target.toSource(target.spec.title, target.spec.icon), defaultLoaderContext)
 
-    fun kagariSwitchTarget(item: UiTimelineTabItem): Pair<String, KagariTimelineSwitch>? {
-        val sourceItem = item as? UiSourceTimelineTabItem ?: return null
-        val source = sourceItem.source ?: return null
-        val switch = specs[source.specId]?.kagariSwitch ?: return null
-        return kagariSwitchKey(sourceItem) to switch
+    fun kagariSwitchTarget(item: UiTimelineTabItem): Flow<Pair<String, KagariTimelineSwitch>?> {
+        val sourceItem = item as? UiSourceTimelineTabItem ?: return flowOf(null)
+        val source = sourceItem.source ?: return flowOf(null)
+        val spec = specs[source.specId] ?: return flowOf(null)
+        val key = kagariSwitchKey(sourceItem)
+        return spec
+            .resolveKagariSwitch(source.data, defaultLoaderContext)
+            .map { switch -> switch?.let { key to it } }
+            .catch { emit(null) }
+            .distinctUntilChanged()
     }
 
     @OptIn(ExperimentalSerializationApi::class)

@@ -13,11 +13,15 @@ import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.presenter.PresenterBase
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 public class KagariTimelineSwitchPresenter(
@@ -35,14 +39,15 @@ public class KagariTimelineSwitchPresenter(
 
     public interface State {
         public val options: ImmutableList<Option>
-        public val selected: String?
+        public val selected: ImmutableSet<String>
 
         public fun select(value: String)
     }
 
     @Composable
     override fun body(): State {
-        val target = remember(item) { timelineResolver.kagariSwitchTarget(item) }
+        val targetFlow = remember(item) { timelineResolver.kagariSwitchTarget(item) }
+        val target by targetFlow.collectAsState(null)
         val options =
             remember(target) {
                 target
@@ -52,23 +57,26 @@ public class KagariTimelineSwitchPresenter(
                     ?.toImmutableList()
                     ?: persistentListOf()
             }
-        val selectedFlow: Flow<String?> =
+        val selectedFlow: Flow<ImmutableSet<String>> =
             remember(target) {
-                if (target == null) {
-                    flowOf(null)
+                val current = target
+                if (current == null) {
+                    flowOf(persistentSetOf())
                 } else {
-                    switchStore.value(target.first, target.second)
+                    switchStore
+                        .value(current.first, current.second)
+                        .map { current.second.selectedValues(it).toImmutableSet() }
                 }
             }
-        val selected by selectedFlow.collectAsState(null)
+        val selected by selectedFlow.collectAsState(persistentSetOf())
         return object : State {
             override val options = options
             override val selected = selected
 
             override fun select(value: String) {
-                val key = target?.first ?: return
+                val current = target ?: return
                 scope.launch {
-                    switchStore.set(key, value)
+                    switchStore.select(current.first, current.second, value)
                 }
             }
         }

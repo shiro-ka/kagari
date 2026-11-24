@@ -12,6 +12,7 @@ import dev.dimension.flare.data.datasource.microblog.datasource.TimelineTabConfi
 import dev.dimension.flare.data.datasource.microblog.datasource.UserDataSource
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.data.model.tab.KagariTimelineSwitch
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiHashtag
 import dev.dimension.flare.ui.model.UiProfile
@@ -78,6 +79,11 @@ public class TimelineCapability(
     private val delegate: MicroblogDataSource,
 ) {
     public fun homeTimeline(): RemoteLoader<UiTimelineV2> = delegate.homeTimeline()
+
+    public val homeTimelineSwitch: KagariTimelineSwitch?
+        get() = delegate.homeTimelineSwitch
+
+    public fun homeTimeline(switchValue: String): RemoteLoader<UiTimelineV2> = delegate.homeTimeline(switchValue)
 }
 
 @HiddenFromObjC

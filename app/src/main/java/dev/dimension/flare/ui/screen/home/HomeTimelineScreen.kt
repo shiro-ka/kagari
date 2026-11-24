@@ -817,7 +817,7 @@ private fun KagariTimelineSwitchBar(state: KagariTimelineSwitchPresenter.State) 
     ) {
         state.options.forEach { option ->
             FilterChip(
-                selected = option.value == state.selected,
+                selected = option.value in state.selected,
                 onClick = { state.select(option.value) },
                 label = { FlareText(option.title) },
             )

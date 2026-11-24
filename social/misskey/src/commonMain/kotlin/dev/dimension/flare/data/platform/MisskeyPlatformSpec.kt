@@ -2,11 +2,14 @@ package dev.dimension.flare.data.platform
 
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.misskey.MisskeyDataSource
+import dev.dimension.flare.data.datasource.misskey.MisskeyTimelineSwitches
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.model.tab.TimelineSpecIds
 import dev.dimension.flare.data.model.tab.accountLoader
+import dev.dimension.flare.data.model.tab.asProvider
+import dev.dimension.flare.data.model.tab.kagariSwitchAccountLoader
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.ComposeInitialTextContext
 import dev.dimension.flare.model.InitialText
@@ -86,9 +89,10 @@ public data object MisskeyPlatformSpec :
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
             loaderFactory =
-                accountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData> {
-                    hybridTimelineLoader()
+                kagariSwitchAccountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData>(MisskeyTimelineSwitches.hybrid) { _, value ->
+                    hybridTimelineLoader(value)
                 },
+            kagariSwitch = MisskeyTimelineSwitches.hybrid.asProvider(),
         )
 
     internal val localTimelineSpec =
@@ -99,9 +103,10 @@ public data object MisskeyPlatformSpec :
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
             loaderFactory =
-                accountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData> {
-                    localTimelineLoader()
+                kagariSwitchAccountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData>(MisskeyTimelineSwitches.local) { _, value ->
+                    localTimelineLoader(value)
                 },
+            kagariSwitch = MisskeyTimelineSwitches.local.asProvider(),
         )
 
     internal val globalTimelineSpec =
@@ -112,9 +117,10 @@ public data object MisskeyPlatformSpec :
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
             loaderFactory =
-                accountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData> {
-                    publicTimelineLoader()
+                kagariSwitchAccountLoader<MisskeyDataSource, TimelineSpec.AccountBasedData>(MisskeyTimelineSwitches.global) { _, value ->
+                    publicTimelineLoader(value)
                 },
+            kagariSwitch = MisskeyTimelineSwitches.global.asProvider(),
         )
 
     public val antennaTimelineSpec: TimelineSpec<TimelineSpec.AccountResourceData> =

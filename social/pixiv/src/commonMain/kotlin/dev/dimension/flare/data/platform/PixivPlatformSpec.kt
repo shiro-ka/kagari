@@ -6,6 +6,7 @@ import dev.dimension.flare.data.datasource.pixiv.PixivDataSource
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.model.tab.KagariTimelineSwitch
 import dev.dimension.flare.data.model.tab.accountLoader
+import dev.dimension.flare.data.model.tab.asProvider
 import dev.dimension.flare.data.model.tab.kagariSwitchAccountLoader
 import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
@@ -373,5 +374,5 @@ private fun pixivSwitchTimelineSpec(
             kagariSwitchAccountLoader<PixivDataSource, TimelineSpec.AccountBasedData>(switch) { _, value ->
                 factory(this, value)
             },
-        kagariSwitch = switch,
+        kagariSwitch = switch.asProvider(),
     )

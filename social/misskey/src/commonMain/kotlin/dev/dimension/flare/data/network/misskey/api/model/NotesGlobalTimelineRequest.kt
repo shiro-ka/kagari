@@ -25,6 +25,7 @@ import kotlinx.serialization.Serializable
 internal data class NotesGlobalTimelineRequest(
     @SerialName(value = "withFiles") val withFiles: kotlin.Boolean? = false,
     @SerialName(value = "withReplies") val withReplies: kotlin.Boolean? = false,
+    @SerialName(value = "withRenotes") val withRenotes: kotlin.Boolean? = true,
     @SerialName(value = "limit") val limit: kotlin.Int? = 10,
     @SerialName(value = "sinceId") val sinceId: kotlin.String? = null,
     @SerialName(value = "untilId") val untilId: kotlin.String? = null,

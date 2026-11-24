@@ -5,6 +5,7 @@ import dev.dimension.flare.data.datasource.microblog.SearchOperation
 import dev.dimension.flare.data.datasource.microblog.capabilities
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.model.IconType
+import dev.dimension.flare.data.model.tab.KagariTimelineSwitchProvider
 import dev.dimension.flare.data.model.tab.TimelineCandidate
 import dev.dimension.flare.data.model.tab.TimelineLoaderFactory
 import dev.dimension.flare.data.model.tab.TimelineSpec
@@ -17,10 +18,14 @@ import dev.dimension.flare.ui.model.UiList
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
 import dev.dimension.flare.ui.model.asType
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlin.native.HiddenFromObjC
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiddenFromObjC
 public object CommonTimelineSpecs {
     public val home: TimelineSpec<TimelineSpec.AccountBasedData> =
@@ -31,8 +36,24 @@ public object CommonTimelineSpecs {
             serializer = TimelineSpec.AccountBasedData.serializer(),
             targetId = { it.accountKey.toString() },
             loaderFactory =
-                accountLoader<MicroblogDataSource, TimelineSpec.AccountBasedData> {
-                    requireNotNull(capabilities.timeline).homeTimeline()
+                TimelineLoaderFactory { data, context ->
+                    context
+                        .accountServiceFlow(AccountType.Specific(data.accountKey))
+                        .flatMapLatest { service ->
+                            val timeline = requireNotNull(service.capabilities.timeline)
+                            val switch = timeline.homeTimelineSwitch
+                            if (switch == null) {
+                                flowOf(timeline.homeTimeline())
+                            } else {
+                                context.kagariSwitchValue(switch).map { timeline.homeTimeline(it) }
+                            }
+                        }
+                },
+            kagariSwitch =
+                KagariTimelineSwitchProvider { data, context ->
+                    context
+                        .accountServiceFlow(AccountType.Specific(data.accountKey))
+                        .map { it.capabilities.timeline?.homeTimelineSwitch }
                 },
         )
 

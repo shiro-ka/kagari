@@ -14,9 +14,10 @@ import dev.dimension.flare.ui.model.mapper.render
 internal class PublicTimelineRemoteMediator(
     private val accountKey: MicroBlogKey,
     private val service: MisskeyService,
+    private val filters: MisskeyTimelineFilters = MisskeyTimelineFilters(),
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val canJoinTimeline: Boolean = true
-    override val pagingKey = "public_$accountKey"
+    override val pagingKey = "public_${filters.key}_$accountKey"
 
     override suspend fun load(
         pageSize: Int,
@@ -34,6 +35,8 @@ internal class PublicTimelineRemoteMediator(
                     service.notesGlobalTimeline(
                         NotesGlobalTimelineRequest(
                             limit = pageSize,
+                            withRenotes = filters.withRenotes,
+                            withFiles = filters.withFiles,
                         ),
                     )
                 }
@@ -42,6 +45,8 @@ internal class PublicTimelineRemoteMediator(
                     service.notesGlobalTimeline(
                         NotesGlobalTimelineRequest(
                             limit = pageSize,
+                            withRenotes = filters.withRenotes,
+                            withFiles = filters.withFiles,
                             untilId = request.nextKey,
                         ),
                     )

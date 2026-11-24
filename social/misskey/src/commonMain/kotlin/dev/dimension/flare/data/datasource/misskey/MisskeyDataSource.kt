@@ -45,6 +45,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.toPagingSource
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
 import dev.dimension.flare.data.model.IconType
 import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.data.model.tab.KagariTimelineSwitch
 import dev.dimension.flare.data.model.tab.ShortcutSpec
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.network.misskey.MisskeyService
@@ -360,28 +361,37 @@ internal class MisskeyDataSource(
         }
     }
 
-    override fun homeTimeline() =
+    override fun homeTimeline() = homeTimeline(MisskeyTimelineSwitches.home.defaultValue)
+
+    override val homeTimelineSwitch: KagariTimelineSwitch
+        get() = MisskeyTimelineSwitches.home
+
+    override fun homeTimeline(switchValue: String) =
         HomeTimelineRemoteMediator(
             accountKey,
             service,
+            MisskeyTimelineSwitches.home.misskeyTimelineFilters(switchValue),
         )
 
-    fun localTimelineLoader() =
+    fun localTimelineLoader(switchValue: String = MisskeyTimelineSwitches.local.defaultValue) =
         LocalTimelineRemoteMediator(
             accountKey,
             service,
+            MisskeyTimelineSwitches.local.misskeyTimelineFilters(switchValue),
         )
 
-    fun hybridTimelineLoader() =
+    fun hybridTimelineLoader(switchValue: String = MisskeyTimelineSwitches.hybrid.defaultValue) =
         HybridTimelineRemoteMediator(
             accountKey,
             service,
+            MisskeyTimelineSwitches.hybrid.misskeyTimelineFilters(switchValue),
         )
 
-    fun publicTimelineLoader() =
+    fun publicTimelineLoader(switchValue: String = MisskeyTimelineSwitches.global.defaultValue) =
         PublicTimelineRemoteMediator(
             accountKey,
             service,
+            MisskeyTimelineSwitches.global.misskeyTimelineFilters(switchValue),
         )
 
     fun featuredChannels(scope: CoroutineScope): Flow<PagingData<UiList.Channel>> =

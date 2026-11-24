@@ -2,6 +2,7 @@ package dev.dimension.flare.data.datasource.microblog
 
 import dev.dimension.flare.data.datasource.microblog.paging.RemoteLoader
 import dev.dimension.flare.data.datasource.microblog.paging.ShareRepliesLoader
+import dev.dimension.flare.data.model.tab.KagariTimelineSwitch
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiHashtag
 import dev.dimension.flare.ui.model.UiProfile
@@ -14,6 +15,11 @@ import kotlin.native.HiddenFromObjC
 @HiddenFromObjC
 public interface MicroblogDataSource {
     public fun homeTimeline(): RemoteLoader<UiTimelineV2>
+
+    public val homeTimelineSwitch: KagariTimelineSwitch?
+        get() = null
+
+    public fun homeTimeline(switchValue: String): RemoteLoader<UiTimelineV2> = homeTimeline()
 
     public fun userTimeline(
         userKey: MicroBlogKey,

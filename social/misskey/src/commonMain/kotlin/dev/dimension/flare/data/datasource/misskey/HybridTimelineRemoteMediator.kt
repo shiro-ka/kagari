@@ -12,9 +12,10 @@ import dev.dimension.flare.ui.model.mapper.render
 internal class HybridTimelineRemoteMediator(
     private val accountKey: MicroBlogKey,
     private val service: MisskeyService,
+    private val filters: MisskeyTimelineFilters = MisskeyTimelineFilters(),
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val canJoinTimeline: Boolean = true
-    override val pagingKey = "hybrid_timeline_$accountKey"
+    override val pagingKey = "hybrid_timeline_${filters.key}_$accountKey"
 
     override suspend fun load(
         pageSize: Int,
@@ -32,6 +33,9 @@ internal class HybridTimelineRemoteMediator(
                     service.notesHybridTimeline(
                         NotesHybridTimelineRequest(
                             limit = pageSize,
+                            withRenotes = filters.withRenotes,
+                            withReplies = filters.withReplies,
+                            withFiles = filters.withFiles,
                         ),
                     )
                 }
@@ -40,6 +44,9 @@ internal class HybridTimelineRemoteMediator(
                     service.notesHybridTimeline(
                         NotesHybridTimelineRequest(
                             limit = pageSize,
+                            withRenotes = filters.withRenotes,
+                            withReplies = filters.withReplies,
+                            withFiles = filters.withFiles,
                             untilId = request.nextKey,
                         ),
                     )

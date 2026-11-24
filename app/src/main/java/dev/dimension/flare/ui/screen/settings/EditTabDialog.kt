@@ -280,6 +280,12 @@ private val UiStrings.androidStringRes: Int
 
             UiStrings.KagariTimelineSwitchPrivate -> R.string.kagari_timeline_switch_private
 
+            UiStrings.KagariMisskeyWithRenotes -> R.string.kagari_misskey_with_renotes
+
+            UiStrings.KagariMisskeyWithReplies -> R.string.kagari_misskey_with_replies
+
+            UiStrings.KagariMisskeyWithFiles -> R.string.kagari_misskey_with_files
+
             UiStrings.KagariPixivPublicFollowing -> R.string.kagari_pixiv_public_following_title
 
             UiStrings.KagariPixivPrivateFollowing -> R.string.kagari_pixiv_private_following_title

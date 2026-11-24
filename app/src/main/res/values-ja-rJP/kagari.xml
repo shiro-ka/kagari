@@ -287,6 +287,9 @@
     <string name="kagari_timeline_switch_all">すべて</string>
     <string name="kagari_timeline_switch_public">公開</string>
     <string name="kagari_timeline_switch_private">非公開</string>
+    <string name="kagari_misskey_with_renotes">リノートを表示</string>
+    <string name="kagari_misskey_with_replies">返信を表示</string>
+    <string name="kagari_misskey_with_files">ファイル付きのみ</string>
     <string name="kagari_pixiv_public_following_title">公開フォロー</string>
     <string name="kagari_pixiv_private_following_title">非公開フォロー</string>
     <string name="kagari_pixiv_public_bookmarks_title">公開ブックマーク</string>

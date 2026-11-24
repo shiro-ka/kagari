@@ -48,6 +48,9 @@ import dev.dimension.flare.home_tab_me_title
 import dev.dimension.flare.home_tab_notifications_title
 import dev.dimension.flare.home_tab_popular_title
 import dev.dimension.flare.illustrations_title
+import dev.dimension.flare.kagari_misskey_with_files
+import dev.dimension.flare.kagari_misskey_with_renotes
+import dev.dimension.flare.kagari_misskey_with_replies
 import dev.dimension.flare.kagari_pixiv_ranking_day_title
 import dev.dimension.flare.kagari_pixiv_ranking_week_r18g_title
 import dev.dimension.flare.kagari_pixiv_following_switchable_title
@@ -349,6 +352,12 @@ private val UiStrings.desktopStringResource: StringResource
             UiStrings.KagariTimelineSwitchPublic -> Res.string.kagari_timeline_switch_public
 
             UiStrings.KagariTimelineSwitchPrivate -> Res.string.kagari_timeline_switch_private
+
+            UiStrings.KagariMisskeyWithRenotes -> Res.string.kagari_misskey_with_renotes
+
+            UiStrings.KagariMisskeyWithReplies -> Res.string.kagari_misskey_with_replies
+
+            UiStrings.KagariMisskeyWithFiles -> Res.string.kagari_misskey_with_files
 
             UiStrings.KagariPixivPublicFollowing -> Res.string.kagari_pixiv_public_following_title
 

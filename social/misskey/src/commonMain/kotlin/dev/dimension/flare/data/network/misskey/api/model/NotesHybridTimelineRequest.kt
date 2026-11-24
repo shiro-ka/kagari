@@ -33,4 +33,5 @@ internal data class NotesHybridTimelineRequest(
     @SerialName(value = "includeLocalRenotes") val includeLocalRenotes: kotlin.Boolean? = true,
     @SerialName(value = "withFiles") val withFiles: kotlin.Boolean? = false,
     @SerialName(value = "withReplies") val withReplies: kotlin.Boolean? = false,
+    @SerialName(value = "withRenotes") val withRenotes: kotlin.Boolean? = true,
 )
