@@ -63,11 +63,10 @@ import dev.dimension.flare.ui.component.platform.PlatformText
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.status.TranslationDisplayBadge
 import dev.dimension.flare.ui.model.TranslationDisplayState
-import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.UiRelation
 import dev.dimension.flare.ui.model.UiState
-import dev.dimension.flare.ui.model.asType
+import dev.dimension.flare.ui.model.kagariProfileEditPlatform
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.profile.FollowButtonState
@@ -275,11 +274,13 @@ private fun ProfileHeaderSuccess(
                             }
                         }
                     }
-                } else if (user.platformIcon == UiIcon.Bluesky.asType()) {
-                    myAccountKey.takeSuccess()?.let { accountKey ->
+                } else {
+                    val editPlatform = user.kagariProfileEditPlatform
+                    val accountKey = myAccountKey.takeSuccess()
+                    if (editPlatform != null && accountKey != null) {
                         PlatformOutlinedButton(
                             onClick = {
-                                uriLauncher.openUri(KagariProfileEditRoute(accountKey = accountKey).toUri())
+                                uriLauncher.openUri(KagariProfileEditRoute(accountKey = accountKey, platform = editPlatform).toUri())
                             },
                         ) {
                             PlatformText(text = stringResource(Res.string.kagari_profile_edit))

@@ -94,6 +94,8 @@
     <string name="kagari_profile_edit_name">表示名</string>
     <string name="kagari_profile_edit_description">自己紹介</string>
     <string name="kagari_profile_edit_pronouns">代名詞</string>
+    <string name="kagari_profile_edit_location">場所</string>
+    <string name="kagari_profile_edit_website">ウェブサイト</string>
     <string name="kagari_profile_edit_links">リンク</string>
     <string name="kagari_profile_edit_link_url">URL（https://）</string>
     <string name="kagari_profile_edit_link_title">見出し（なくてもよい）</string>

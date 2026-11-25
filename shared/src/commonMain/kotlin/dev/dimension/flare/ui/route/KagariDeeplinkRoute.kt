@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.route
 
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.KagariProfileEditPlatform
 import kotlinx.serialization.Serializable
 
 public sealed interface KagariDeeplink
@@ -57,6 +58,7 @@ public data class KagariDetachQuoteRoute(
 @Serializable
 public data class KagariProfileEditRoute(
     val accountKey: MicroBlogKey,
+    val platform: KagariProfileEditPlatform,
 ) : DeeplinkRoute.Status(),
     KagariDeeplink
 

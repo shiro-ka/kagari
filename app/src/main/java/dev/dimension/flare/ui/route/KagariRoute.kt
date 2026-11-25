@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.route
 
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.KagariProfileEditPlatform
 import dev.dimension.flare.ui.screen.settings.KagariModerationListKind
 import kotlinx.serialization.Serializable
 
@@ -67,6 +68,7 @@ internal data class KagariDetachQuoteDialogRoute(
 @Serializable
 internal data class KagariProfileEditScreenRoute(
     val accountKey: MicroBlogKey,
+    val platform: KagariProfileEditPlatform,
 ) : Route.Profile
 
 @Serializable
@@ -126,7 +128,7 @@ internal fun KagariDeeplink.toKagariRoute(): Route =
         }
 
         is KagariProfileEditRoute -> {
-            KagariProfileEditScreenRoute(accountKey = accountKey)
+            KagariProfileEditScreenRoute(accountKey = accountKey, platform = platform)
         }
 
         is KagariSendViaChatRoute -> {
