@@ -44,6 +44,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.TimelineDbPageCache
 import dev.dimension.flare.data.datasource.microblog.paging.TimelineDbPageLoader
 import dev.dimension.flare.data.datasource.microblog.paging.TimelinePageItem
 import dev.dimension.flare.data.datasource.microblog.paging.TimelineRemoteMediator
+import dev.dimension.flare.data.datasource.microblog.paging.homeGapFillTimeout
 import dev.dimension.flare.data.datasource.microblog.paging.notSupported
 import dev.dimension.flare.data.datasource.microblog.paging.toTimelinePagingSource
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
@@ -298,6 +299,7 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                         notifyError = notifyError,
                         retainHistory = if (isHomeTimeline) rememberPosition else null,
                         retainedHome = { retainedHomeMediator(loader, allowLongText, notifyError) },
+                        gapFillTimeout = homeGapFillTimeout,
                         accountKeys = sourceAccounts,
                         refreshSession =
                             if (isHomeTimeline && timelineTabItemId != null) {
@@ -391,6 +393,7 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                                 retainHistory = true,
                                 accountKeys = home.sourceAccounts,
                                 refreshSession = refreshSessions.forTimeline(tab.id, loader.pagingKey),
+                                gapFillTimeout = homeGapFillTimeout,
                             )
                         }
                     } catch (exception: Exception) {

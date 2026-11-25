@@ -40,6 +40,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +57,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 @OptIn(ExperimentalPagingApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -2391,6 +2394,91 @@ class TimelineGapTest : RobolectricTest() {
             home.loadGap(gap)
             assertEquals(emptyList(), contents())
             assertEquals(null, database.pagingTimelineDao().getPagingKey("home"))
+        }
+
+    @Test
+    fun refreshReadsAnOrderedSourceUntilItJoinsThePreviousHead() =
+        runTest {
+            var refreshing = false
+            val requests = mutableListOf<PagingRequest>()
+            val ordered =
+                source("continuous") { request ->
+                    requests += request
+                    when {
+                        !refreshing -> PagingResult(listOf(10, 9).map(::datedPost), nextKey = "tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(16, 15).map(::datedPost), nextKey = "page-2")
+                        request == PagingRequest.Append("page-2") -> PagingResult(listOf(14, 13).map(::datedPost), nextKey = "page-3")
+                        else -> PagingResult(listOf(12, 11, 10, 9).map(::datedPost), nextKey = "page-4")
+                    }
+                }
+            val home = TimelineRemoteMediator(ordered, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            home.load(LoadType.REFRESH, state)
+            refreshing = true
+            requests.clear()
+            assertIs<RemoteMediator.MediatorResult.Success>(home.load(LoadType.REFRESH, state))
+            assertEquals(listOf(PagingRequest.Refresh, PagingRequest.Append("page-2"), PagingRequest.Append("page-3")), requests)
+            assertEquals(listOf("16", "15", "14", "13", "12", "11", "10", "9"), contents(home).map { it.statusKey.id })
+            assertEquals("tail", database.pagingTimelineDao().getNextKey(home.pagingKey))
+        }
+
+    @Test
+    fun refreshStopsReadingAtTheTimeLimitAndKeepsTheGap() =
+        runTest {
+            var refreshing = false
+            var appended = 0
+            val endless =
+                source("endless") { request ->
+                    when {
+                        !refreshing -> {
+                            PagingResult(listOf(10, 9).map(::datedPost), nextKey = "tail")
+                        }
+
+                        request is PagingRequest.Refresh -> {
+                            PagingResult(listOf(datedPost(1_000)), nextKey = "page-0")
+                        }
+
+                        else -> {
+                            withContext(Dispatchers.Default) { delay(10) }
+                            appended++
+                            PagingResult(listOf(datedPost(1_000 - appended)), nextKey = "page-$appended")
+                        }
+                    }
+                }
+            val home = TimelineRemoteMediator(endless, database, false, retainHistory = true, gapFillTimeout = 200.milliseconds)
+            home.load(LoadType.REFRESH, state)
+            refreshing = true
+            assertIs<RemoteMediator.MediatorResult.Success>(home.load(LoadType.REFRESH, state))
+            assertTrue(appended >= 2)
+            val gap = contents(home).filterIsInstance<UiTimelineV2.Gap>().single()
+            assertEquals("page-$appended", gap.nextKey)
+            assertEquals(listOf("10", "9"), contents(home).map { it.statusKey.id }.takeLast(2))
+        }
+
+    @Test
+    fun pressingAGapReadsUntilItJoinsThePreviousHead() =
+        runTest {
+            var response: (PagingRequest) -> PagingResult<UiTimelineV2> = { PagingResult(listOf(10, 9).map(::datedPost), nextKey = "tail") }
+            val ordered = source("pressed") { response(it) }
+            val seed = TimelineRemoteMediator(ordered, database, false, retainHistory = true)
+            seed.load(LoadType.REFRESH, state)
+            response = { PagingResult(listOf(16, 15).map(::datedPost), nextKey = "page-2") }
+            seed.load(LoadType.REFRESH, state)
+            val gap = contents(seed).filterIsInstance<UiTimelineV2.Gap>().single()
+            val requests = mutableListOf<PagingRequest>()
+            response = { request ->
+                requests += request
+                if (request == PagingRequest.Append("page-2")) {
+                    PagingResult(listOf(14, 13).map(::datedPost), nextKey = "page-3")
+                } else {
+                    PagingResult(listOf(12, 11, 10).map(::datedPost), nextKey = "page-4")
+                }
+            }
+            val home = TimelineRemoteMediator(ordered, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            val result = home.loadGap(gap)
+            assertEquals(listOf(PagingRequest.Append("page-2"), PagingRequest.Append("page-3")), requests)
+            assertEquals(4, result.insertedKeys.size)
+            assertEquals(null, result.next)
+            assertEquals(listOf("16", "15", "14", "13", "12", "11", "10", "9"), contents(home).map { it.statusKey.id })
         }
 
     private fun mediator(

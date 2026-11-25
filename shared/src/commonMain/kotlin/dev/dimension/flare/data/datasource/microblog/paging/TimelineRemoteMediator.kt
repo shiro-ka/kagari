@@ -34,12 +34,19 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 
 internal data class GapLoadResult(
     val insertedKeys: List<String> = emptyList(),
     val failure: Throwable? = null,
+    val next: UiTimelineV2.Gap? = null,
 )
+
+internal val homeGapFillTimeout: Duration = 15.seconds
 
 @OptIn(ExperimentalPagingApi::class)
 internal open class TimelineRemoteMediator(
@@ -53,6 +60,7 @@ internal open class TimelineRemoteMediator(
     private val accountKeys: Set<MicroBlogKey> = emptySet(),
     private val refreshSession: HomeTimelineRefreshSessions.Session? = null,
     private val retainedHome: suspend () -> TimelineRemoteMediator? = { null },
+    private val gapFillTimeout: Duration = Duration.ZERO,
 ) : BasePagingRemoteMediator<
         OffsetFromStartPagingKey,
         TimelinePageItem,
@@ -65,6 +73,7 @@ internal open class TimelineRemoteMediator(
     private var refreshSharedHomeOnPrepend = false
     private val mixedPageLoader = (loader as? MixedRemoteMediator)?.pageLoader()
     private val ordersByTime = mixedPageLoader?.ordersByTime == true
+    private val fillsGaps = loader !is MixedRemoteMediator && loader.canJoinTimeline
     private val cachedNextKey = AtomicReference<CachedNextKey?>(null)
 
     private data class CachedNextKey(
@@ -149,6 +158,7 @@ internal open class TimelineRemoteMediator(
         loadType: LoadType,
         pageSize: Int,
     ): MediatorResult {
+        val deadline = TimeSource.Monotonic.markNow() + gapFillTimeout
         val dao = database.pagingTimelineDao()
         val before =
             database.connect {
@@ -192,6 +202,7 @@ internal open class TimelineRemoteMediator(
                 sortIds = result.data.map { item -> homeSortId(item) },
             )
         val requestContext = currentCoroutineContext()
+        var createdGap: UiTimelineV2.Gap? = null
         // Finish the commit and session update together if cancellation arrives during commit.
         withContext(NonCancellable) {
             var nextKeyCache: CachedNextKey? = null
@@ -238,6 +249,7 @@ internal open class TimelineRemoteMediator(
                             } else {
                                 null
                             }
+                        createdGap = gap
                         val gapRows = if (gap != null) TimelinePagingMapper.toDb(listOf(gap), pagingKey) else emptyList()
                         if (ordersByTime) {
                             // Post ranks are even; a Gap occupies the slot just before its old lower neighbour.
@@ -289,13 +301,44 @@ internal open class TimelineRemoteMediator(
             check(committed) { "Timeline changed while loading; retry" }
         }
         result.sourceFailures.forEach(notifyError)
+        val filling = createdGap
+        if (filling != null && fillsGaps && !deadline.hasPassedNow()) {
+            try {
+                loadGap(filling, pageSize, deadline)
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+            }
+        }
         return MediatorResult.Success(if (loadType == LoadType.REFRESH) false else result.nextKey == null)
     }
 
-    /** Loads exactly one logical page; the gap itself is the compare-and-set token. */
     internal suspend fun loadGap(
         gap: UiTimelineV2.Gap,
         pageSize: Int = 20,
+        deadline: TimeMark = TimeSource.Monotonic.markNow() + gapFillTimeout,
+    ): GapLoadResult {
+        var current = gap
+        val insertedKeys = mutableListOf<String>()
+        while (true) {
+            val page =
+                try {
+                    loadGapPage(current, pageSize)
+                } catch (error: Exception) {
+                    if (error is kotlinx.coroutines.CancellationException || current === gap) throw error
+                    return GapLoadResult(insertedKeys.distinct(), error)
+                }
+            insertedKeys += page.insertedKeys
+            val next = page.next
+            if (next == null || page.failure != null || !fillsGaps || deadline.hasPassedNow()) {
+                return page.copy(insertedKeys = insertedKeys.distinct())
+            }
+            current = next
+        }
+    }
+
+    private suspend fun loadGapPage(
+        gap: UiTimelineV2.Gap,
+        pageSize: Int,
     ): GapLoadResult {
         check(retainHistory == true)
         val dao = database.pagingTimelineDao()
@@ -331,6 +374,7 @@ internal open class TimelineRemoteMediator(
             }
         val mapped = TimelinePagingMapper.toDb(result.data, pagingKey, sortIds = result.data.map { homeSortId(it) })
         var insertedKeys = emptyList<String>()
+        var advanced: UiTimelineV2.Gap? = null
         database.connect {
             currentCoroutineContext().ensureActive()
             val currentKey = dao.getPagingKeyMetadata(pagingKey) ?: return@connect
@@ -372,6 +416,7 @@ internal open class TimelineRemoteMediator(
                 database.statusDao().delete(gap.statusKey, AccountType.Guest)
             } else {
                 val next = gap.copy(nextKey = gapNext, revision = gap.revision + 1)
+                advanced = next
                 val nextRow = TimelinePagingMapper.toDb(listOf(next), pagingKey).single()
                 if (!ordersByTime && overlap != null) {
                     dao.delete(listOf(row))
@@ -400,7 +445,7 @@ internal open class TimelineRemoteMediator(
             enqueuePreTranslation(mapped)
         }
         result.sourceFailures.forEach(notifyError)
-        return GapLoadResult(insertedKeys, result.continuationFailure)
+        return GapLoadResult(insertedKeys, result.continuationFailure, advanced)
     }
 
     private suspend fun hasJoinedSingleSourceGap(
