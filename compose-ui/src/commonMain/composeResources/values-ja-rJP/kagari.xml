@@ -91,4 +91,6 @@
     <string name="kagari_file_sensitive">閲覧注意のファイル</string>
     <string name="kagari_community_note_title">読者が背景情報を追加しました</string>
     <string name="kagari_timeline_show_more">続きをみる</string>
+    <string name="kagari_timeline_gap_loading">読み込み中…</string>
+    <string name="kagari_timeline_gap_retry">読み込めませんでした。タップでもう一度</string>
 </resources>

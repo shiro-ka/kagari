@@ -28,6 +28,8 @@ import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_hidden_reply
+import dev.dimension.flare.compose.ui.kagari_timeline_gap_loading
+import dev.dimension.flare.compose.ui.kagari_timeline_gap_retry
 import dev.dimension.flare.compose.ui.kagari_timeline_show_more
 import dev.dimension.flare.compose.ui.bluesky_notification_item_starterpack_joined
 import dev.dimension.flare.compose.ui.mastodon_item_pinned
@@ -211,8 +213,6 @@ import dev.dimension.flare.compose.ui.misskey_notification_item_scheduled_note_p
 import dev.dimension.flare.compose.ui.misskey_notification_item_test
 import dev.dimension.flare.compose.ui.notification_item_accept_follow_request
 import dev.dimension.flare.compose.ui.notification_item_reject_follow_request
-import dev.dimension.flare.compose.ui.timeline_loading_missing_posts
-import dev.dimension.flare.compose.ui.timeline_retry_missing_posts
 import dev.dimension.flare.compose.ui.vvo_notification_like
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.model.PostActionStyle
@@ -258,8 +258,8 @@ internal fun UiTimelineComponent(
                 dev.dimension.flare.ui.component.platform.PlatformText(
                     stringResource(
                         when {
-                            item.loading -> Res.string.timeline_loading_missing_posts
-                            item.failed -> Res.string.timeline_retry_missing_posts
+                            item.loading -> Res.string.kagari_timeline_gap_loading
+                            item.failed -> Res.string.kagari_timeline_gap_retry
                             else -> Res.string.kagari_timeline_show_more
                         },
                     ),
