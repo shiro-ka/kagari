@@ -156,6 +156,10 @@ internal class XQTDataSource(
         )
     }
 
+    internal val kagariProfileEditor by lazy {
+        KagariTwitterProfileEditor(service = service, accountKey = accountKey)
+    }
+
     private val listLoader = XQTListLoader(service, accountKey)
 
     private val listMemberLoader = XQTListMemberLoader(service, accountKey)
