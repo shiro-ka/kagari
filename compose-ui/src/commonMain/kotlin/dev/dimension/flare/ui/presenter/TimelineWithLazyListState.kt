@@ -233,7 +233,7 @@ internal fun rememberTimelineWithLazyListState(
                     val prepended = if (previousKeys.isEmpty()) 0 else keys.takeWhile { it !in previousKeys }.size
                     if (prepended > 0) {
                         if (gapAnchor == null &&
-                            latestReading?.restorePosition == null &&
+                            latestReading == null &&
                             lazyListState.showsAtNewestEdge(previousHeadKey, newestEdgeSlop)
                         ) {
                             lazyListState.requestScrollToItem(0)
