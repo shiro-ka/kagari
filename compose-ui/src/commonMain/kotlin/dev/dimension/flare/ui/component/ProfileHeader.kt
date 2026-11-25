@@ -8,9 +8,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -30,13 +33,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.ArrowUpRightFromSquare
 import compose.icons.fontawesomeicons.solid.Cat
 import compose.icons.fontawesomeicons.solid.CircleCheck
 import compose.icons.fontawesomeicons.solid.Globe
+import compose.icons.fontawesomeicons.solid.Link
 import compose.icons.fontawesomeicons.solid.LocationDot
 import compose.icons.fontawesomeicons.solid.Lock
 import compose.icons.fontawesomeicons.solid.Robot
@@ -78,6 +84,7 @@ import dev.dimension.flare.ui.route.toUri
 import dev.dimension.flare.ui.theme.PlatformTheme
 import dev.dimension.flare.ui.theme.profileName
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
+import kotlinx.collections.immutable.ImmutableList
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -438,6 +445,13 @@ private fun ProfileHeaderSuccess(
                     }
                 }
 
+                is UiProfile.BottomContent.Links -> {
+                    ProfileLinkChips(
+                        links = content.links,
+                        onClick = { uriLauncher.openUri(it) },
+                    )
+                }
+
                 null -> {}
             }
             MatricesDisplay(
@@ -452,6 +466,57 @@ private fun ProfileHeaderSuccess(
             )
         },
     )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProfileLinkChips(
+    links: ImmutableList<UiProfile.BottomContent.Links.Link>,
+    onClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        links.fastForEach { link ->
+            Row(
+                modifier =
+                    Modifier
+                        .clip(PlatformTheme.shapes.small)
+                        .background(PlatformTheme.colorScheme.cardAlt)
+                        .clickable { onClick(link.url) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                FavIcon(
+                    host = link.host,
+                    size = 16.dp,
+                    fallback = {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Link,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                )
+                PlatformText(
+                    text = link.title,
+                    style = PlatformTheme.typography.caption,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                FAIcon(
+                    imageVector = FontAwesomeIcons.Solid.ArrowUpRightFromSquare,
+                    contentDescription = null,
+                    modifier = Modifier.size(10.dp),
+                    tint = PlatformTheme.colorScheme.caption,
+                )
+            }
+        }
+    }
 }
 
 @Composable

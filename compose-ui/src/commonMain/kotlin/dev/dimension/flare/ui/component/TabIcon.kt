@@ -134,6 +134,7 @@ import dev.dimension.flare.ui.component.platform.PlatformTextStyle
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
+import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.model.toUiImage
@@ -395,6 +396,7 @@ public fun FavIcon(
     modifier: Modifier = Modifier,
     title: UiText? = null,
     size: Dp = 24.dp,
+    fallback: @Composable (() -> Unit)? = null,
 ) {
     if (host == xqtHost) {
         FAIcon(
@@ -432,6 +434,8 @@ public fun FavIcon(
                         .placeholder(true),
             ) {
             }
+        }.onError {
+            fallback?.invoke()
         }
 }
 

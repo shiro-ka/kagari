@@ -83,6 +83,10 @@ private fun UiProfile.bindProfileProxy(proxy: ProxyRef): UiProfile =
                     )
                 }
 
+                is UiProfile.BottomContent.Links -> {
+                    content
+                }
+
                 null -> {
                     null
                 }

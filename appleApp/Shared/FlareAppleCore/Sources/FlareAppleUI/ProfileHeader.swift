@@ -270,6 +270,8 @@ public struct CommonProfileHeader: View {
                     FieldsView(fields: data.fields)
                 case .iconify(let data):
                     IconFieldView(data: data)
+                case .links(let data):
+                    ProfileLinksView(data: data)
                 }
             }
 
@@ -429,6 +431,37 @@ public struct MatrixView: View {
         }
         .font(.caption)
         .flareSecondaryText()
+    }
+}
+
+public struct ProfileLinksView: View {
+    private let data: UiProfileBottomContentLinks
+
+    public init(data: UiProfileBottomContentLinks) {
+        self.data = data
+    }
+
+    public var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(0..<data.links.count, id: \.self) { index in
+                    let link = data.links[index]
+                    if let url = URL(string: link.url) {
+                        Link(destination: url) {
+                            HStack(spacing: 6) {
+                                Image(fontAwesome: .globe)
+                                Text(link.title)
+                                    .lineLimit(1)
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

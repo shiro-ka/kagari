@@ -36,6 +36,7 @@ internal object AgentProfileSnapshotSerializer : KSerializer<UiProfile> {
                         when (val bottom = value.bottomContent) {
                             is UiProfile.BottomContent.Fields -> bottom.fields.values
                             is UiProfile.BottomContent.Iconify -> bottom.items.values
+                            is UiProfile.BottomContent.Links -> emptyList()
                             null -> emptyList()
                         }
                 for (text in texts) {

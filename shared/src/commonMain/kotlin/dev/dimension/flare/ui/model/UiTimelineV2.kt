@@ -654,6 +654,16 @@ private fun UiProfile.BottomContent.renderSummaryHash(): Int =
                         .add(entry.value.renderSummaryHash())
                 }.build()
         }
+
+        is UiProfile.BottomContent.Links -> {
+            links
+                .fold(renderHashBuilder()) { builder, link ->
+                    builder
+                        .add(link.url)
+                        .add(link.title)
+                        .add(link.host)
+                }.build()
+        }
     }
 
 private fun UiPoll.renderSummaryHash(): Int =

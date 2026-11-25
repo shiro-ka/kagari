@@ -256,6 +256,10 @@ internal class ProfileInsightAgentUseCase(
                 items.map { (key, value) -> "${key.name}: ${value.raw}" }
             }
 
+            is UiProfile.BottomContent.Links -> {
+                links.map { "${it.title}: ${it.url}" }
+            }
+
             null -> {
                 emptyList()
             }

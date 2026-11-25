@@ -151,6 +151,18 @@ public data class UiProfile public constructor(
                 Verify,
             }
         }
+
+        @Serializable
+        public data class Links public constructor(
+            val links: SerializableImmutableList<Link>,
+        ) : BottomContent {
+            @Serializable
+            public data class Link public constructor(
+                val url: String,
+                val title: String,
+                val host: String,
+            )
+        }
     }
 
     @Serializable

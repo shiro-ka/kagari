@@ -109,6 +109,10 @@ internal fun UiProfile.filterPluginMedia(owner: String?): UiProfile {
                     )
                 }
 
+                is UiProfile.BottomContent.Links -> {
+                    bottom
+                }
+
                 null -> {
                     null
                 }
