@@ -15,7 +15,7 @@ import dev.dimension.flare.ui.route.KagariPinPostDialogRoute
 import dev.dimension.flare.ui.route.KagariPixivBookmarkSheetRoute
 import dev.dimension.flare.ui.route.KagariInteractionGateDialogRoute
 import dev.dimension.flare.ui.route.KagariVerificationDialogRoute
-import dev.dimension.flare.ui.screen.profile.KagariProfileEditScreen
+import dev.dimension.flare.ui.screen.profile.KagariBlueskyProfileEditScreen
 import dev.dimension.flare.ui.screen.profile.KagariStarterPackScreen
 import dev.dimension.flare.ui.screen.profile.KagariVerificationDialog
 import dev.dimension.flare.ui.screen.status.action.KagariDetachQuoteDialog
@@ -112,7 +112,7 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
         )
     }
     entry<KagariProfileEditScreenRoute> { args ->
-        KagariProfileEditScreen(
+        KagariBlueskyProfileEditScreen(
             accountKey = args.accountKey,
             onBack = onBack,
         )

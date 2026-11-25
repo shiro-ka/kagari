@@ -7,11 +7,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import dev.dimension.flare.data.datasource.bluesky.KagariProfileDraft
-import dev.dimension.flare.data.datasource.bluesky.kagariLoadProfileDraft
-import dev.dimension.flare.data.datasource.bluesky.kagariSaveProfile
-import dev.dimension.flare.data.datasource.bluesky.kagariSupportsProfileEdit
-import dev.dimension.flare.data.datasource.microblog.KagariProfileImage
+import dev.dimension.flare.data.datasource.microblog.KagariProfileDraftImages
+import dev.dimension.flare.data.datasource.microblog.KagariProfileEditor
+import dev.dimension.flare.data.datasource.microblog.KagariProfileImageChanges
+import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.repository.AccountService
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
@@ -24,35 +23,37 @@ import dev.dimension.flare.ui.presenter.kagariSubmit
 import dev.dimension.flare.ui.presenter.rememberKagariService
 import kotlinx.coroutines.CoroutineScope
 
-public class KagariProfileEditPresenter(
+public abstract class KagariProfileEditPresenterBase<D : KagariProfileDraftImages>(
     private val accountKey: MicroBlogKey,
-) : PresenterBase<KagariProfileEditState>() {
+) : PresenterBase<KagariProfileEditState<D>>() {
     private val scope by koinInject<CoroutineScope>()
     private val accountService: AccountService by koinInject()
 
+    protected abstract fun editorOf(dataSource: MicroblogDataSource): KagariProfileEditor<D>?
+
     @Composable
-    override fun body(): KagariProfileEditState {
-        val dataSource = accountService.rememberKagariService(AccountType.Specific(accountKey))?.takeIf { it.kagariSupportsProfileEdit() }
-        var draft by remember { mutableStateOf<UiState<KagariProfileDraft>>(UiState.Loading()) }
+    override fun body(): KagariProfileEditState<D> {
+        val dataSource = accountService.rememberKagariService(AccountType.Specific(accountKey))
+        val editor = remember(dataSource) { dataSource?.let(::editorOf) }
+        var draft by remember { mutableStateOf<UiState<D>>(UiState.Loading()) }
         var saving by remember { mutableStateOf(false) }
-        LaunchedEffect(dataSource) {
-            val source = dataSource ?: return@LaunchedEffect
-            draft = kagariLoadState { source.kagariLoadProfileDraft() }
+        LaunchedEffect(editor) {
+            val current = editor ?: return@LaunchedEffect
+            draft = kagariLoadState { current.load() }
         }
-        return object : KagariProfileEditState {
-            override val draft: UiState<KagariProfileDraft> = draft
+        return object : KagariProfileEditState<D> {
+            override val draft: UiState<D> = draft
             override val saving: Boolean = saving
 
             override fun save(
-                after: KagariProfileDraft,
-                avatar: KagariProfileImage?,
-                banner: KagariProfileImage?,
+                after: D,
+                images: KagariProfileImageChanges,
                 onResult: (Boolean) -> Unit,
             ) {
-                val source = dataSource ?: return onResult(false)
+                val current = editor ?: return onResult(false)
                 val before = draft.takeSuccess() ?: return onResult(false)
                 scope.kagariSubmit(busy = { saving = it }, onResult = onResult) {
-                    source.kagariSaveProfile(before, after, avatar, banner)
+                    current.save(before, after, images)
                 }
             }
         }
@@ -60,14 +61,13 @@ public class KagariProfileEditPresenter(
 }
 
 @Immutable
-public interface KagariProfileEditState {
-    public val draft: UiState<KagariProfileDraft>
+public interface KagariProfileEditState<D : KagariProfileDraftImages> {
+    public val draft: UiState<D>
     public val saving: Boolean
 
     public fun save(
-        after: KagariProfileDraft,
-        avatar: KagariProfileImage?,
-        banner: KagariProfileImage?,
+        after: D,
+        images: KagariProfileImageChanges,
         onResult: (Boolean) -> Unit,
     )
 }
