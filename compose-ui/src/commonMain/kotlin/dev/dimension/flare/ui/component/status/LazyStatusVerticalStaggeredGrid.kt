@@ -144,6 +144,7 @@ public fun LazyStatusVerticalStaggeredGrid(
         LocalTimelinePlayback provides playback,
         LocalMultipleColumns provides bigScreen,
         LocalEffectiveTimelineDisplayMode provides effectiveMode,
+        LocalTimelineReverseLayout provides reverseLayout,
     ) {
         LazyVerticalStaggeredGrid(
             modifier =
@@ -178,6 +179,9 @@ internal val LocalIsScrollingInProgress =
     androidx.compose.runtime.compositionLocalOf { false }
 
 internal val LocalMultipleColumns =
+    androidx.compose.runtime.compositionLocalOf { false }
+
+internal val LocalTimelineReverseLayout =
     androidx.compose.runtime.compositionLocalOf { false }
 
 internal val LocalEffectiveTimelineDisplayMode =

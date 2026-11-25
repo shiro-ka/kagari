@@ -616,6 +616,8 @@ private fun KagariTimelineItemContentBody(
     lazyStaggeredGridState: LazyStaggeredGridState,
 ) {
     val isBigScreen = isBigScreen()
+    val newestEdge =
+        if (isHomeTimeline && LocalAppSettings.current.timelineNewestAtBottom) TimelineNewestEdge.Bottom else TimelineNewestEdge.Top
     val layoutDirection = LocalLayoutDirection.current
     val paddingWithStatusBar =
         PaddingValues(
@@ -689,6 +691,7 @@ private fun KagariTimelineItemContentBody(
             LazyStatusVerticalStaggeredGrid(
                 state = state.lazyListState,
                 contentPadding = contentPadding,
+                reverseLayout = newestEdge.reverseLayout,
                 allowGalleryMode = true,
                 modifier =
                     Modifier
@@ -804,6 +807,13 @@ private fun KagariTimelineItemContentBody(
             }
         },
     )
+}
+
+private enum class TimelineNewestEdge(
+    val reverseLayout: Boolean,
+) {
+    Top(reverseLayout = false),
+    Bottom(reverseLayout = true),
 }
 
 @Composable

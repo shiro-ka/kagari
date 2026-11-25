@@ -76,6 +76,17 @@ class TimelineNewPostsScrollTest {
     fun refreshingAfterALargePrependKeepsBothColumnsInPlace() = checkPrepend(columns = 2, prependCount = 40)
 
     @Test
+    fun refreshingADeepReversedListKeepsTheReadingItemAfterPrepends() = checkPrepend(columns = 1, reverseLayout = true)
+
+    @Test
+    fun refreshingAReversedListAtTheNewestEdgeKeepsTheOldHead() =
+        checkPrepend(columns = 1, targetIndex = 0, offset = 0.0, reverseLayout = true)
+
+    @Test
+    fun refreshingAReversedTwoColumnListAfterALargePrependKeepsBothColumnsInPlace() =
+        checkPrepend(columns = 2, prependCount = 40, reverseLayout = true)
+
+    @Test
     fun dynamicHeaderRemovalMustKeepRecording() = checkDynamicHeader(true)
 
     @Test
@@ -127,6 +138,7 @@ class TimelineNewPostsScrollTest {
         targetIndex: Int = 160,
         offset: Double = -25.0,
         prependCount: Int = 10,
+        reverseLayout: Boolean = false,
     ) {
         val pages = MutableStateFlow(page(0..199))
         val scroll = LazyStaggeredGridState()
@@ -146,7 +158,12 @@ class TimelineNewPostsScrollTest {
                 }
             val timeline = rememberTimelineWithLazyListState(base, scroll)
             SideEffect { state = timeline }
-            LazyVerticalStaggeredGrid(StaggeredGridCells.Fixed(columns), Modifier.size(300.dp, 150.dp), state = scroll) {
+            LazyVerticalStaggeredGrid(
+                StaggeredGridCells.Fixed(columns),
+                Modifier.size(300.dp, 150.dp),
+                state = scroll,
+                reverseLayout = reverseLayout,
+            ) {
                 paging.onSuccess {
                     items(itemCount, key = itemKey { it.stableItemKey }) { Box(Modifier.fillMaxWidth().height(100.dp)) }
                 }

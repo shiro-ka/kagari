@@ -85,7 +85,7 @@ public fun LazyStaggeredGridScope.status(
 //                    modifier =
 //                        Modifier
 //                            .animateItem(),
-                        index = index,
+                        index = visualIndex(index, itemCount),
                         totalCount = itemCount,
                         respectTimelineMode = true,
                         content = {
@@ -155,7 +155,7 @@ public fun LazyStaggeredGridScope.statusLoadingPlaceholders() {
     val placeholderCount = 10
     items(placeholderCount) { index ->
         AdaptiveCard(
-            index = index,
+            index = visualIndex(index, placeholderCount),
             totalCount = placeholderCount,
             respectTimelineMode = true,
             content = {
@@ -353,3 +353,9 @@ public fun UserPlaceholder(
         }
     }
 }
+
+@Composable
+private fun visualIndex(
+    index: Int,
+    count: Int,
+): Int = if (LocalTimelineReverseLayout.current) count - 1 - index else index
