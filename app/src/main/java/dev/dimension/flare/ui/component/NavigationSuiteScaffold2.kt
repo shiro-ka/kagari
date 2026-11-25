@@ -7,6 +7,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +65,8 @@ import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collection.MutableVector
 import androidx.compose.runtime.collection.mutableVectorOf
@@ -74,12 +78,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -92,9 +106,79 @@ import dev.dimension.flare.data.model.BottomBarStyle
 import dev.dimension.flare.ui.theme.segmentedShapes2
 import soup.compose.material.motion.animation.materialElevationScaleIn
 import soup.compose.material.motion.animation.materialElevationScaleOut
+import kotlin.math.roundToInt
 
 val LocalBottomBarHeight = androidx.compose.runtime.staticCompositionLocalOf<Dp> { 0.dp }
 val LocalBottomBarShowing = androidx.compose.runtime.staticCompositionLocalOf<Boolean> { false }
+val LocalFabCompanion = androidx.compose.runtime.staticCompositionLocalOf<FabCompanion?> { null }
+
+class FabCompanionRequest(
+    val icon: ImageVector,
+    val contentDescription: String,
+    val onClick: () -> Unit,
+)
+
+@Stable
+class FabCompanion {
+    var request by mutableStateOf<FabCompanionRequest?>(null)
+}
+
+private class FabCompanionGeometry(
+    val barBoxSize: IntSize,
+    val fab: Rect?,
+    val barRight: Float?,
+    val barLeft: Float?,
+)
+
+private class FabCompanionAnchor {
+    private var barBox: LayoutCoordinates? = null
+    private val bars = mutableMapOf<BottomBarState, LayoutCoordinates>()
+    private val fabs = mutableMapOf<BottomBarState, LayoutCoordinates>()
+    private var target: BottomBarState? = null
+
+    var geometry by mutableStateOf<FabCompanionGeometry?>(null)
+        private set
+
+    fun onTargetChanged(state: BottomBarState) {
+        target = state
+        update()
+    }
+
+    fun onBarBoxPositioned(coordinates: LayoutCoordinates) {
+        barBox = coordinates
+        update()
+    }
+
+    fun onBarPositioned(
+        state: BottomBarState,
+        coordinates: LayoutCoordinates,
+    ) {
+        bars[state] = coordinates
+        update()
+    }
+
+    fun onFabPositioned(
+        state: BottomBarState,
+        coordinates: LayoutCoordinates,
+    ) {
+        fabs[state] = coordinates
+        update()
+    }
+
+    private fun update() {
+        val box = barBox?.takeIf { it.isAttached } ?: return
+        val current = target ?: return
+        val fabRect = fabs[current]?.takeIf { it.isAttached }?.let { box.localBoundingBoxOf(it, clipBounds = false) }
+        val barRect = bars[current]?.takeIf { it.isAttached }?.let { box.localBoundingBoxOf(it, clipBounds = false) }
+        geometry =
+            FabCompanionGeometry(
+                barBoxSize = box.size,
+                fab = fabRect ?: geometry?.fab,
+                barRight = barRect?.right,
+                barLeft = barRect?.left,
+            )
+    }
+}
 
 @OptIn(
     ExperimentalFoundationApi::class,
@@ -278,6 +362,18 @@ fun NavigationSuiteScaffold2(
                 }
             }
             Box {
+                val fabCompanion = remember { FabCompanion() }
+                val fabCompanionAnchor = remember { FabCompanionAnchor() }
+                SideEffect {
+                    fabCompanionAnchor.onTargetChanged(bottomBarState)
+                }
+                val bottomBarVisible =
+                    layoutType == NavigationSuiteType.NavigationBar &&
+                        scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected } &&
+                        (
+                            bottomBarState != BottomBarState.FloatingHidden &&
+                                bottomBarState != BottomBarState.ClassicHidden
+                        )
                 CompositionLocalProvider(
                     LocalBottomBarHeight provides
                         if (isPodcastShowing) {
@@ -305,6 +401,10 @@ fun NavigationSuiteScaffold2(
                                 .toDp()
                         },
                     LocalBottomBarShowing provides (layoutType == NavigationSuiteType.NavigationBar),
+                    LocalFabCompanion provides
+                        fabCompanion.takeIf {
+                            bottomBarStyle == BottomBarStyle.Floating && layoutType == NavigationSuiteType.NavigationBar
+                        },
                 ) {
                     content.invoke()
                 }
@@ -373,12 +473,7 @@ fun NavigationSuiteScaffold2(
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    layoutType == NavigationSuiteType.NavigationBar &&
-                        scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected } &&
-                        (
-                            bottomBarState != BottomBarState.FloatingHidden &&
-                                bottomBarState != BottomBarState.ClassicHidden
-                        ),
+                    bottomBarVisible,
                     enter = slideInVertically { it },
                     exit = slideOutVertically { it },
                     modifier =
@@ -389,7 +484,8 @@ fun NavigationSuiteScaffold2(
                     Box(
                         modifier =
                             Modifier
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .onGloballyPositioned(fabCompanionAnchor::onBarBoxPositioned),
                     ) {
                         SharedTransitionLayout(
                             modifier = Modifier.align(Alignment.BottomStart),
@@ -398,6 +494,10 @@ fun NavigationSuiteScaffold2(
                                 bottomBarState,
                             ) { bottomBarState ->
                                 BottomBar(
+                                    modifier =
+                                        Modifier.onGloballyPositioned {
+                                            fabCompanionAnchor.onBarPositioned(bottomBarState, it)
+                                        },
                                     state = bottomBarState,
                                     provider = scope,
                                     animatedVisibilityScope = this@AnimatedContent,
@@ -433,13 +533,102 @@ fun NavigationSuiteScaffold2(
                                         bottomBarHeight = bottomBarHeight,
                                         animatedVisibilityScope = this@AnimatedContent,
                                         onFabClicked = onFabClicked,
+                                        onCirclePositioned = {
+                                            fabCompanionAnchor.onFabPositioned(bottomBarState, it)
+                                        },
                                     )
                                 }
                             }
                         }
                     }
                 }
+
+                FabCompanionButton(
+                    request = fabCompanion.request,
+                    geometry = fabCompanionAnchor.geometry,
+                    fabShowing = showFab && bottomBarVisible,
+                    modifier = Modifier.align(AbsoluteAlignment.BottomLeft),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun FabCompanionButton(
+    request: FabCompanionRequest?,
+    geometry: FabCompanionGeometry?,
+    fabShowing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    var lastRequest by remember { mutableStateOf(request) }
+    if (request != null) {
+        lastRequest = request
+    }
+    val shown = lastRequest
+    if (geometry == null || shown == null) {
+        return
+    }
+    val size = with(density) { 34.dp.toPx() }
+    val gap = with(density) { 12.dp.toPx() }
+    val fabRect =
+        geometry.fab ?: with(density) {
+            val fabSize = 56.dp.toPx()
+            val horizontalInset =
+                when (layoutDirection) {
+                    LayoutDirection.Ltr -> WindowInsets.systemBars.getRight(this, layoutDirection)
+                    LayoutDirection.Rtl -> WindowInsets.systemBars.getLeft(this, layoutDirection)
+                }
+            val footprint = 72.dp.toPx() + WindowInsets.systemBars.getBottom(this)
+            val top = (geometry.barBoxSize.height - footprint) / 2f + 8.dp.toPx()
+            val left =
+                when (layoutDirection) {
+                    LayoutDirection.Ltr -> geometry.barBoxSize.width - horizontalInset - 16.dp.toPx() - fabSize
+                    LayoutDirection.Rtl -> horizontalInset + 16.dp.toPx()
+                }
+            Rect(left, top, left + fabSize, top + fabSize)
+        }
+    val besideLeft =
+        when (layoutDirection) {
+            LayoutDirection.Ltr -> fabRect.left - gap - size
+            LayoutDirection.Rtl -> fabRect.right + gap
+        }
+    val collidesWithBar =
+        when (layoutDirection) {
+            LayoutDirection.Ltr -> geometry.barRight?.let { it > besideLeft } == true
+            LayoutDirection.Rtl -> geometry.barLeft?.let { it < besideLeft + size } == true
+        }
+    val topLeft =
+        when {
+            !fabShowing -> Offset(fabRect.center.x - size / 2f, fabRect.center.y - size / 2f)
+            collidesWithBar -> Offset(fabRect.center.x - size / 2f, fabRect.top - gap - size)
+            else -> Offset(besideLeft, fabRect.center.y - size / 2f)
+        }
+    val target =
+        IntOffset(
+            topLeft.x.roundToInt(),
+            (topLeft.y + size - geometry.barBoxSize.height).roundToInt(),
+        )
+    val offset by animateIntOffsetAsState(target)
+    androidx.compose.animation.AnimatedVisibility(
+        request != null,
+        modifier = modifier.absoluteOffset { offset },
+        enter = materialElevationScaleIn(initialAlpha = 0f),
+        exit = materialElevationScaleOut(targetAlpha = 0f),
+    ) {
+        Glassify(
+            onClick = shown.onClick,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(34.dp),
+        ) {
+            Icon(
+                imageVector = shown.icon,
+                contentDescription = shown.contentDescription,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }
@@ -459,6 +648,7 @@ private fun SharedTransitionScope.BottomFab(
     animatedVisibilityScope: AnimatedVisibilityScope,
     onFabClicked: () -> Unit,
     bottomBarHeight: Dp,
+    onCirclePositioned: (LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isFloating =
@@ -507,7 +697,8 @@ private fun SharedTransitionScope.BottomFab(
                             bottom = bottomBarHeight + 24.dp,
                         )
                     }
-                }.size(
+                }.onGloballyPositioned(onCirclePositioned)
+                .size(
                     if (isExpanded) {
                         56.dp
                     } else {

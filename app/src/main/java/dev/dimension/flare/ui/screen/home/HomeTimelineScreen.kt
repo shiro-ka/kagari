@@ -58,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -88,6 +89,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.repeatOnLifecycle
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -109,12 +111,14 @@ import dev.dimension.flare.data.model.tab.UiTimelineTabItem
 import dev.dimension.flare.data.model.tab.resolveTimelineAppearance
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.FabCompanionRequest
 import dev.dimension.flare.ui.component.FlareDropdownMenu
 import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.Glassify
 import dev.dimension.flare.ui.component.LocalAppSettings
 import dev.dimension.flare.ui.component.LocalBottomBarShowing
+import dev.dimension.flare.ui.component.LocalFabCompanion
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
@@ -694,6 +698,50 @@ private fun KagariTimelineItemContentBody(
         )
     }
     val scope = rememberCoroutineScope()
+    val showNewest: () -> Unit = {
+        state.onNewTootsShown()
+        if (state.reading != null) {
+            state.reading?.showLatest()
+        } else {
+            scope.launch {
+                state.lazyListState.scrollToItem(0)
+            }
+        }
+    }
+    val newTootsText =
+        if (state.reading != null) {
+            stringResource(R.string.home_timeline_view_latest)
+        } else {
+            LocalContext.current.resources.getQuantityString(
+                R.plurals.home_timeline_new_toots,
+                state.newPostsCount,
+                state.newPostsCount,
+            )
+        }
+    val newestButtonReady =
+        state.reading != null || state.listState is dev.dimension.flare.common.PagingState.Success
+    val fabCompanion = LocalFabCompanion.current.takeIf { newestEdge == TimelineNewestEdge.Bottom }
+    val resumed = lifecycleOwner.lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.RESUMED)
+    if (fabCompanion != null && isCurrentlyVisible && resumed) {
+        val request =
+            if (newestButtonReady && state.showNewToots) {
+                FabCompanionRequest(
+                    icon = newestEdge.icon,
+                    contentDescription = newTootsText,
+                    onClick = showNewest,
+                )
+            } else {
+                null
+            }
+        SideEffect {
+            fabCompanion.request = request
+        }
+        DisposableEffect(fabCompanion) {
+            onDispose {
+                fabCompanion.request = null
+            }
+        }
+    }
     RefreshContainer(
         modifier = modifier,
         onRefresh = {
@@ -769,7 +817,7 @@ private fun KagariTimelineItemContentBody(
 
                 status(state.listState, onLoadGap = state::loadGap)
             }
-            if (state.reading != null || state.listState is dev.dimension.flare.common.PagingState.Success) {
+            if (fabCompanion == null && newestButtonReady) {
                 AnimatedVisibility(
                     state.showNewToots,
                     enter = slideInVertically { it * newestEdge.slideDirection },
@@ -780,16 +828,7 @@ private fun KagariTimelineItemContentBody(
                             .align(newestEdge.alignment),
                 ) {
                     Glassify(
-                        onClick = {
-                            state.onNewTootsShown()
-                            if (state.reading != null) {
-                                state.reading?.showLatest()
-                            } else {
-                                scope.launch {
-                                    state.lazyListState.scrollToItem(0)
-                                }
-                            }
-                        },
+                        onClick = showNewest,
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.primaryContainer,
                     ) {
@@ -805,17 +844,6 @@ private fun KagariTimelineItemContentBody(
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )
-                            val ctx = LocalContext.current
-                            val newTootsText =
-                                if (state.reading != null) {
-                                    stringResource(R.string.home_timeline_view_latest)
-                                } else {
-                                    ctx.resources.getQuantityString(
-                                        R.plurals.home_timeline_new_toots,
-                                        state.newPostsCount,
-                                        state.newPostsCount,
-                                    )
-                                }
                             Text(text = newTootsText)
                         }
                     }
