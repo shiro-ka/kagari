@@ -211,6 +211,56 @@ internal interface V11PostApi {
         @Field("conversationId") conversationId2: kotlin.String = "426425493-1714936029558476800",
     ): Response<Unit>
 
+    @FormUrlEncoded
+    @POST("1.1/account/update_profile.json")
+    suspend fun postKagariUpdateProfile(
+        @Field("name") name: kotlin.String,
+        @Field("description") description: kotlin.String,
+        @Field("location") location: kotlin.String,
+        @Field("url") url: kotlin.String,
+    ): Response<Unit>
+
+    @FormUrlEncoded
+    @POST("1.1/account/update_profile_image.json")
+    suspend fun postKagariUpdateProfileImage(
+        @Field("media_id") mediaId: kotlin.String,
+        @Field("return_user") returnUser: kotlin.Boolean = true,
+        @Field("include_blocked_by") includeBlockedBy: kotlin.Int = 1,
+        @Field("include_blocking") includeBlocking: kotlin.Int = 1,
+        @Field("include_can_dm") includeCanDm: kotlin.Int = 1,
+        @Field("include_can_media_tag") includeCanMediaTag: kotlin.Int = 1,
+        @Field("include_ext_is_blue_verified") includeExtIsBlueVerified: kotlin.Int = 1,
+        @Field("include_ext_profile_image_shape") includeExtProfileImageShape: kotlin.Int = 1,
+        @Field("include_ext_verified_type") includeExtVerifiedType: kotlin.Int = 1,
+        @Field("include_followed_by") includeFollowedBy: kotlin.Int = 1,
+        @Field("include_mute_edge") includeMuteEdge: kotlin.Int = 1,
+        @Field("include_profile_interstitial_type") includeProfileInterstitialType: kotlin.Int = 1,
+        @Field("include_want_retweets") includeWantRetweets: kotlin.Int = 1,
+        @Field("skip_status") skipStatus: kotlin.Int = 1,
+    ): Response<Unit>
+
+    @FormUrlEncoded
+    @POST("1.1/account/update_profile_banner.json")
+    suspend fun postKagariUpdateProfileBanner(
+        @Field("media_id") mediaId: kotlin.String,
+        @Field("return_user") returnUser: kotlin.Boolean = true,
+        @Field("include_blocked_by") includeBlockedBy: kotlin.Int = 1,
+        @Field("include_blocking") includeBlocking: kotlin.Int = 1,
+        @Field("include_can_dm") includeCanDm: kotlin.Int = 1,
+        @Field("include_can_media_tag") includeCanMediaTag: kotlin.Int = 1,
+        @Field("include_ext_is_blue_verified") includeExtIsBlueVerified: kotlin.Int = 1,
+        @Field("include_ext_profile_image_shape") includeExtProfileImageShape: kotlin.Int = 1,
+        @Field("include_ext_verified_type") includeExtVerifiedType: kotlin.Int = 1,
+        @Field("include_followed_by") includeFollowedBy: kotlin.Int = 1,
+        @Field("include_mute_edge") includeMuteEdge: kotlin.Int = 1,
+        @Field("include_profile_interstitial_type") includeProfileInterstitialType: kotlin.Int = 1,
+        @Field("include_want_retweets") includeWantRetweets: kotlin.Int = 1,
+        @Field("skip_status") skipStatus: kotlin.Int = 1,
+    ): Response<Unit>
+
+    @POST("1.1/account/remove_profile_banner.json")
+    suspend fun postKagariRemoveProfileBanner(): Response<Unit>
+
     @POST("1.1/dm/welcome_messages/add_to_conversation.json")
     suspend fun postDMWelcomeMessagesAddToConversation(
         @Header("Content-Type") contentType: String = "application/json",
@@ -231,4 +281,29 @@ internal suspend fun V11PostApi.kagariSetConversationMuted(
             postKagariUnmuteConversation(tweetId = tweetId)
         }
     check(response.isSuccessful) { "X could not change the conversation mute (HTTP ${response.code})" }
+}
+
+internal suspend fun V11PostApi.kagariUpdateProfile(
+    name: String,
+    description: String,
+    location: String,
+    url: String,
+) {
+    val response = postKagariUpdateProfile(name = name, description = description, location = location, url = url)
+    check(response.isSuccessful) { "X could not update the profile (HTTP ${response.code})" }
+}
+
+internal suspend fun V11PostApi.kagariUpdateProfileImage(mediaId: String) {
+    val response = postKagariUpdateProfileImage(mediaId = mediaId)
+    check(response.isSuccessful) { "X could not update the profile image (HTTP ${response.code})" }
+}
+
+internal suspend fun V11PostApi.kagariUpdateProfileBanner(mediaId: String) {
+    val response = postKagariUpdateProfileBanner(mediaId = mediaId)
+    check(response.isSuccessful) { "X could not update the profile banner (HTTP ${response.code})" }
+}
+
+internal suspend fun V11PostApi.kagariRemoveProfileBanner() {
+    val response = postKagariRemoveProfileBanner()
+    check(response.isSuccessful) { "X could not remove the profile banner (HTTP ${response.code})" }
 }
