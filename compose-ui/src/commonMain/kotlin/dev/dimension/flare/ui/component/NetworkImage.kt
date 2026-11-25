@@ -6,6 +6,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.FilterQuality
@@ -32,13 +33,22 @@ public fun NetworkImage(
     colorFilter: ColorFilter? = null,
     filterQuality: FilterQuality = DrawScope.DefaultFilterQuality,
     placeholder: Painter? = null,
+    onIntrinsicSize: ((Size) -> Unit)? = null,
 ) {
     val placeholderColor = PlatformTheme.colorScheme.outline
     val allowHardware = LocalNetworkImageAllowHardware.current
     val shareObserver = shareImageObserver(model?.url)
     AsyncImage(
         onLoading = shareObserver,
-        onSuccess = shareObserver,
+        onSuccess =
+            if (onIntrinsicSize == null) {
+                shareObserver
+            } else {
+                { state ->
+                    shareObserver?.invoke(state)
+                    onIntrinsicSize(state.painter.intrinsicSize)
+                }
+            },
         onError = shareObserver,
         model = rememberMediaImageRequest(model, crossfade = allowHardware && shareObserver == null),
         contentDescription = contentDescription,

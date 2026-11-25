@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,7 +36,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.datasource.microblog.KagariComposeLinks
 import dev.dimension.flare.data.datasource.microblog.KagariLinkCardPreview
 import dev.dimension.flare.ui.component.FAIcon
-import dev.dimension.flare.ui.component.NetworkImage
+import dev.dimension.flare.ui.component.status.KagariLinkCardImage
 import dev.dimension.flare.ui.presenter.compose.ComposeStatus
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.CancellationException
@@ -157,13 +156,9 @@ internal fun KagariComposeLinkCard(
         Box {
             Column {
                 card.image?.let { image ->
-                    NetworkImage(
-                        model = image,
+                    KagariLinkCardImage(
+                        image = image,
                         contentDescription = card.title,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1.91f),
                     )
                 }
                 Column(

@@ -146,6 +146,7 @@ import dev.dimension.flare.ui.component.HorizontalDivider
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.TabIcon
+import dev.dimension.flare.ui.component.accessibleDescription
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.PlatformCard
 import dev.dimension.flare.ui.component.platform.PlatformCheckbox
@@ -2008,16 +2009,23 @@ private fun ExpandedCard(
     Column(
         modifier = modifier,
     ) {
-        card.media?.let { media ->
-            MediaItem(
-                media = media,
-                keepAspectRatio = false,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(KAGARI_LINK_CARD_ASPECT_RATIO)
-                        .clipToBounds(),
-            )
+        when (val media = card.media) {
+            null -> Unit
+            is UiMedia.Image ->
+                KagariLinkCardImage(
+                    image = media,
+                    contentDescription = media.accessibleDescription(),
+                )
+            else ->
+                MediaItem(
+                    media = media,
+                    keepAspectRatio = false,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(KAGARI_LINK_CARD_ASPECT_RATIO)
+                            .clipToBounds(),
+                )
         }
         Column(
             modifier =
