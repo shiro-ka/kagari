@@ -71,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -86,6 +87,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
+import compose.icons.fontawesomeicons.solid.AnglesDown
 import compose.icons.fontawesomeicons.solid.AnglesUp
 import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.CaretDown
@@ -757,12 +759,12 @@ private fun KagariTimelineItemContentBody(
             if (state.reading != null || state.listState is dev.dimension.flare.common.PagingState.Success) {
                 AnimatedVisibility(
                     state.showNewToots,
-                    enter = slideInVertically { -it },
-                    exit = slideOutVertically { -it },
+                    enter = slideInVertically { it * newestEdge.slideDirection },
+                    exit = slideOutVertically { it * newestEdge.slideDirection },
                     modifier =
                         Modifier
                             .padding(paddingWithStatusBar)
-                            .align(Alignment.TopCenter),
+                            .align(newestEdge.alignment),
                 ) {
                     Glassify(
                         onClick = {
@@ -786,7 +788,7 @@ private fun KagariTimelineItemContentBody(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             FAIcon(
-                                imageVector = FontAwesomeIcons.Solid.AnglesUp,
+                                imageVector = newestEdge.icon,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                             )
@@ -812,9 +814,12 @@ private fun KagariTimelineItemContentBody(
 
 private enum class TimelineNewestEdge(
     val reverseLayout: Boolean,
+    val alignment: Alignment,
+    val slideDirection: Int,
+    val icon: ImageVector,
 ) {
-    Top(reverseLayout = false),
-    Bottom(reverseLayout = true),
+    Top(reverseLayout = false, alignment = Alignment.TopCenter, slideDirection = -1, icon = FontAwesomeIcons.Solid.AnglesUp),
+    Bottom(reverseLayout = true, alignment = Alignment.BottomCenter, slideDirection = 1, icon = FontAwesomeIcons.Solid.AnglesDown),
 }
 
 @Composable
