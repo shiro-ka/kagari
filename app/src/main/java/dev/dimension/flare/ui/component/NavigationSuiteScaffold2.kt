@@ -94,7 +94,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -112,14 +111,14 @@ import kotlin.math.roundToInt
 val LocalBottomBarHeight = androidx.compose.runtime.staticCompositionLocalOf<Dp> { 0.dp }
 val LocalBottomBarShowing = androidx.compose.runtime.staticCompositionLocalOf<Boolean> { false }
 val LocalFabCompanion = androidx.compose.runtime.staticCompositionLocalOf<FabCompanion?> { null }
-val LocalBottomBarSlack = androidx.compose.runtime.staticCompositionLocalOf<State<Dp>> { mutableStateOf(0.dp) }
+val LocalBottomBarCoverage = androidx.compose.runtime.staticCompositionLocalOf<State<Dp?>> { mutableStateOf<Dp?>(null) }
 
-fun PaddingValues.trimBottomBarSlack(slack: State<Dp>): PaddingValues = BottomBarSlackPaddingValues(this, slack)
+fun PaddingValues.fitBottomBarCoverage(coverage: State<Dp?>): PaddingValues = BottomBarCoveragePaddingValues(this, coverage)
 
 @Stable
-private class BottomBarSlackPaddingValues(
+private class BottomBarCoveragePaddingValues(
     private val base: PaddingValues,
-    private val slack: State<Dp>,
+    private val coverage: State<Dp?>,
 ) : PaddingValues {
     override fun calculateLeftPadding(layoutDirection: LayoutDirection) = base.calculateLeftPadding(layoutDirection)
 
@@ -127,35 +126,9 @@ private class BottomBarSlackPaddingValues(
 
     override fun calculateRightPadding(layoutDirection: LayoutDirection) = base.calculateRightPadding(layoutDirection)
 
-    override fun calculateBottomPadding() = (base.calculateBottomPadding() - slack.value).coerceAtLeast(0.dp)
-}
-
-private class BottomBarFootprint {
-    private var container: LayoutCoordinates? = null
-    private var bar: LayoutCoordinates? = null
-
-    var height by mutableStateOf<Float?>(null)
-        private set
-
-    fun onContainerPositioned(coordinates: LayoutCoordinates) {
-        container = coordinates
-        update()
-    }
-
-    fun onBarPositioned(coordinates: LayoutCoordinates) {
-        bar = coordinates
-        update()
-    }
-
-    fun onBarRemoved() {
-        bar = null
-        height = 0f
-    }
-
-    private fun update() {
-        val box = container?.takeIf { it.isAttached } ?: return
-        val barCoordinates = bar?.takeIf { it.isAttached } ?: return
-        height = (box.size.height - box.localBoundingBoxOf(barCoordinates, clipBounds = false).top).coerceAtLeast(0f)
+    override fun calculateBottomPadding(): Dp {
+        val bottom = base.calculateBottomPadding()
+        return coverage.value?.let { minOf(bottom, it) } ?: bottom
     }
 }
 
@@ -178,17 +151,40 @@ private class FabCompanionGeometry(
 )
 
 private class FabCompanionAnchor {
+    private var container: LayoutCoordinates? = null
     private var barBox: LayoutCoordinates? = null
     private val bars = mutableMapOf<BottomBarState, LayoutCoordinates>()
+    private val barSurfaces = mutableMapOf<BottomBarState, LayoutCoordinates>()
     private val fabs = mutableMapOf<BottomBarState, LayoutCoordinates>()
     private var target: BottomBarState? = null
 
     var geometry by mutableStateOf<FabCompanionGeometry?>(null)
         private set
 
+    var footprint by mutableStateOf<Float?>(null)
+        private set
+
+    fun onContainerPositioned(coordinates: LayoutCoordinates) {
+        container = coordinates
+        updateFootprint()
+    }
+
+    fun onBarRemoved() {
+        footprint = 0f
+    }
+
+    fun onBarSurfacePositioned(
+        state: BottomBarState,
+        coordinates: LayoutCoordinates,
+    ) {
+        barSurfaces[state] = coordinates
+        updateFootprint()
+    }
+
     fun onTargetChanged(state: BottomBarState) {
         target = state
         update()
+        updateFootprint()
     }
 
     fun onBarBoxPositioned(coordinates: LayoutCoordinates) {
@@ -210,6 +206,17 @@ private class FabCompanionAnchor {
     ) {
         fabs[state] = coordinates
         update()
+        updateFootprint()
+    }
+
+    private fun updateFootprint() {
+        val box = container?.takeIf { it.isAttached } ?: return
+        val current = target ?: return
+        val top =
+            listOfNotNull(fabs[current], barSurfaces[current])
+                .filter { it.isAttached }
+                .minOfOrNull { box.localBoundingBoxOf(it, clipBounds = false).top } ?: return
+        footprint = (box.size.height - top).coerceAtLeast(0f)
     }
 
     private fun update() {
@@ -408,12 +415,11 @@ fun NavigationSuiteScaffold2(
                     )
                 }
             }
-            val bottomBarFootprint = remember { BottomBarFootprint() }
+            val fabCompanionAnchor = remember { FabCompanionAnchor() }
             Box(
-                modifier = Modifier.onGloballyPositioned(bottomBarFootprint::onContainerPositioned),
+                modifier = Modifier.onGloballyPositioned(fabCompanionAnchor::onContainerPositioned),
             ) {
                 val fabCompanion = remember { FabCompanion() }
-                val fabCompanionAnchor = remember { FabCompanionAnchor() }
                 SideEffect {
                     fabCompanionAnchor.onTargetChanged(bottomBarState)
                 }
@@ -446,16 +452,21 @@ fun NavigationSuiteScaffold2(
                             ).getBottom(this)
                             .toDp()
                     }
-                val latestReserved by rememberUpdatedState(reservedForBottomBar + systemBottom)
+                val latestReserving by rememberUpdatedState(reservedForBottomBar > 0.dp)
                 val latestSystemBottom by rememberUpdatedState(systemBottom)
-                val bottomBarSlack =
-                    remember(bottomBarFootprint, density) {
+                val latestPodcastHeight by rememberUpdatedState(if (isPodcastShowing) bottomBarHeight else 0.dp)
+                val bottomBarCoverage =
+                    remember(fabCompanionAnchor, density) {
                         derivedStateOf {
-                            val measured = bottomBarFootprint.height
-                            if (measured == null) {
-                                0.dp
+                            val measured = fabCompanionAnchor.footprint
+                            if (measured == null || !latestReserving) {
+                                null
                             } else {
-                                (latestReserved - maxOf(with(density) { measured.toDp() }, latestSystemBottom)).coerceAtLeast(0.dp)
+                                val visible = with(density) { measured.toDp() }
+                                maxOf(
+                                    if (visible > 0.dp) visible + 4.dp else 0.dp,
+                                    latestSystemBottom,
+                                ) + latestPodcastHeight
                             }
                         }
                     }
@@ -466,7 +477,7 @@ fun NavigationSuiteScaffold2(
                         } else {
                             0.dp
                         } + reservedForBottomBar + systemBottom,
-                    LocalBottomBarSlack provides bottomBarSlack,
+                    LocalBottomBarCoverage provides bottomBarCoverage,
                     LocalBottomBarShowing provides (layoutType == NavigationSuiteType.NavigationBar),
                     LocalFabCompanion provides
                         fabCompanion.takeIf {
@@ -548,19 +559,16 @@ fun NavigationSuiteScaffold2(
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter),
                 ) {
-                    DisposableEffect(bottomBarFootprint) {
+                    DisposableEffect(fabCompanionAnchor) {
                         onDispose {
-                            bottomBarFootprint.onBarRemoved()
+                            fabCompanionAnchor.onBarRemoved()
                         }
                     }
                     Box(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned {
-                                    fabCompanionAnchor.onBarBoxPositioned(it)
-                                    bottomBarFootprint.onBarPositioned(it)
-                                },
+                                .onGloballyPositioned(fabCompanionAnchor::onBarBoxPositioned),
                     ) {
                         SharedTransitionLayout(
                             modifier = Modifier.align(Alignment.BottomStart),
@@ -573,6 +581,9 @@ fun NavigationSuiteScaffold2(
                                         Modifier.onGloballyPositioned {
                                             fabCompanionAnchor.onBarPositioned(bottomBarState, it)
                                         },
+                                    onSurfacePositioned = {
+                                        fabCompanionAnchor.onBarSurfacePositioned(bottomBarState, it)
+                                    },
                                     state = bottomBarState,
                                     provider = scope,
                                     animatedVisibilityScope = this@AnimatedContent,
@@ -796,6 +807,7 @@ private fun SharedTransitionScope.BottomBar(
     provider: NavigationSuiteItemProvider,
     animatedVisibilityScope: AnimatedVisibilityScope,
     showBottomBarLabels: Boolean,
+    onSurfacePositioned: (LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val containerShape =
@@ -852,7 +864,7 @@ private fun SharedTransitionScope.BottomBar(
                     } else {
                         it
                     }
-                },
+                }.onGloballyPositioned(onSurfacePositioned),
     ) {
         Row(
             modifier =

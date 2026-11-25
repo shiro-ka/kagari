@@ -119,13 +119,14 @@ import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.Glassify
 import dev.dimension.flare.ui.component.LocalAppSettings
+import dev.dimension.flare.ui.component.LocalBottomBarCoverage
 import dev.dimension.flare.ui.component.LocalBottomBarShowing
-import dev.dimension.flare.ui.component.LocalBottomBarSlack
 import dev.dimension.flare.ui.component.LocalFabCompanion
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RefreshContainer
 import dev.dimension.flare.ui.component.TabIcon
+import dev.dimension.flare.ui.component.fitBottomBarCoverage
 import dev.dimension.flare.ui.component.platform.LocalWindowSizeClass
 import dev.dimension.flare.ui.component.platform.WindowSizeClass
 import dev.dimension.flare.ui.component.platform.isBigScreen
@@ -134,7 +135,6 @@ import dev.dimension.flare.ui.component.status.AdaptiveCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.ListEmptyView
 import dev.dimension.flare.ui.component.status.status
-import dev.dimension.flare.ui.component.trimBottomBarSlack
 import dev.dimension.flare.ui.model.map
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
@@ -641,8 +641,8 @@ private fun KagariTimelineItemContentBody(
 ) {
     val isBigScreen = isBigScreen()
     val newestEdge = timelineNewestEdge(isHomeTimeline)
-    val bottomBarSlack = LocalBottomBarSlack.current
-    val timelinePadding = remember(contentPadding, bottomBarSlack) { contentPadding.trimBottomBarSlack(bottomBarSlack) }
+    val bottomBarCoverage = LocalBottomBarCoverage.current
+    val timelinePadding = remember(contentPadding, bottomBarCoverage) { contentPadding.fitBottomBarCoverage(bottomBarCoverage) }
     val paddingWithStatusBar =
         timelinePadding +
             PaddingValues(
@@ -664,14 +664,14 @@ private fun KagariTimelineItemContentBody(
     val latestState by rememberUpdatedState(state)
     if (newestEdge.reverseLayout) {
         val density = LocalDensity.current
-        LaunchedEffect(state.lazyListState, bottomBarSlack, density) {
-            var previous = bottomBarSlack.value
-            snapshotFlow { bottomBarSlack.value }.collect { slack ->
-                val shift = with(density) { (slack - previous).toPx() }
-                previous = slack
+        LaunchedEffect(state.lazyListState, timelinePadding, density) {
+            var previous = timelinePadding.calculateBottomPadding()
+            snapshotFlow { timelinePadding.calculateBottomPadding() }.collect { bottom ->
+                val shift = with(density) { (bottom - previous).toPx() }
+                previous = bottom
                 val listState = state.lazyListState
                 if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
-                    listState.dispatchRawDelta(-shift)
+                    listState.dispatchRawDelta(shift)
                 }
             }
         }
