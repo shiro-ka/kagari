@@ -1,5 +1,6 @@
 package dev.dimension.flare.data.datasource.microblog.paging
 import kotlin.native.HiddenFromObjC
+import kotlin.time.Duration
 
 @HiddenFromObjC
 public interface CacheableRemoteLoader<T : Any> : RemoteLoader<T> {
@@ -13,6 +14,10 @@ public interface CacheableRemoteLoader<T : Any> : RemoteLoader<T> {
     public val supportPrepend: Boolean
         get() = false
     public val collapseReplyChains: Boolean
+        get() = true
+    public val gapFillInterval: Duration
+        get() = Duration.ZERO
+    public val canContinueGapFill: Boolean
         get() = true
 }
 

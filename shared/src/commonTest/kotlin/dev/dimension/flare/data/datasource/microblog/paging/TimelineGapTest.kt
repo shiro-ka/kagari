@@ -61,6 +61,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 @OptIn(ExperimentalPagingApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -2522,6 +2523,58 @@ class TimelineGapTest : RobolectricTest() {
             assertEquals(4, result.insertedKeys.size)
             assertEquals(null, result.next)
             assertEquals(listOf("16", "15", "14", "13", "12", "11", "10", "9"), contents(home).map { it.statusKey.id })
+        }
+
+    @Test
+    fun readingStopsWhenTheSourceAsksToSaveRequests() =
+        runTest {
+            var canContinue = true
+            var refreshing = false
+            val requests = mutableListOf<PagingRequest>()
+            val limited =
+                object : CacheableRemoteLoader<UiTimelineV2> {
+                    override val pagingKey = "limited"
+                    override val canJoinTimeline = true
+                    override val gapFillInterval = 1.seconds
+                    override val canContinueGapFill get() = canContinue
+
+                    override suspend fun load(
+                        pageSize: Int,
+                        request: PagingRequest,
+                    ): PagingResult<UiTimelineV2> {
+                        requests += request
+                        return when {
+                            !refreshing -> {
+                                PagingResult(listOf(10, 9).map(::datedPost), nextKey = "tail")
+                            }
+
+                            request is PagingRequest.Refresh -> {
+                                PagingResult(listOf(16, 15).map(::datedPost), nextKey = "page-2")
+                            }
+
+                            request == PagingRequest.Append("page-2") -> {
+                                canContinue = false
+                                PagingResult(listOf(14, 13).map(::datedPost), nextKey = "page-3")
+                            }
+
+                            else -> {
+                                PagingResult(listOf(12, 11).map(::datedPost), nextKey = "page-4")
+                            }
+                        }
+                    }
+                }
+            val home = TimelineRemoteMediator(limited, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            home.load(LoadType.REFRESH, state)
+            refreshing = true
+            requests.clear()
+            assertIs<RemoteMediator.MediatorResult.Success>(home.load(LoadType.REFRESH, state))
+            assertEquals(listOf(PagingRequest.Refresh, PagingRequest.Append("page-2")), requests)
+            val gap = contents(home).filterIsInstance<UiTimelineV2.Gap>().single()
+            assertEquals("page-3", gap.nextKey)
+            assertEquals(emptyMap<String, LoadState>(), home.gapActivity.value)
+            requests.clear()
+            assertEquals(2, home.loadGap(gap).insertedKeys.size)
+            assertEquals(listOf<PagingRequest>(PagingRequest.Append("page-3")), requests)
         }
 
     private fun mediator(

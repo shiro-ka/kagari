@@ -29,6 +29,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -309,9 +310,9 @@ internal open class TimelineRemoteMediator(
         }
         result.sourceFailures.forEach(notifyError)
         val filling = createdGap
-        if (filling != null && fillsGaps && !deadline.hasPassedNow()) {
+        if (filling != null && fillsGaps && loader.canContinueGapFill && !deadline.hasPassedNow()) {
             try {
-                loadGap(filling, pageSize, deadline)
+                loadGap(filling, pageSize, deadline, continuing = true)
             } catch (error: Exception) {
                 if (error is kotlinx.coroutines.CancellationException) throw error
             }
@@ -323,6 +324,7 @@ internal open class TimelineRemoteMediator(
         gap: UiTimelineV2.Gap,
         pageSize: Int = 20,
         deadline: TimeMark = TimeSource.Monotonic.markNow() + gapFillTimeout,
+        continuing: Boolean = false,
     ): GapLoadResult {
         val key = gap.stableItemKey
         var claimed = false
@@ -333,7 +335,7 @@ internal open class TimelineRemoteMediator(
         if (!claimed) return GapLoadResult()
         val result =
             try {
-                fillGap(gap, pageSize, deadline)
+                fillGap(gap, pageSize, deadline, continuing)
             } catch (error: Exception) {
                 gapStates.update {
                     if (error is kotlinx.coroutines.CancellationException) it - key else it + (key to LoadState.Error(error))
@@ -349,10 +351,16 @@ internal open class TimelineRemoteMediator(
         gap: UiTimelineV2.Gap,
         pageSize: Int,
         deadline: TimeMark,
+        continuing: Boolean,
     ): GapLoadResult {
         var current = gap
+        var waits = continuing
         val insertedKeys = mutableListOf<String>()
         while (true) {
+            if (waits) {
+                delay(loader.gapFillInterval)
+                if (deadline.hasPassedNow()) return GapLoadResult(insertedKeys.distinct(), next = current)
+            }
             val page =
                 try {
                     loadGapPage(current, pageSize)
@@ -362,10 +370,11 @@ internal open class TimelineRemoteMediator(
                 }
             insertedKeys += page.insertedKeys
             val next = page.next
-            if (next == null || page.failure != null || !fillsGaps || deadline.hasPassedNow()) {
+            if (next == null || page.failure != null || !fillsGaps || !loader.canContinueGapFill || deadline.hasPassedNow()) {
                 return page.copy(insertedKeys = insertedKeys.distinct())
             }
             current = next
+            waits = true
         }
     }
 

@@ -8,11 +8,19 @@ import dev.dimension.flare.data.datasource.microblog.paging.CacheableRemoteLoade
 import dev.dimension.flare.data.datasource.microblog.paging.PagingRequest
 import dev.dimension.flare.data.datasource.microblog.paging.PagingResult
 import dev.dimension.flare.data.network.xqt.XQTService
+import dev.dimension.flare.data.network.xqt.rateLimitRemaining
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.mapper.render
 import kotlinx.serialization.Required
 import kotlinx.serialization.Serializable
+import kotlin.concurrent.Volatile
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+
+internal const val HOME_GAP_FILL_RESERVE = 50
+
+internal val homeGapFillInterval: Duration = 1500.milliseconds
 
 @OptIn(ExperimentalPagingApi::class)
 internal class HomeTimelineRemoteMediator(
@@ -22,12 +30,19 @@ internal class HomeTimelineRemoteMediator(
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val canJoinTimeline: Boolean get() = !enableRanking
     override val pagingKey: String = if (enableRanking) "popular_$accountKey" else "home_$accountKey"
+    override val gapFillInterval: Duration = homeGapFillInterval
+
+    @Volatile
+    private var remaining: Int? = null
+
+    override val canContinueGapFill: Boolean
+        get() = remaining.let { it == null || it >= HOME_GAP_FILL_RESERVE }
 
     override suspend fun load(
         pageSize: Int,
         request: PagingRequest,
     ): PagingResult<UiTimelineV2> {
-        val response =
+        val raw =
             when (request) {
                 PagingRequest.Refresh -> {
                     service.getHomeLatestTimeline(
@@ -55,7 +70,9 @@ internal class HomeTimelineRemoteMediator(
                             ).encodeJson(),
                     )
                 }
-            }.body()
+            }
+        raw.rateLimitRemaining?.let { remaining = it }
+        val response = raw.body()
         val timeline =
             response
                 ?.data
