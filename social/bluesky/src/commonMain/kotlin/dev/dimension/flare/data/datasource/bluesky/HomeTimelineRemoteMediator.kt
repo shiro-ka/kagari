@@ -17,6 +17,7 @@ internal class HomeTimelineRemoteMediator(
     private val accountKey: MicroBlogKey,
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val canJoinTimeline: Boolean = true
+    override val remotePageSize: Int = 100
     override val pagingKey: String = "home_$accountKey"
 
     override suspend fun load(

@@ -17,6 +17,7 @@ internal class HomeTimelineRemoteMediator(
     private val filters: MisskeyTimelineFilters = MisskeyTimelineFilters(),
 ) : CacheableRemoteLoader<UiTimelineV2> {
     override val canJoinTimeline: Boolean = true
+    override val remotePageSize: Int = 100
     override val pagingKey = "home_${filters.key}_$accountKey"
 
     override suspend fun load(

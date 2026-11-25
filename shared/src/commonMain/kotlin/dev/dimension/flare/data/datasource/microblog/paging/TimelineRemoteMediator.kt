@@ -477,7 +477,7 @@ internal open class TimelineRemoteMediator(
                     canPublish = { tailSortId == null || checkNotNull(homeSortId(it)) <= tailSortId },
                 )
             } else {
-                loader.load(pageSize, request).let { response ->
+                loader.load(loader.remotePageSize ?: pageSize, request).let { response ->
                     val join =
                         if (loader.canJoinTimeline) {
                             response.data.indexOfFirst { it.stableItemKey in boundary[loader.pagingKey].orEmpty() }
@@ -613,7 +613,7 @@ internal open class TimelineRemoteMediator(
     ): PagingResult<UiTimelineV2> =
         loader
             .load(
-                pageSize = pageSize,
+                pageSize = loader.remotePageSize ?: pageSize,
                 request = request,
             ).let { result ->
                 result.sourceFailures.forEach(notifyError)
