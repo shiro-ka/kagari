@@ -123,6 +123,18 @@ internal fun BehaviorScreen(
                     )
                 },
             )
+            SegmentedListItem(
+                onClick = { state.updateAppSettings { copy(timelineNewestAtBottom = !timelineNewestAtBottom) } },
+                shapes = ListItemDefaults.item(),
+                content = { Text(stringResource(R.string.kagari_settings_timeline_newest_at_bottom)) },
+                supportingContent = { Text(stringResource(R.string.kagari_settings_timeline_newest_at_bottom_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = appSettings.timelineNewestAtBottom,
+                        onCheckedChange = { value -> state.updateAppSettings { copy(timelineNewestAtBottom = value) } },
+                    )
+                },
+            )
             SingleChoiceSettingsItem(
                 headline = {
                     Text(text = stringResource(id = R.string.settings_home_timeline_auto_refresh_interval))

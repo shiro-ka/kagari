@@ -299,4 +299,6 @@
     <string name="kagari_pixiv_recommended_title">Recommended</string>
     <string name="kagari_feed_feedback_sent">Feedback sent to feed operator</string>
     <string name="kagari_feed_feedback_failed">Failed to send feedback, please try again</string>
+    <string name="kagari_settings_timeline_newest_at_bottom">Show newest posts at the bottom</string>
+    <string name="kagari_settings_timeline_newest_at_bottom_description">Older posts are at the top and newer posts at the bottom. Pull up at the bottom to refresh.</string>
 </resources>
