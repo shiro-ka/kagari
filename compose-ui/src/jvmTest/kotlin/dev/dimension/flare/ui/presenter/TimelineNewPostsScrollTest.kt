@@ -42,6 +42,7 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class TimelineNewPostsScrollTest {
@@ -67,7 +68,15 @@ class TimelineNewPostsScrollTest {
     fun refreshingADeepTwoColumnListKeepsTheReadingItemAfterPrepends() = checkPrepend(columns = 2)
 
     @Test
-    fun refreshingAtTheTopKeepsTheOldHeadAndRecordsItsNewIndex() = checkPrepend(columns = 1, targetIndex = 0, offset = 0.0)
+    fun refreshingAtTheNewestEdgeShowsTheNewPosts() = checkPrepend(columns = 1, targetIndex = 0, offset = 0.0, followsNewest = true)
+
+    @Test
+    fun refreshingTwoColumnsAtTheNewestEdgeShowsTheNewPosts() =
+        checkPrepend(columns = 2, targetIndex = 0, offset = 0.0, followsNewest = true)
+
+    @Test
+    fun refreshingSlightlyAwayFromTheNewestEdgeShowsTheNewPosts() =
+        checkPrepend(columns = 1, targetIndex = 0, offset = -10.0, followsNewest = true)
 
     @Test
     fun refreshingAfterALargePrependKeepsTheOldHeadAndOffset() = checkPrepend(columns = 1, targetIndex = 0, prependCount = 40)
@@ -79,8 +88,12 @@ class TimelineNewPostsScrollTest {
     fun refreshingADeepReversedListKeepsTheReadingItemAfterPrepends() = checkPrepend(columns = 1, reverseLayout = true)
 
     @Test
-    fun refreshingAReversedListAtTheNewestEdgeKeepsTheOldHead() =
-        checkPrepend(columns = 1, targetIndex = 0, offset = 0.0, reverseLayout = true)
+    fun refreshingAReversedListAtTheNewestEdgeShowsTheNewPosts() =
+        checkPrepend(columns = 1, targetIndex = 0, offset = 0.0, reverseLayout = true, followsNewest = true)
+
+    @Test
+    fun refreshingAReversedListAwayFromTheNewestEdgeKeepsTheOldHead() =
+        checkPrepend(columns = 1, targetIndex = 0, offset = -25.0, reverseLayout = true)
 
     @Test
     fun refreshingAReversedTwoColumnListAfterALargePrependKeepsBothColumnsInPlace() =
@@ -139,6 +152,7 @@ class TimelineNewPostsScrollTest {
         offset: Double = -25.0,
         prependCount: Int = 10,
         reverseLayout: Boolean = false,
+        followsNewest: Boolean = false,
     ) {
         val pages = MutableStateFlow(page(0..199))
         val scroll = LazyStaggeredGridState()
@@ -181,6 +195,14 @@ class TimelineNewPostsScrollTest {
         }
         composeRule.waitUntil { (state.listState as? PagingState.Success)?.itemCount == 200 + prependCount }
         composeRule.runOnIdle {
+            assertFalse(state.showNewToots)
+            if (followsNewest) {
+                assertEquals(0, scroll.firstVisibleItemIndex)
+                assertEquals(0, scroll.firstVisibleItemScrollOffset)
+                assertTrue(scroll.layoutInfo.visibleItemsInfo.any { it.key == "post--$prependCount" })
+                assertEquals(TimelineReadingPosition(0, 0.0), reading.currentPosition)
+                return@runOnIdle
+            }
             assertEquals(
                 offset.toInt(),
                 scroll.layoutInfo.visibleItemsInfo
@@ -663,6 +685,62 @@ class TimelineNewPostsScrollTest {
         }
 
         override fun showLatest() = Unit
+    }
+
+    @Test
+    fun newPostsAtTheNewestEdgeAreShownWithoutTheBanner() = checkNewestEdge(leadingHeader = false)
+
+    @Test
+    fun newPostsBelowALeadingHeaderAtTheNewestEdgeAreShownWithoutTheBanner() = checkNewestEdge(leadingHeader = true)
+
+    private fun checkNewestEdge(leadingHeader: Boolean) {
+        val pages = MutableStateFlow(page(0..9))
+        val scrollState = LazyStaggeredGridState()
+        lateinit var state: TimelineWithLazyListState
+        composeRule.setContent {
+            val pagingState = pages.collectAsLazyPagingItems().toPagingState()
+            val baseState =
+                object : TimelineItemPresenter.State {
+                    override val listState = pagingState
+                    override val isRefreshing = pagingState.isRefreshing
+
+                    override fun refreshSync() = Unit
+
+                    override suspend fun refreshSuspend() = Unit
+                }
+            val timeline = rememberTimelineWithLazyListState(baseState, scrollState, leadingItemCount = if (leadingHeader) 1 else 0)
+            SideEffect { state = timeline }
+            LazyVerticalStaggeredGrid(
+                columns = StaggeredGridCells.Fixed(1),
+                state = scrollState,
+                modifier = Modifier.size(width = 300.dp, height = 250.dp),
+            ) {
+                if (leadingHeader) {
+                    item(key = "header") {
+                        Box(Modifier.fillMaxWidth().height(100.dp))
+                    }
+                }
+                pagingState.onSuccess {
+                    items(itemCount, key = itemKey { it.stableItemKey }) {
+                        Box(Modifier.fillMaxWidth().height(100.dp))
+                    }
+                }
+            }
+        }
+        composeRule.runOnIdle {
+            assertEquals(0, scrollState.firstVisibleItemIndex)
+            pages.value = page(-3..9)
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            (state.listState as? PagingState.Success)?.itemCount == 13
+        }
+        composeRule.runOnIdle {
+            assertEquals(0, scrollState.firstVisibleItemIndex)
+            assertEquals(0, scrollState.firstVisibleItemScrollOffset)
+            assertTrue(scrollState.layoutInfo.visibleItemsInfo.any { it.key == "post--3" })
+            assertEquals(0, state.newPostsCount)
+            assertFalse(state.showNewToots)
+        }
     }
 
     private fun checkScrolling(leadingHeader: Boolean) {

@@ -85,6 +85,13 @@ internal fun rememberTimelineWithLazyListState(
                 lazyListState.firstVisibleItemScrollOffset == 0
         }
     }
+    val newestEdgeSlop = (NEWEST_EDGE_SLOP_DP * density).roundToInt()
+    val currentHeadKey by rememberUpdatedState(
+        (baseState.listState as? PagingState.Success)?.peek(0)?.stableItemKey,
+    )
+    val isAtNewestEdge by remember(lazyListState, newestEdgeSlop) {
+        derivedStateOf { lazyListState.showsAtNewestEdge(currentHeadKey, newestEdgeSlop) }
+    }
     LaunchedEffect(lazyListState, baseState.reading != null) {
         latestReading?.restoreCurrentPosition()
     }
@@ -183,7 +190,7 @@ internal fun rememberTimelineWithLazyListState(
         }
         LaunchedEffect(lazyListState) {
             snapshotFlow {
-                lazyListState.layoutInfo.visibleItemsInfo
+                latestReading?.hasNewContent to lazyListState.layoutInfo.visibleItemsInfo
                     .filter { info ->
                         info.offset.y + info.size.height > 0 && (info.index - currentLeadingItemCount)
                             .takeIf { it in 0 until currentPagingState.itemCount }
@@ -196,7 +203,7 @@ internal fun rememberTimelineWithLazyListState(
                             } == true
                     }.minWithOrNull(compareBy({ it.offset.y }, { it.offset.x }))
                     ?.let { (it.index - currentLeadingItemCount) to it.offset.y }
-            }.collect { position ->
+            }.collect { (_, position) ->
                 if (!restoring && position != null) {
                     latestReading?.viewportChanged(position.first, position.second.toDouble() / density)
                 }
@@ -215,19 +222,27 @@ internal fun rememberTimelineWithLazyListState(
                 latestReading?.savePosition()
             }
         }
-        LaunchedEffect(lazyListState) {
+        LaunchedEffect(lazyListState, newestEdgeSlop) {
             var previousKeys = emptySet<String>()
+            var previousHeadKey: String? = null
             snapshotFlow {
                 val pagingState = currentPagingState
-                (0 until pagingState.itemCount).mapNotNull { pagingState.peek(it)?.itemKey }
-            }.collect { keys ->
+                (0 until pagingState.itemCount).mapNotNull { pagingState.peek(it)?.itemKey } to pagingState.peek(0)?.stableItemKey
+            }.collect { (keys, headKey) ->
                 if (keys.isNotEmpty()) {
-                    // Count the new prefix before the first previously loaded post.
-                    // Scroll indices can already have moved by the time this snapshot arrives.
-                    if (previousKeys.isNotEmpty() && !isAtTheTop) {
-                        newPostCount += keys.takeWhile { it !in previousKeys }.size
+                    val prepended = if (previousKeys.isEmpty()) 0 else keys.takeWhile { it !in previousKeys }.size
+                    if (prepended > 0) {
+                        if (gapAnchor == null &&
+                            latestReading?.restorePosition == null &&
+                            lazyListState.showsAtNewestEdge(previousHeadKey, newestEdgeSlop)
+                        ) {
+                            lazyListState.requestScrollToItem(0)
+                        } else if (!isAtTheTop) {
+                            newPostCount += prepended
+                        }
                     }
                     previousKeys = keys.toSet()
+                    previousHeadKey = headKey
                 }
             }
         }
@@ -264,7 +279,7 @@ internal fun rememberTimelineWithLazyListState(
     return object :
         TimelineWithLazyListState,
         TimelineItemPresenter.State by baseState {
-        override val showNewToots = baseState.reading?.hasNewContent ?: (newPostCount > 0)
+        override val showNewToots = !isAtNewestEdge && (baseState.reading?.hasNewContent ?: (newPostCount > 0))
         override val lazyListState = lazyListState
         override val newPostsCount = newPostCount
 
@@ -303,6 +318,16 @@ internal fun rememberTimelineWithLazyListState(
         }
     }
 }
+
+private const val NEWEST_EDGE_SLOP_DP = 16
+
+private fun LazyStaggeredGridState.showsAtNewestEdge(
+    key: String?,
+    slop: Int,
+): Boolean =
+    key != null &&
+        !isScrollInProgress &&
+        layoutInfo.visibleItemsInfo.any { it.key == key && it.offset.y >= -slop }
 
 private data class GapScrollAnchor(
     val itemKey: String,
