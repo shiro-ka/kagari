@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.theme.PlatformTheme
@@ -44,9 +45,9 @@ public fun NetworkImage(
             if (onIntrinsicSize == null) {
                 shareObserver
             } else {
-                { state ->
+                { state: AsyncImagePainter.State.Success ->
                     shareObserver?.invoke(state)
-                    state.painter?.let { onIntrinsicSize(it.intrinsicSize) }
+                    onIntrinsicSize(state.painter.intrinsicSize)
                 }
             },
         onError = shareObserver,
