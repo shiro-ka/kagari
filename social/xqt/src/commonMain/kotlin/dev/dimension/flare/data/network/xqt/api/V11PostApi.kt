@@ -172,6 +172,20 @@ internal interface V11PostApi {
     ): Response<Unit>
 
     @FormUrlEncoded
+    @POST("1.1/mutes/conversations/create.json")
+    suspend fun postKagariMuteConversation(
+        @Field("tweet_id") tweetId: kotlin.String,
+        @Field("tweet_mode") tweetMode: kotlin.String = "extended",
+    ): Response<Unit>
+
+    @FormUrlEncoded
+    @POST("1.1/mutes/conversations/destroy.json")
+    suspend fun postKagariUnmuteConversation(
+        @Field("tweet_id") tweetId: kotlin.String,
+        @Field("tweet_mode") tweetMode: kotlin.String = "extended",
+    ): Response<Unit>
+
+    @FormUrlEncoded
     @POST("1.1/mutes/users/destroy.json")
     suspend fun postMutesUsersDestroy(
         @Field("user_id") userId: kotlin.String = "44196397",
@@ -204,4 +218,17 @@ internal interface V11PostApi {
         @Query("request_id") requestId: kotlin.String,
         @Body body: AddToConversationRequest,
     ): Response<Unit>
+}
+
+internal suspend fun V11PostApi.kagariSetConversationMuted(
+    tweetId: String,
+    mute: Boolean,
+) {
+    val response =
+        if (mute) {
+            postKagariMuteConversation(tweetId = tweetId)
+        } else {
+            postKagariUnmuteConversation(tweetId = tweetId)
+        }
+    check(response.isSuccessful) { "X could not change the conversation mute (HTTP ${response.code})" }
 }

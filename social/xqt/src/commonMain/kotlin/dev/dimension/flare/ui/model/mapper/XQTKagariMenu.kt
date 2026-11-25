@@ -9,6 +9,7 @@ import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
+import dev.dimension.flare.ui.route.KagariMuteThreadRoute
 import dev.dimension.flare.ui.route.KagariPinPostRoute
 
 internal fun Tweet.kagariIsReplyInOwnConversation(
@@ -85,3 +86,36 @@ internal fun kagariXqtPinMenu(
         )
     }
 }
+
+internal fun kagariXqtMuteThreadMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+    muted: Boolean?,
+): List<ActionMenu> =
+    when (muted) {
+        null -> listOf(true, false)
+        true -> listOf(false)
+        false -> listOf(true)
+    }.map { mute ->
+        ActionMenu.Item(
+            icon = if (mute) UiIcon.KagariMuteThread else UiIcon.KagariUnmuteThread,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type =
+                        if (mute) {
+                            ActionMenu.Item.Text.Localized.Type.KagariMuteThread
+                        } else {
+                            ActionMenu.Item.Text.Localized.Type.KagariUnmuteThread
+                        },
+                ),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariMuteThreadRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        rootUri = statusKey.id,
+                        mute = mute,
+                    ),
+                ),
+        )
+    }

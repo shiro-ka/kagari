@@ -49,6 +49,7 @@ import dev.dimension.flare.data.network.xqt.XQTMediaUploader
 import dev.dimension.flare.data.network.xqt.XQTService
 import dev.dimension.flare.data.network.xqt.api.XQT_POLL_CONFIG
 import dev.dimension.flare.data.network.xqt.api.createPoll
+import dev.dimension.flare.data.network.xqt.api.kagariSetConversationMuted
 import dev.dimension.flare.data.network.xqt.api.kagariSetPinned
 import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import dev.dimension.flare.data.network.xqt.api.publishTweet
@@ -341,6 +342,13 @@ internal class XQTDataSource(
         pin: Boolean,
     ) {
         service.kagariSetPinned(statusKey.id, pin)
+    }
+
+    override suspend fun kagariSetThreadMuted(
+        rootId: String,
+        mute: Boolean,
+    ) {
+        service.kagariSetConversationMuted(rootId, mute)
     }
 
     override val listHandler: ListHandler<UiList.List> =

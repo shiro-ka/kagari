@@ -110,4 +110,6 @@ internal data class TweetLegacy(
     val quotedStatusPermalink: QuotedStatusPermalink? = null,
     @SerialName(value = "scopes")
     val scopes: TweetLegacyScopes? = null,
+    @SerialName(value = "conversation_muted")
+    val conversationMuted: kotlin.Boolean? = null,
 )

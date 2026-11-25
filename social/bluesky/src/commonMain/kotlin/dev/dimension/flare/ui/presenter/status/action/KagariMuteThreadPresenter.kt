@@ -4,12 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import app.bsky.graph.MuteThreadRequest
 import app.bsky.graph.UnmuteThreadRequest
+import dev.dimension.flare.data.datasource.bluesky.BlueskyDataSource
+import dev.dimension.flare.data.datasource.microblog.KagariPostModerationSource
 import dev.dimension.flare.data.repository.AccountService
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.ui.presenter.PresenterBase
 import dev.dimension.flare.ui.presenter.kagariSubmit
-import dev.dimension.flare.ui.presenter.rememberKagariBluesky
+import dev.dimension.flare.ui.presenter.rememberKagariService
 import kotlinx.coroutines.CoroutineScope
 import sh.christian.ozone.api.AtUri
 
@@ -22,21 +24,27 @@ public class KagariMuteThreadPresenter(
 
     @Composable
     override fun body(): KagariMuteThreadState {
-        val dataSource = accountService.rememberKagariBluesky(accountType)
+        val service = accountService.rememberKagariService(accountType)
+        val dataSource = service as? BlueskyDataSource
+        val moderation = service as? KagariPostModerationSource
         return object : KagariMuteThreadState {
-            override val ready: Boolean = dataSource != null
+            override val ready: Boolean = dataSource != null || moderation != null
 
             override fun setMuted(
                 mute: Boolean,
                 onResult: (Boolean) -> Unit,
             ) {
-                val source = dataSource ?: return onResult(false)
+                if (dataSource == null && moderation == null) return onResult(false)
                 scope.kagariSubmit(onResult = onResult) {
-                    val service = source.kagariService()
-                    if (mute) {
-                        service.muteThread(MuteThreadRequest(root = AtUri(rootUri))).requireResponse()
+                    if (dataSource != null) {
+                        val bluesky = dataSource.kagariService()
+                        if (mute) {
+                            bluesky.muteThread(MuteThreadRequest(root = AtUri(rootUri))).requireResponse()
+                        } else {
+                            bluesky.unmuteThread(UnmuteThreadRequest(root = AtUri(rootUri))).requireResponse()
+                        }
                     } else {
-                        service.unmuteThread(UnmuteThreadRequest(root = AtUri(rootUri))).requireResponse()
+                        moderation?.kagariSetThreadMuted(rootUri, mute)
                     }
                 }
             }

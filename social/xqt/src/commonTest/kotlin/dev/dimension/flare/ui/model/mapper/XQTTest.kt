@@ -43,6 +43,7 @@ import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
+import dev.dimension.flare.ui.route.KagariMuteThreadRoute
 import dev.dimension.flare.ui.route.KagariPinPostRoute
 import kotlinx.serialization.json.JsonElement
 import org.koin.core.context.startKoin
@@ -1126,6 +1127,42 @@ class XQTTest {
             assertFalse(events.contains(ClickEvent.Deeplink(pinRoute(pin))))
         }
     }
+
+    @Test
+    fun renderStatus_mutedConversation_offersOnlyUnmute() {
+        val tweet = createPlainTweet().let { it.copy(legacy = it.legacy?.copy(conversationMuted = true)) }
+        val events = tweet.renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        assertTrue(events.contains(ClickEvent.Deeplink(muteThreadRoute(mute = false))))
+        assertFalse(events.contains(ClickEvent.Deeplink(muteThreadRoute(mute = true))))
+    }
+
+    @Test
+    fun renderStatus_unknownConversationMute_offersMuteAndUnmute() {
+        val events = createPlainTweet().renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        listOf(true, false).forEach { mute ->
+            assertTrue(events.contains(ClickEvent.Deeplink(muteThreadRoute(mute))))
+        }
+    }
+
+    @Test
+    fun decodeTweetLegacy_readsConversationMuted() {
+        val legacy =
+            XQT_JSON.decodeFromString<TweetLegacy>(
+                """{"id_str":"1","full_text":"","display_text_range":[0,0],"entities":{},"created_at":"Wed Oct 10 20:19:24 +0000 2018","favorite_count":0,"favorited":false,"is_quote_status":false,"lang":"en","quote_count":0,"reply_count":0,"retweet_count":0,"retweeted":false,"conversation_muted":true}""",
+            )
+
+        assertEquals(true, legacy.conversationMuted)
+    }
+
+    private fun muteThreadRoute(mute: Boolean) =
+        KagariMuteThreadRoute(
+            statusKey = MicroBlogKey("123", accountKey.host),
+            accountType = AccountType.Specific(accountKey),
+            rootUri = "123",
+            mute = mute,
+        )
 
     private fun createOwnTweet(pinnedIds: List<String>?): Tweet {
         val me = createUser(id = accountKey.id).let { it.copy(legacy = it.legacy.copy(pinnedTweetIdsStr = pinnedIds)) }

@@ -12,4 +12,9 @@ public interface KagariPostModerationSource {
         statusKey: MicroBlogKey,
         pin: Boolean,
     )
+
+    public suspend fun kagariSetThreadMuted(
+        rootId: String,
+        mute: Boolean,
+    )
 }
