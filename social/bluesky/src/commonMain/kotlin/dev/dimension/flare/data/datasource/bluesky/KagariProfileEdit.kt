@@ -3,6 +3,7 @@ package dev.dimension.flare.data.datasource.bluesky
 import app.bsky.actor.GetProfileQueryParams
 import com.atproto.repo.CreateRecordRequest
 import com.atproto.repo.DeleteRecordRequest
+import dev.dimension.flare.data.datasource.microblog.KagariProfileImage
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -29,11 +30,6 @@ public data class KagariProfileDraft(
     val links: List<KagariProfileLink>,
     val avatarUrl: String?,
     val bannerUrl: String?,
-)
-
-public class KagariProfileImage(
-    public val bytes: ByteArray,
-    public val mimeType: String,
 )
 
 public fun MicroblogDataSource.kagariSupportsProfileEdit(): Boolean = this is BlueskyDataSource

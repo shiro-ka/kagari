@@ -52,8 +52,8 @@ import compose.icons.fontawesomeicons.solid.Trash
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.R
 import dev.dimension.flare.data.datasource.bluesky.KagariProfileDraft
-import dev.dimension.flare.data.datasource.bluesky.KagariProfileImage
 import dev.dimension.flare.data.datasource.bluesky.KagariProfileLink
+import dev.dimension.flare.data.datasource.microblog.KagariProfileImage
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.NetworkImage

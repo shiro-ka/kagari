@@ -8,10 +8,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.dimension.flare.data.datasource.bluesky.KagariProfileDraft
-import dev.dimension.flare.data.datasource.bluesky.KagariProfileImage
 import dev.dimension.flare.data.datasource.bluesky.kagariLoadProfileDraft
 import dev.dimension.flare.data.datasource.bluesky.kagariSaveProfile
 import dev.dimension.flare.data.datasource.bluesky.kagariSupportsProfileEdit
+import dev.dimension.flare.data.datasource.microblog.KagariProfileImage
 import dev.dimension.flare.data.repository.AccountService
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.AccountType
