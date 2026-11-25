@@ -48,6 +48,7 @@ internal class UserTimelineRemoteMediator(
                 withReplies -> GetAuthorFeedFilter.PostsWithReplies
                 else -> GetAuthorFeedFilter.PostsAndAuthorThreads
             }
+        val includePins = !kagariOnlyVideo && !onlyMedia
         val response =
             when (request) {
                 PagingRequest.Refresh -> {
@@ -57,7 +58,7 @@ internal class UserTimelineRemoteMediator(
                                 limit = pageSize.toLong(),
                                 actor = Did(did = userKey.id),
                                 filter = filter,
-                                includePins = true,
+                                includePins = includePins,
                             ),
                         ).maybeResponse()
                 }
@@ -76,7 +77,7 @@ internal class UserTimelineRemoteMediator(
                                 cursor = request.nextKey,
                                 actor = Did(did = userKey.id),
                                 filter = filter,
-                                includePins = true,
+                                includePins = includePins,
                             ),
                         ).maybeResponse()
                 }
