@@ -143,4 +143,12 @@ internal data class PostCreateTweetRequestFeatures(
     val rwebConversationalRepliesDownvoteEnabled: kotlin.Boolean = false,
     @SerialName(value = "rweb_tipjar_consumption_enabled")
     val rwebTipjarConsumptionEnabled: kotlin.Boolean = false,
+    @SerialName(value = "responsive_web_nested_quote_preview_enabled")
+    val responsiveWebNestedQuotePreviewEnabled: kotlin.Boolean = true,
+    @SerialName(value = "rweb_sports_post_context_enabled")
+    val rwebSportsPostContextEnabled: kotlin.Boolean = true,
+    @SerialName(value = "x_elections_post_context_enabled")
+    val xElectionsPostContextEnabled: kotlin.Boolean = true,
+    @SerialName(value = "responsive_web_made_on_x_label_enabled")
+    val responsiveWebMadeOnXLabelEnabled: kotlin.Boolean = false,
 )

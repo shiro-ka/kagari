@@ -16,7 +16,7 @@ class XQTMutationQueryIdsTest {
     @Test
     fun mutationRequestDefaultsMatchEndpointQueryIds() {
         assertEquals("mbRO74GrOvSfRcJnlMapnQ", XQTMutationQueryIds.CREATE_RETWEET)
-        assertEquals("5CdvsV_zjv4L64XFifAglw", XQTMutationQueryIds.CREATE_TWEET)
+        assertEquals("l4hk8uVGvR-a8kzQ4nOhPA", XQTMutationQueryIds.CREATE_TWEET)
         assertEquals("ZyZigVsNiFO6v1dEks1eWg", XQTMutationQueryIds.DELETE_RETWEET)
 
         assertEquals(

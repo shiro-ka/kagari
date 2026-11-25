@@ -50,6 +50,17 @@ class CreateTweetTest {
     }
 
     @Test
+    fun featuresIncludeTheSwitchesTheWebSendsWithCreateTweet() {
+        val features = XQT_JSON.encodeToJsonElement(PostCreateTweetRequestFeatures()).jsonObject
+        listOf(
+            "responsive_web_nested_quote_preview_enabled",
+            "rweb_sports_post_context_enabled",
+            "x_elections_post_context_enabled",
+            "responsive_web_made_on_x_label_enabled",
+        ).forEach { assertContains(features.keys, it) }
+    }
+
+    @Test
     fun requestIncludesPollCardUriWhenPresent() {
         val variables =
             PostCreateTweetRequestVariables(

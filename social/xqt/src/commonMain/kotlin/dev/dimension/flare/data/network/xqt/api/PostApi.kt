@@ -72,7 +72,7 @@ internal interface PostApi {
      * Responses:
      *  - 200: Successful operation
      *
-     * @param pathQueryId  (default to "5CdvsV_zjv4L64XFifAglw")
+     * @param pathQueryId  (default to "l4hk8uVGvR-a8kzQ4nOhPA")
      * @param postCreateTweetRequest body
      * @return [CreateTweetResponse]
      */
