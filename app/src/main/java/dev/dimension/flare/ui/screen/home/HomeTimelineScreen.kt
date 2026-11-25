@@ -69,9 +69,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -81,6 +84,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -258,11 +262,21 @@ internal fun HomeTimelineScreen(
             }
         }
     } else {
+        val topAppBarPinned = LocalGlobalAppearance.current.bottomBarBehavior == BottomBarBehavior.AlwaysShow
         val topAppBarScrollBehavior =
-            if (LocalGlobalAppearance.current.bottomBarBehavior == BottomBarBehavior.AlwaysShow) {
+            if (topAppBarPinned) {
                 TopAppBarDefaults.pinnedScrollBehavior()
             } else {
                 TopAppBarDefaults.enterAlwaysScrollBehavior()
+            }
+        val newestEdge = timelineNewestEdge(isHomeTimeline = true)
+        val topAppBarScrollConnection =
+            remember(topAppBarPinned, newestEdge, topAppBarScrollBehavior) {
+                if (topAppBarPinned) {
+                    topAppBarScrollBehavior.nestedScrollConnection
+                } else {
+                    newestEdge.topAppBarScrollConnection(topAppBarScrollBehavior.nestedScrollConnection)
+                }
             }
         FlareScaffold(
             topBar = {
@@ -445,7 +459,7 @@ internal fun HomeTimelineScreen(
                     },
                 )
             },
-            modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
+            modifier = Modifier.nestedScroll(topAppBarScrollConnection),
         ) { contentPadding ->
             state.pagerState.onSuccess { pagerState ->
                 state.tabState.onSuccess tabs@{ tabState ->
@@ -618,8 +632,7 @@ private fun KagariTimelineItemContentBody(
     lazyStaggeredGridState: LazyStaggeredGridState,
 ) {
     val isBigScreen = isBigScreen()
-    val newestEdge =
-        if (isHomeTimeline && LocalAppSettings.current.timelineNewestAtBottom) TimelineNewestEdge.Bottom else TimelineNewestEdge.Top
+    val newestEdge = timelineNewestEdge(isHomeTimeline)
     val layoutDirection = LocalLayoutDirection.current
     val paddingWithStatusBar =
         PaddingValues(
@@ -820,6 +833,38 @@ private enum class TimelineNewestEdge(
 ) {
     Top(reverseLayout = false, alignment = Alignment.TopCenter, slideDirection = -1, icon = FontAwesomeIcons.Solid.AnglesUp),
     Bottom(reverseLayout = true, alignment = Alignment.BottomCenter, slideDirection = 1, icon = FontAwesomeIcons.Solid.AnglesDown),
+    ;
+
+    fun topAppBarScrollConnection(inner: NestedScrollConnection): NestedScrollConnection =
+        when (this) {
+            Top -> inner
+            Bottom -> NewestAtBottomTopAppBarScrollConnection(inner)
+        }
+}
+
+@Composable
+private fun timelineNewestEdge(isHomeTimeline: Boolean): TimelineNewestEdge =
+    if (isHomeTimeline && LocalAppSettings.current.timelineNewestAtBottom) TimelineNewestEdge.Bottom else TimelineNewestEdge.Top
+
+private class NewestAtBottomTopAppBarScrollConnection(
+    private val inner: NestedScrollConnection,
+) : NestedScrollConnection {
+    override fun onPostScroll(
+        consumed: Offset,
+        available: Offset,
+        source: NestedScrollSource,
+    ): Offset {
+        inner.onPostScroll(consumed.copy(y = -consumed.y), available.copy(y = -available.y), source)
+        return Offset.Zero
+    }
+
+    override suspend fun onPostFling(
+        consumed: Velocity,
+        available: Velocity,
+    ): Velocity {
+        inner.onPostFling(consumed.copy(y = -consumed.y), available.copy(y = -available.y))
+        return Velocity.Zero
+    }
 }
 
 @Composable
