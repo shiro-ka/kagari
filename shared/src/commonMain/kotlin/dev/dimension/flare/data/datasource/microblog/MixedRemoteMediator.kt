@@ -45,8 +45,7 @@ internal class MixedRemoteMediator(
 
     override suspend fun sortId(data: UiTimelineV2): Long? =
         if (mergePolicy == TimelineMergePolicy.Time) {
-            val tieBreaker = (data.stableItemKey.hashCode().toLong() - Int.MIN_VALUE.toLong()) % 10_000L
-            -data.createdAt.value.toEpochMilliseconds() * 10_000L + tieBreaker
+            MixedTimelinePageLoader.timeSortId(data)
         } else {
             null
         }

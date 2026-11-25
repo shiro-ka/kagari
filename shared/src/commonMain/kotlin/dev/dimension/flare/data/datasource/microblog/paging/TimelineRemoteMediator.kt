@@ -16,6 +16,7 @@ import dev.dimension.flare.data.database.cache.model.DbPagingTimeline
 import dev.dimension.flare.data.database.cache.model.DbPagingTimelineWithStatus
 import dev.dimension.flare.data.database.cache.model.DbStatus
 import dev.dimension.flare.data.datasource.microblog.MixedRemoteMediator
+import dev.dimension.flare.data.datasource.microblog.MixedTimelinePageLoader
 import dev.dimension.flare.data.translation.NoopPreTranslationService
 import dev.dimension.flare.data.translation.PreTranslationService
 import dev.dimension.flare.model.AccountType
@@ -79,7 +80,7 @@ internal open class TimelineRemoteMediator(
     private var refreshSharedHomeOnPrepend = false
     private val mixedPageLoader = (loader as? MixedRemoteMediator)?.pageLoader()
     private val ordersByTime = mixedPageLoader?.ordersByTime == true
-    private val fillsGaps = loader !is MixedRemoteMediator && loader.canJoinTimeline
+    private val fillsGaps = if (mixedPageLoader != null) ordersByTime else loader.canJoinTimeline
     private val cachedNextKey = AtomicReference<CachedNextKey?>(null)
     private val gapStates = MutableStateFlow<Map<String, LoadState>>(emptyMap())
     internal val gapActivity: StateFlow<Map<String, LoadState>> = gapStates.asStateFlow()
@@ -195,6 +196,12 @@ internal open class TimelineRemoteMediator(
                 .takeIf {
                     retainHistory == true && loadType == LoadType.REFRESH && it.isNotEmpty() && dao.getFirstRow(pagingKey) != null
                 }.orEmpty()
+        val tailSortId =
+            if (ordersByTime && retainHistory == true && loadType == LoadType.REFRESH) {
+                dao.getPreviousSortId(pagingKey, null)
+            } else {
+                null
+            }
         val result =
             fetchPage(
                 pageSize,
@@ -202,6 +209,7 @@ internal open class TimelineRemoteMediator(
                 boundary,
                 checkCachedItems = retainHistory == true && loadType == LoadType.REFRESH,
                 refreshWithoutGap = refreshWithoutGap,
+                tailSortId = tailSortId,
             )
         val mapped =
             TimelinePagingMapper.toDb(
@@ -219,9 +227,16 @@ internal open class TimelineRemoteMediator(
                     requestContext.ensureActive()
                     if (dao.getPagingKeyMetadata(pagingKey) != before) return@connect false
                     val first = dao.getFirstRow(pagingKey)
+                    val existing = if (retainHistory == true) existingRows(mapped) else emptyMap()
+                    val hasNewHead =
+                        mapped.any {
+                            it.timeline._id !in existing && (!ordersByTime || first == null || it.timeline.sortId < first.sortId)
+                        }
                     val (gapNext, tailUpdates) =
                         if (retainHistory == true && loadType == LoadType.REFRESH && first != null && loader is MixedRemoteMediator) {
-                            checkNotNull(mixedPageLoader).splitContinuation(result.nextKey, boundary.keys)
+                            checkNotNull(mixedPageLoader).splitContinuation(result.nextKey, boundary.keys) {
+                                hasNewHead && (tailSortId == null || MixedTimelinePageLoader.timeSortId(it) * 2 <= tailSortId)
+                            }
                         } else {
                             result.nextKey to null
                         }
@@ -232,7 +247,6 @@ internal open class TimelineRemoteMediator(
                     val updateTail = tailUpdates != null || refreshedRecommendations.isNotEmpty()
                     val updatedTail = if (updateTail) mergeTailContinuation(tailUpdates, refreshedRecommendations) else null
                     if (retainHistory == true && loadType == LoadType.APPEND && result.nextKey != null) {
-                        val existing = existingRows(mapped)
                         check(
                             continuationIdentity(result.nextKey) != continuationIdentity((request as PagingRequest.Append).nextKey) ||
                                 mapped.any { it.timeline._id !in existing },
@@ -241,11 +255,6 @@ internal open class TimelineRemoteMediator(
                         }
                     }
                     if (retainHistory == true) {
-                        val existing = existingRows(mapped)
-                        val hasNewHead =
-                            mapped.any {
-                                it.timeline._id !in existing && (!ordersByTime || first == null || it.timeline.sortId < first.sortId)
-                            }
                         val gap =
                             if (loadType == LoadType.REFRESH && first != null && hasNewHead && gapNext != null) {
                                 UiTimelineV2.Gap(
@@ -260,13 +269,11 @@ internal open class TimelineRemoteMediator(
                         createdGap = gap
                         val gapRows = if (gap != null) TimelinePagingMapper.toDb(listOf(gap), pagingKey) else emptyList()
                         if (ordersByTime) {
-                            // Post ranks are even; a Gap occupies the slot just before its old lower neighbour.
+                            val frontier = checkNotNull(mixedPageLoader).frontier(result.nextKey, boundary)
+                            val position = gapSortId(frontier) ?: (checkNotNull(first).sortId - 1)
                             saveToDatabase(
                                 database,
-                                mapped +
-                                    gapRows.map {
-                                        it.copy(timeline = it.timeline.copy(sortId = checkNotNull(first).sortId - 1))
-                                    },
+                                mapped + gapRows.map { it.copy(timeline = it.timeline.copy(sortId = position)) },
                             )
                         } else {
                             val overlap = if (gapRows.isNotEmpty()) existing.values.maxByOrNull { it.sortId } else null
@@ -310,7 +317,7 @@ internal open class TimelineRemoteMediator(
         }
         result.sourceFailures.forEach(notifyError)
         val filling = createdGap
-        if (filling != null && fillsGaps && loader.canContinueGapFill && !deadline.hasPassedNow()) {
+        if (filling != null && canContinueGapFill(filling) && !deadline.hasPassedNow()) {
             try {
                 loadGap(filling, pageSize, deadline, continuing = true)
             } catch (error: Exception) {
@@ -355,32 +362,45 @@ internal open class TimelineRemoteMediator(
     ): GapLoadResult {
         var current = gap
         var waits = continuing
+        var failure: Throwable? = null
         val insertedKeys = mutableListOf<String>()
         while (true) {
             if (waits) {
-                delay(loader.gapFillInterval)
-                if (deadline.hasPassedNow()) return GapLoadResult(insertedKeys.distinct(), next = current)
+                delay(gapFillInterval(current))
+                if (deadline.hasPassedNow()) return GapLoadResult(insertedKeys.distinct(), failure, current)
             }
             val page =
                 try {
-                    loadGapPage(current, pageSize)
+                    loadGapPage(current, pageSize, insist = !waits)
                 } catch (error: Exception) {
                     if (error is kotlinx.coroutines.CancellationException || current === gap) throw error
                     return GapLoadResult(insertedKeys.distinct(), error)
                 }
             insertedKeys += page.insertedKeys
+            failure = failure ?: page.failure
             val next = page.next
-            if (next == null || page.failure != null || !fillsGaps || !loader.canContinueGapFill || deadline.hasPassedNow()) {
-                return page.copy(insertedKeys = insertedKeys.distinct())
+            if (next == null || (page.failure != null && mixedPageLoader == null) || !canContinueGapFill(next) ||
+                deadline.hasPassedNow()
+            ) {
+                return page.copy(insertedKeys = insertedKeys.distinct(), failure = failure)
             }
             current = next
             waits = true
         }
     }
 
+    private fun canContinueGapFill(gap: UiTimelineV2.Gap): Boolean =
+        fillsGaps && (mixedPageLoader?.canContinueGapFill(gap.nextKey, gap.lowerBound) ?: loader.canContinueGapFill)
+
+    private fun gapFillInterval(gap: UiTimelineV2.Gap): Duration =
+        mixedPageLoader?.gapFillInterval(gap.nextKey, gap.lowerBound) ?: loader.gapFillInterval
+
+    private fun gapSortId(frontier: Long?): Long? = frontier?.takeIf { it != Long.MIN_VALUE }?.let { it * 2 + 1 }
+
     private suspend fun loadGapPage(
         gap: UiTimelineV2.Gap,
         pageSize: Int,
+        insist: Boolean,
     ): GapLoadResult {
         check(retainHistory == true)
         val dao = database.pagingTimelineDao()
@@ -391,18 +411,11 @@ internal open class TimelineRemoteMediator(
         val result =
             try {
                 if (ordersByTime && loader is MixedRemoteMediator) {
-                    val pages = checkNotNull(mixedPageLoader)
-                    val pending = pages.drainPending(gap.nextKey)
-                    val (continuation, tail) = pages.splitContinuation(pending.nextKey, gap.lowerBound.keys)
+                    val (continuation, tail) = checkNotNull(mixedPageLoader).splitContinuation(gap.nextKey, gap.lowerBound.keys) { true }
                     migratedTail = tail
-                    val loaded =
-                        continuation?.let {
-                            fetchPage(pageSize, PagingRequest.Append(it), gap.lowerBound, checkCachedItems = true)
-                        } ?: PagingResult()
-                    loaded.copy(
-                        data = (pending.data + loaded.data).distinctBy { it.stableItemKey },
-                        sourceHeads = loaded.sourceHeads + pending.sourceHeads,
-                    )
+                    continuation?.let {
+                        fetchPage(pageSize, PagingRequest.Append(it), gap.lowerBound, checkCachedItems = true, insist = insist)
+                    } ?: PagingResult()
                 } else if (hasJoinedSingleSourceGap(gap, gapRow._id)) {
                     PagingResult()
                 } else {
@@ -432,7 +445,7 @@ internal open class TimelineRemoteMediator(
             if (current.revision != gap.revision || current.nextKey != gap.nextKey) return@connect
             val (gapNext, tailUpdates) =
                 if (loader is MixedRemoteMediator) {
-                    checkNotNull(mixedPageLoader).splitContinuation(result.nextKey, gap.lowerBound.keys)
+                    checkNotNull(mixedPageLoader).splitContinuation(result.nextKey, gap.lowerBound.keys) { true }
                 } else {
                     result.nextKey to null
                 }
@@ -464,12 +477,15 @@ internal open class TimelineRemoteMediator(
                     dao.delete(listOf(row))
                     savePreservingOrder(listOf(nextRow), dao.getRowAfter(pagingKey, overlap._id)?._id)
                 } else {
-                    saveToDatabase(
-                        database,
-                        listOf(
-                            nextRow.copy(timeline = nextRow.timeline.copy(sortId = checkNotNull(dao.getRow(pagingKey, row._id)).sortId)),
-                        ),
-                    )
+                    val kept = checkNotNull(dao.getRow(pagingKey, row._id)).sortId
+                    val sortId =
+                        if (ordersByTime) {
+                            val frontier = checkNotNull(mixedPageLoader).frontier(result.nextKey, gap.lowerBound)
+                            gapSortId(frontier)?.let { maxOf(kept, it) } ?: kept
+                        } else {
+                            kept
+                        }
+                    saveToDatabase(database, listOf(nextRow.copy(timeline = nextRow.timeline.copy(sortId = sortId))))
                 }
             }
             val sourceHeads = Json.decodeFromString<Map<String, List<String>>>(currentKey.sourceHeads)
@@ -542,13 +558,9 @@ internal open class TimelineRemoteMediator(
         boundary: Map<String, List<String>>,
         checkCachedItems: Boolean,
         refreshWithoutGap: Set<String> = emptySet(),
+        tailSortId: Long? = null,
+        insist: Boolean = false,
     ): PagingResult<UiTimelineV2> {
-        val tailSortId =
-            if (ordersByTime && checkCachedItems && request is PagingRequest.Refresh) {
-                database.pagingTimelineDao().getPreviousSortId(pagingKey, null)
-            } else {
-                null
-            }
         val result =
             if (loader is MixedRemoteMediator) {
                 checkNotNull(mixedPageLoader).loadPage(
@@ -560,8 +572,9 @@ internal open class TimelineRemoteMediator(
                         checkCachedItems &&
                             (request is PagingRequest.Append || boundary.isNotEmpty() || database.pagingTimelineDao().anyPaging(pagingKey)),
                     boundary = boundary,
-                    // Keep older refresh posts buffered until ordinary pagination reaches them.
                     canPublish = { tailSortId == null || checkNotNull(homeSortId(it)) <= tailSortId },
+                    alignSources = ordersByTime && checkCachedItems,
+                    insist = insist,
                 )
             } else {
                 loader.load(loader.remotePageSize ?: pageSize, request).let { response ->

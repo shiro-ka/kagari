@@ -14,6 +14,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.concurrent.atomics.AtomicReference
+import kotlin.time.Duration
 
 /** Self-contained mixed continuations: at most one pending remote page per source. */
 internal class MixedTimelinePageLoader(
@@ -39,6 +40,8 @@ internal class MixedTimelinePageLoader(
         val next: String? = null,
         val pending: List<UiTimelineV2> = emptyList(),
         val sourceHeads: Map<String, List<String>> = emptyMap(),
+        val floor: Long? = null,
+        val failed: Boolean = false,
     ) {
         val canLoad: Boolean get() = !started || next != null
     }
@@ -68,34 +71,77 @@ internal class MixedTimelinePageLoader(
         nextKey: String?,
         boundarySources: Set<String>,
         orderedOnly: Boolean = ordersByTime,
+        keepInGap: (UiTimelineV2) -> Boolean = { false },
     ): Pair<String?, String?> {
         if (nextKey == null) return null to null
-        if (boundarySources.isEmpty()) return null to nextKey
+        if (boundarySources.isEmpty() && !orderedOnly) return null to nextKey
         if (!orderedOnly && allSourcesHaveBoundary(boundarySources, orderedOnly)) return nextKey to null
         val gap = mutableListOf<SourcePage>()
         val tail = mutableListOf<SourcePage>()
         decodeContinuation(nextKey).forEachIndexed { index, page ->
             val source = sources[index]
+            val (kept, rest) = if (orderedOnly) page.pending.partition(keepInGap) else emptyList<UiTimelineV2>() to page.pending
             when {
                 source is MixedTimelinePageLoader -> {
-                    val (gapNext, tailNext) = source.splitContinuation(page.next, boundarySources, orderedOnly)
-                    gap += page.copy(next = gapNext, pending = if (orderedOnly) emptyList() else page.pending)
-                    tail += page.copy(next = tailNext)
+                    val (gapNext, tailNext) = source.splitContinuation(page.next, boundarySources, orderedOnly, keepInGap)
+                    gap += page.copy(next = gapNext, pending = if (orderedOnly) kept else page.pending)
+                    tail += page.copy(next = tailNext, pending = rest)
                 }
 
                 source.pagingKey in boundarySources && (!orderedOnly || (source.canJoinTimeline && page.canLoad)) -> {
-                    gap += if (orderedOnly) page.copy(pending = emptyList()) else page
-                    tail += if (orderedOnly) page.copy(next = null) else SourcePage(started = true)
+                    gap += if (orderedOnly) page.copy(pending = kept) else page
+                    tail += if (orderedOnly) page.copy(next = null, pending = rest) else SourcePage(started = true)
                 }
 
                 else -> {
-                    gap += SourcePage(started = true)
-                    tail += page
+                    gap += SourcePage(started = true, pending = kept, sourceHeads = if (kept.isEmpty()) emptyMap() else page.sourceHeads)
+                    tail += page.copy(pending = rest)
                 }
             }
         }
         return encodeContinuation(gap) to encodeContinuation(tail)
     }
+
+    fun frontier(
+        nextKey: String?,
+        boundary: Map<String, List<String>>,
+    ): Long? = nextKey?.let { frontier(decodeContinuation(it), boundary) }
+
+    fun canContinueGapFill(
+        nextKey: String,
+        boundary: Map<String, List<String>>,
+    ): Boolean = shallowest(decodeContinuation(nextKey), boundary, ignoreLimits = false) != null
+
+    fun gapFillInterval(
+        nextKey: String,
+        boundary: Map<String, List<String>>,
+    ): Duration =
+        shallowest(decodeContinuation(nextKey), boundary, ignoreLimits = false)?.let { sources[it].gapFillInterval } ?: Duration.ZERO
+
+    private fun isOpen(
+        index: Int,
+        page: SourcePage,
+        boundary: Map<String, List<String>>,
+        ignoreLimits: Boolean,
+    ): Boolean {
+        val source = sources[index]
+        return source.canJoinTimeline && source.pagingKey in boundary && page.started && page.next != null && !page.failed &&
+            (ignoreLimits || source.canContinueGapFill)
+    }
+
+    private fun shallowest(
+        pages: List<SourcePage>,
+        boundary: Map<String, List<String>>,
+        ignoreLimits: Boolean,
+    ): Int? =
+        pages.indices
+            .filter { isOpen(it, pages[it], boundary, ignoreLimits) }
+            .minByOrNull { pages[it].floor ?: Long.MIN_VALUE }
+
+    private fun frontier(
+        pages: List<SourcePage>,
+        boundary: Map<String, List<String>>,
+    ): Long? = shallowest(pages, boundary, ignoreLimits = false)?.let { pages[it].floor ?: Long.MIN_VALUE }
 
     private fun allSourcesHaveBoundary(
         boundarySources: Set<String>,
@@ -242,6 +288,13 @@ internal class MixedTimelinePageLoader(
             }
         }
 
+    internal companion object {
+        fun timeSortId(item: UiTimelineV2): Long {
+            val tieBreaker = (item.stableItemKey.hashCode().toLong() - Int.MIN_VALUE.toLong()) % 10_000L
+            return -item.createdAt.value.toEpochMilliseconds() * 10_000L + tieBreaker
+        }
+    }
+
     fun drainPending(nextKey: String): PagingResult<UiTimelineV2> {
         val pages =
             decodeContinuation(nextKey).mapIndexed { index, page ->
@@ -279,6 +332,8 @@ internal class MixedTimelinePageLoader(
         boundary: Map<String, List<String>> = emptyMap(),
         timeOrdered: Boolean = ordersByTime,
         canPublish: suspend (UiTimelineV2) -> Boolean = { true },
+        alignSources: Boolean = false,
+        insist: Boolean = false,
     ): PagingResult<UiTimelineV2> =
         coroutineScope {
             if (request is PagingRequest.Prepend) return@coroutineScope PagingResult()
@@ -338,7 +393,7 @@ internal class MixedTimelinePageLoader(
                                             canPublish,
                                         )
                                     } else {
-                                        source.load(pageSize, subRequest)
+                                        source.load(if (alignSources) source.remotePageSize ?: pageSize else pageSize, subRequest)
                                     }
                                 val boundaryIndex =
                                     if (source.canJoinTimeline) {
@@ -408,7 +463,13 @@ internal class MixedTimelinePageLoader(
                                 }
                             val heads = fetchedHeads + previous.sourceHeads.filterValues { it.isNotEmpty() }
                             val fetched = if (ordersByTime) result.data.sortedByDescending { it.createdAt.value } else result.data
-                            pages[index] = SourcePage(true, result.nextKey, previous.pending + fetched, heads)
+                            val floor =
+                                if (alignSources) {
+                                    listOfNotNull(previous.floor, fetched.maxOfOrNull { timeSortId(it) }).maxOrNull()
+                                } else {
+                                    previous.floor
+                                }
+                            pages[index] = SourcePage(true, result.nextKey, previous.pending + fetched, heads, floor)
                             failures += result.sourceFailures
                             result.continuationFailure?.let {
                                 failures += it
@@ -424,6 +485,7 @@ internal class MixedTimelinePageLoader(
                                 pages[index] = pages[index].copy(started = true)
                             } else {
                                 continuationFailure = continuationFailure ?: error
+                                if (alignSources) pages[index] = pages[index].copy(failed = true)
                             }
                             failures += error
                         }
@@ -456,10 +518,23 @@ internal class MixedTimelinePageLoader(
                     }
                 }
             } else {
-                fetch(pages.indices.filter { pages[it].pending.isEmpty() && pages[it].canLoad })
+                if (alignSources && request is PagingRequest.Append) {
+                    if (insist) pages.indices.forEach { pages[it] = pages[it].copy(failed = false) }
+                    var next = shallowest(pages, boundary, ignoreLimits = insist)
+                    val nested = pages.indices.filter { insist && sources[it] is MixedTimelinePageLoader && pages[it].canLoad }
+                    fetch(nested + listOfNotNull(next))
+                    while (next != null && pages[next].failed) {
+                        next = shallowest(pages, boundary, ignoreLimits = insist)
+                        next?.let { fetch(listOf(it)) }
+                    }
+                } else {
+                    fetch(pages.indices.filter { pages[it].pending.isEmpty() && pages[it].canLoad })
+                }
+                val limit = if (alignSources) frontier(pages, boundary) else null
                 val ready =
                     pages.indices.map { index ->
-                        val (published, remaining) = pages[index].pending.partition { canPublish(it) }
+                        val (published, remaining) =
+                            pages[index].pending.partition { (limit == null || timeSortId(it) <= limit) && canPublish(it) }
                         pages[index] = pages[index].copy(pending = remaining)
                         published
                     }
