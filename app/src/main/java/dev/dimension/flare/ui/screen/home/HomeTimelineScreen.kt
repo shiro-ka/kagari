@@ -854,7 +854,10 @@ private class NewestAtBottomTopAppBarScrollConnection(
         available: Offset,
         source: NestedScrollSource,
     ): Offset {
-        inner.onPostScroll(consumed.copy(y = -consumed.y), available.copy(y = -available.y), source)
+        when {
+            consumed.y < 0f -> inner.onPostScroll(Offset(0f, consumed.y), Offset.Zero, source)
+            consumed.y > 0f -> inner.onPostScroll(Offset.Zero, Offset(0f, consumed.y), source)
+        }
         return Offset.Zero
     }
 
@@ -862,7 +865,7 @@ private class NewestAtBottomTopAppBarScrollConnection(
         consumed: Velocity,
         available: Velocity,
     ): Velocity {
-        inner.onPostFling(consumed.copy(y = -consumed.y), available.copy(y = -available.y))
+        inner.onPostFling(consumed, available)
         return Velocity.Zero
     }
 }
