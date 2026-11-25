@@ -2577,6 +2577,193 @@ class TimelineGapTest : RobolectricTest() {
             assertEquals(listOf<PagingRequest>(PagingRequest.Append("page-3")), requests)
         }
 
+    @Test
+    fun timeMixedRefreshStopsAtTheShallowestSourceAndPressingReadsItFirst() =
+        runTest {
+            var fresh = false
+            val requests = mutableListOf<Pair<String, PagingRequest>>()
+            val shallow =
+                source("shallow") { request ->
+                    if (fresh) requests += "shallow" to request
+                    when {
+                        !fresh -> PagingResult(listOf(10, 8).map(::datedPost), nextKey = "shallow-tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(100, 90).map(::datedPost), nextKey = "shallow-2")
+                        request == PagingRequest.Append("shallow-2") -> {
+                            PagingResult(listOf(80, 70).map(::datedPost), nextKey = "shallow-3")
+                        }
+
+                        else -> PagingResult(listOf(60, 10).map(::datedPost), nextKey = "shallow-4")
+                    }
+                }
+            val deep =
+                source("deep") { request ->
+                    if (fresh) requests += "deep" to request
+                    when {
+                        !fresh -> PagingResult(listOf(datedPost(9)), nextKey = "deep-tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(95, 85, 75, 65).map(::datedPost), nextKey = "deep-2")
+                        else -> PagingResult(listOf(55, 9).map(::datedPost), nextKey = "deep-3")
+                    }
+                }
+            val loader = MixedRemoteMediator(database, listOf(shallow, deep), TimelineMergePolicy.Time)
+            val seed = TimelineRemoteMediator(loader, database, false, retainHistory = true)
+            seed.load(LoadType.REFRESH, state)
+            assertEquals(listOf("10", "9"), contents(seed).map { it.statusKey.id })
+            fresh = true
+            assertIs<RemoteMediator.MediatorResult.Success>(seed.load(LoadType.REFRESH, state))
+            assertEquals(
+                listOf("100", "95", "90", "gap", "10", "9"),
+                contents(seed).map { if (it is UiTimelineV2.Gap) "gap" else it.statusKey.id },
+            )
+            requests.clear()
+            val gap = contents(seed).filterIsInstance<UiTimelineV2.Gap>().single()
+            val step = seed.loadGap(gap)
+            assertEquals(listOf<Pair<String, PagingRequest>>("shallow" to PagingRequest.Append("shallow-2")), requests)
+            assertEquals(4, step.insertedKeys.size)
+            assertEquals(
+                listOf("100", "95", "90", "85", "80", "75", "70", "gap", "10", "9"),
+                contents(seed).map { if (it is UiTimelineV2.Gap) "gap" else it.statusKey.id },
+            )
+            requests.clear()
+            val home = TimelineRemoteMediator(loader, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            val result = home.loadGap(contents(home).filterIsInstance<UiTimelineV2.Gap>().single())
+            assertEquals(
+                listOf<Pair<String, PagingRequest>>(
+                    "shallow" to PagingRequest.Append("shallow-3"),
+                    "deep" to PagingRequest.Append("deep-2"),
+                ),
+                requests,
+            )
+            assertEquals(null, result.next)
+            assertEquals(null, result.failure)
+            assertEquals(
+                listOf("100", "95", "90", "85", "80", "75", "70", "65", "60", "55", "10", "9"),
+                contents(home).map { it.statusKey.id },
+            )
+            assertEquals(emptyMap<String, LoadState>(), home.gapActivity.value)
+        }
+
+    @Test
+    fun timeMixedRefreshReadsUntilEverySourceJoinsWithEachSourcesPageSize() =
+        runTest {
+            var fresh = false
+            val requests = mutableListOf<Pair<String, PagingRequest>>()
+            val requestsMutex = Mutex()
+            val sizes = mutableListOf<Int>()
+            val shallow =
+                object : CacheableRemoteLoader<UiTimelineV2> {
+                    override val pagingKey = "sized-shallow"
+                    override val canJoinTimeline = true
+                    override val remotePageSize = 100
+
+                    override suspend fun load(
+                        pageSize: Int,
+                        request: PagingRequest,
+                    ): PagingResult<UiTimelineV2> {
+                        if (fresh) {
+                            requestsMutex.withLock {
+                                requests += "shallow" to request
+                                sizes += pageSize
+                            }
+                        }
+                        return when {
+                            !fresh -> PagingResult(listOf(10, 8).map(::datedPost), nextKey = "shallow-tail")
+                            request is PagingRequest.Refresh -> PagingResult(listOf(100, 90).map(::datedPost), nextKey = "shallow-2")
+                            request == PagingRequest.Append("shallow-2") -> {
+                                PagingResult(listOf(80, 70).map(::datedPost), nextKey = "shallow-3")
+                            }
+
+                            else -> PagingResult(listOf(60, 10).map(::datedPost), nextKey = "shallow-4")
+                        }
+                    }
+                }
+            val deep =
+                source("sized-deep") { request ->
+                    if (fresh) requestsMutex.withLock { requests += "deep" to request }
+                    when {
+                        !fresh -> PagingResult(listOf(datedPost(9)), nextKey = "deep-tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(95, 85, 75, 65).map(::datedPost), nextKey = "deep-2")
+                        else -> PagingResult(listOf(55, 9).map(::datedPost), nextKey = "deep-3")
+                    }
+                }
+            val loader = MixedRemoteMediator(database, listOf(shallow, deep), TimelineMergePolicy.Time)
+            val home = TimelineRemoteMediator(loader, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            home.load(LoadType.REFRESH, state)
+            val tail = database.pagingTimelineDao().getNextKey(home.pagingKey)
+            fresh = true
+            assertIs<RemoteMediator.MediatorResult.Success>(home.load(LoadType.REFRESH, state))
+            assertEquals(
+                setOf<Pair<String, PagingRequest>>("shallow" to PagingRequest.Refresh, "deep" to PagingRequest.Refresh),
+                requests.take(2).toSet(),
+            )
+            assertEquals(
+                listOf<Pair<String, PagingRequest>>(
+                    "shallow" to PagingRequest.Append("shallow-2"),
+                    "shallow" to PagingRequest.Append("shallow-3"),
+                    "deep" to PagingRequest.Append("deep-2"),
+                ),
+                requests.drop(2),
+            )
+            assertEquals(listOf(100, 100, 100), sizes)
+            assertEquals(
+                listOf("100", "95", "90", "85", "80", "75", "70", "65", "60", "55", "10", "9"),
+                contents(home).map { it.statusKey.id },
+            )
+            assertEquals(tail, database.pagingTimelineDao().getNextKey(home.pagingKey))
+        }
+
+    @Test
+    fun timeMixedFailedSourceStopsHoldingBackTheOthersUntilTheGapIsPressed() =
+        runTest {
+            var fresh = false
+            var offline = true
+            val requests = mutableListOf<Pair<String, PagingRequest>>()
+            val failing =
+                source("failing-shallow") { request ->
+                    if (fresh) requests += "failing" to request
+                    when {
+                        !fresh -> PagingResult(listOf(10, 8).map(::datedPost), nextKey = "failing-tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(100, 90).map(::datedPost), nextKey = "failing-2")
+                        offline -> error("offline")
+                        else -> PagingResult(listOf(80, 10).map(::datedPost), nextKey = "failing-3")
+                    }
+                }
+            val healthy =
+                source("healthy-deep") { request ->
+                    if (fresh) requests += "healthy" to request
+                    when {
+                        !fresh -> PagingResult(listOf(datedPost(9)), nextKey = "healthy-tail")
+                        request is PagingRequest.Refresh -> PagingResult(listOf(95, 85).map(::datedPost), nextKey = "healthy-2")
+                        else -> PagingResult(listOf(75, 9).map(::datedPost), nextKey = "healthy-3")
+                    }
+                }
+            val loader = MixedRemoteMediator(database, listOf(failing, healthy), TimelineMergePolicy.Time)
+            val home = TimelineRemoteMediator(loader, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            home.load(LoadType.REFRESH, state)
+            fresh = true
+            assertIs<RemoteMediator.MediatorResult.Success>(home.load(LoadType.REFRESH, state))
+            assertEquals(
+                listOf<Pair<String, PagingRequest>>(
+                    "failing" to PagingRequest.Append("failing-2"),
+                    "healthy" to PagingRequest.Append("healthy-2"),
+                ),
+                requests.filter { it.second is PagingRequest.Append },
+            )
+            assertEquals(
+                listOf("100", "95", "90", "gap", "85", "75", "10", "9"),
+                contents(home).map { if (it is UiTimelineV2.Gap) "gap" else it.statusKey.id },
+            )
+            val gap = contents(home).filterIsInstance<UiTimelineV2.Gap>().single()
+            assertIs<LoadState.Error>(home.gapActivity.value[gap.stableItemKey])
+            offline = false
+            requests.clear()
+            val retry = home.loadGap(gap)
+            assertEquals(listOf<Pair<String, PagingRequest>>("failing" to PagingRequest.Append("failing-2")), requests)
+            assertEquals(null, retry.failure)
+            assertEquals(null, retry.next)
+            assertEquals(listOf("100", "95", "90", "85", "80", "75", "10", "9"), contents(home).map { it.statusKey.id })
+            assertEquals(emptyMap<String, LoadState>(), home.gapActivity.value)
+        }
+
     private fun mediator(
         remember: Boolean = true,
         accountKeys: Set<MicroBlogKey> = emptySet(),
