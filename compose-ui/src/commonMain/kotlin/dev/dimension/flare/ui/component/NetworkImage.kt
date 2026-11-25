@@ -46,7 +46,7 @@ public fun NetworkImage(
             } else {
                 { state ->
                     shareObserver?.invoke(state)
-                    onIntrinsicSize(state.painter.intrinsicSize)
+                    state.painter?.let { onIntrinsicSize(it.intrinsicSize) }
                 }
             },
         onError = shareObserver,
