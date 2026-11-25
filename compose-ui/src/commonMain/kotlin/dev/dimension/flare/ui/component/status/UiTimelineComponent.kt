@@ -28,6 +28,7 @@ import compose.icons.fontawesomeicons.solid.Check
 import compose.icons.fontawesomeicons.solid.Xmark
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_hidden_reply
+import dev.dimension.flare.compose.ui.kagari_timeline_show_more
 import dev.dimension.flare.compose.ui.bluesky_notification_item_starterpack_joined
 import dev.dimension.flare.compose.ui.mastodon_item_pinned
 import dev.dimension.flare.compose.ui.mastodon_notification_item_favourited_your_status
@@ -210,7 +211,6 @@ import dev.dimension.flare.compose.ui.misskey_notification_item_scheduled_note_p
 import dev.dimension.flare.compose.ui.misskey_notification_item_test
 import dev.dimension.flare.compose.ui.notification_item_accept_follow_request
 import dev.dimension.flare.compose.ui.notification_item_reject_follow_request
-import dev.dimension.flare.compose.ui.timeline_load_missing_posts
 import dev.dimension.flare.compose.ui.timeline_loading_missing_posts
 import dev.dimension.flare.compose.ui.timeline_retry_missing_posts
 import dev.dimension.flare.compose.ui.vvo_notification_like
@@ -260,7 +260,7 @@ internal fun UiTimelineComponent(
                         when {
                             item.loading -> Res.string.timeline_loading_missing_posts
                             item.failed -> Res.string.timeline_retry_missing_posts
-                            else -> Res.string.timeline_load_missing_posts
+                            else -> Res.string.kagari_timeline_show_more
                         },
                     ),
                 )

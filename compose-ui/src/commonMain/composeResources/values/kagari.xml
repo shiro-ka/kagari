@@ -90,4 +90,5 @@
     <string name="kagari_menu_show_less_like_this">Show less like this</string>
     <string name="kagari_file_sensitive">Sensitive file</string>
     <string name="kagari_community_note_title">Readers added context</string>
+    <string name="kagari_timeline_show_more">Show more</string>
 </resources>
