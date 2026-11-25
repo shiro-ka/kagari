@@ -78,7 +78,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.platform.testTag
@@ -86,6 +86,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -109,6 +110,7 @@ import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.data.model.tab.UiTimelineTabItem
 import dev.dimension.flare.data.model.tab.resolveTimelineAppearance
+import dev.dimension.flare.ui.common.plus
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.FAIcon
 import dev.dimension.flare.ui.component.FabCompanionRequest
@@ -118,6 +120,7 @@ import dev.dimension.flare.ui.component.FlareTopAppBar
 import dev.dimension.flare.ui.component.Glassify
 import dev.dimension.flare.ui.component.LocalAppSettings
 import dev.dimension.flare.ui.component.LocalBottomBarShowing
+import dev.dimension.flare.ui.component.LocalBottomBarSlack
 import dev.dimension.flare.ui.component.LocalFabCompanion
 import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
@@ -131,6 +134,7 @@ import dev.dimension.flare.ui.component.status.AdaptiveCard
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
 import dev.dimension.flare.ui.component.status.ListEmptyView
 import dev.dimension.flare.ui.component.status.status
+import dev.dimension.flare.ui.component.trimBottomBarSlack
 import dev.dimension.flare.ui.model.map
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
@@ -637,18 +641,15 @@ private fun KagariTimelineItemContentBody(
 ) {
     val isBigScreen = isBigScreen()
     val newestEdge = timelineNewestEdge(isHomeTimeline)
-    val layoutDirection = LocalLayoutDirection.current
+    val bottomBarSlack = LocalBottomBarSlack.current
+    val timelinePadding = remember(contentPadding, bottomBarSlack) { contentPadding.trimBottomBarSlack(bottomBarSlack) }
     val paddingWithStatusBar =
-        PaddingValues(
-            top =
-                maxOf(
-                    WindowInsets.safeContent.asPaddingValues().calculateTopPadding(),
-                    contentPadding.calculateTopPadding(),
-                ),
-            bottom = contentPadding.calculateBottomPadding(),
-            start = contentPadding.calculateStartPadding(layoutDirection),
-            end = contentPadding.calculateEndPadding(layoutDirection),
-        )
+        timelinePadding +
+            PaddingValues(
+                top =
+                    (WindowInsets.safeContent.asPaddingValues().calculateTopPadding() - contentPadding.calculateTopPadding())
+                        .coerceAtLeast(0.dp),
+            )
     val switchState = remember(item) { KagariTimelineSwitchPresenter(item) }.invoke()
     val showSwitch = switchState.options.isNotEmpty()
     val state =
@@ -661,6 +662,20 @@ private fun KagariTimelineItemContentBody(
                     (if (showSwitch) 1 else 0),
         )
     val latestState by rememberUpdatedState(state)
+    if (newestEdge.reverseLayout) {
+        val density = LocalDensity.current
+        LaunchedEffect(state.lazyListState, bottomBarSlack, density) {
+            var previous = bottomBarSlack.value
+            snapshotFlow { bottomBarSlack.value }.collect { slack ->
+                val shift = with(density) { (slack - previous).toPx() }
+                previous = slack
+                val listState = state.lazyListState
+                if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
+                    listState.dispatchRawDelta(-shift)
+                }
+            }
+        }
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer =
@@ -754,7 +769,7 @@ private fun KagariTimelineItemContentBody(
         content = {
             LazyStatusVerticalStaggeredGrid(
                 state = state.lazyListState,
-                contentPadding = contentPadding,
+                contentPadding = timelinePadding,
                 reverseLayout = newestEdge.reverseLayout,
                 allowGalleryMode = true,
                 modifier =

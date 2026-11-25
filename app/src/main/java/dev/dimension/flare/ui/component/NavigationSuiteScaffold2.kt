@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
@@ -111,6 +112,52 @@ import kotlin.math.roundToInt
 val LocalBottomBarHeight = androidx.compose.runtime.staticCompositionLocalOf<Dp> { 0.dp }
 val LocalBottomBarShowing = androidx.compose.runtime.staticCompositionLocalOf<Boolean> { false }
 val LocalFabCompanion = androidx.compose.runtime.staticCompositionLocalOf<FabCompanion?> { null }
+val LocalBottomBarSlack = androidx.compose.runtime.staticCompositionLocalOf<State<Dp>> { mutableStateOf(0.dp) }
+
+fun PaddingValues.trimBottomBarSlack(slack: State<Dp>): PaddingValues = BottomBarSlackPaddingValues(this, slack)
+
+@Stable
+private class BottomBarSlackPaddingValues(
+    private val base: PaddingValues,
+    private val slack: State<Dp>,
+) : PaddingValues {
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection) = base.calculateLeftPadding(layoutDirection)
+
+    override fun calculateTopPadding() = base.calculateTopPadding()
+
+    override fun calculateRightPadding(layoutDirection: LayoutDirection) = base.calculateRightPadding(layoutDirection)
+
+    override fun calculateBottomPadding() = (base.calculateBottomPadding() - slack.value).coerceAtLeast(0.dp)
+}
+
+private class BottomBarFootprint {
+    private var container: LayoutCoordinates? = null
+    private var bar: LayoutCoordinates? = null
+
+    var height by mutableStateOf<Float?>(null)
+        private set
+
+    fun onContainerPositioned(coordinates: LayoutCoordinates) {
+        container = coordinates
+        update()
+    }
+
+    fun onBarPositioned(coordinates: LayoutCoordinates) {
+        bar = coordinates
+        update()
+    }
+
+    fun onBarRemoved() {
+        bar = null
+        height = 0f
+    }
+
+    private fun update() {
+        val box = container?.takeIf { it.isAttached } ?: return
+        val barCoordinates = bar?.takeIf { it.isAttached } ?: return
+        height = (box.size.height - box.localBoundingBoxOf(barCoordinates, clipBounds = false).top).coerceAtLeast(0f)
+    }
+}
 
 class FabCompanionRequest(
     val icon: ImageVector,
@@ -361,7 +408,10 @@ fun NavigationSuiteScaffold2(
                     )
                 }
             }
-            Box {
+            val bottomBarFootprint = remember { BottomBarFootprint() }
+            Box(
+                modifier = Modifier.onGloballyPositioned(bottomBarFootprint::onContainerPositioned),
+            ) {
                 val fabCompanion = remember { FabCompanion() }
                 val fabCompanionAnchor = remember { FabCompanionAnchor() }
                 SideEffect {
@@ -374,32 +424,49 @@ fun NavigationSuiteScaffold2(
                             bottomBarState != BottomBarState.FloatingHidden &&
                                 bottomBarState != BottomBarState.ClassicHidden
                         )
+                val density = LocalDensity.current
+                val reservedForBottomBar =
+                    if (
+                        scope.itemList.any { item ->
+                            item is NavigationSuiteItem.DefaultItem && item.selected
+                        } && layoutType == NavigationSuiteType.NavigationBar
+                    ) {
+                        when (bottomBarStyle) {
+                            BottomBarStyle.Floating -> bottomBarHeight + 16.dp
+                            BottomBarStyle.Classic -> bottomBarHeight + 8.dp
+                        }
+                    } else {
+                        0.dp
+                    }
+                val systemBottom =
+                    with(density) {
+                        WindowInsets.systemBars
+                            .only(
+                                WindowInsetsSides.Bottom,
+                            ).getBottom(this)
+                            .toDp()
+                    }
+                val latestReserved by rememberUpdatedState(reservedForBottomBar + systemBottom)
+                val latestSystemBottom by rememberUpdatedState(systemBottom)
+                val bottomBarSlack =
+                    remember(bottomBarFootprint, density) {
+                        derivedStateOf {
+                            val measured = bottomBarFootprint.height
+                            if (measured == null) {
+                                0.dp
+                            } else {
+                                (latestReserved - maxOf(with(density) { measured.toDp() }, latestSystemBottom)).coerceAtLeast(0.dp)
+                            }
+                        }
+                    }
                 CompositionLocalProvider(
                     LocalBottomBarHeight provides
                         if (isPodcastShowing) {
                             bottomBarHeight
                         } else {
                             0.dp
-                        } +
-                        if (
-                            scope.itemList.any { item ->
-                                item is NavigationSuiteItem.DefaultItem && item.selected
-                            } && layoutType == NavigationSuiteType.NavigationBar
-                        ) {
-                            when (bottomBarStyle) {
-                                BottomBarStyle.Floating -> bottomBarHeight + 16.dp
-                                BottomBarStyle.Classic -> bottomBarHeight + 8.dp
-                            }
-                        } else {
-                            0.dp
-                        } +
-                        with(LocalDensity.current) {
-                            WindowInsets.systemBars
-                                .only(
-                                    WindowInsetsSides.Bottom,
-                                ).getBottom(this)
-                                .toDp()
-                        },
+                        } + reservedForBottomBar + systemBottom,
+                    LocalBottomBarSlack provides bottomBarSlack,
                     LocalBottomBarShowing provides (layoutType == NavigationSuiteType.NavigationBar),
                     LocalFabCompanion provides
                         fabCompanion.takeIf {
@@ -481,11 +548,19 @@ fun NavigationSuiteScaffold2(
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter),
                 ) {
+                    DisposableEffect(bottomBarFootprint) {
+                        onDispose {
+                            bottomBarFootprint.onBarRemoved()
+                        }
+                    }
                     Box(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .onGloballyPositioned(fabCompanionAnchor::onBarBoxPositioned),
+                                .onGloballyPositioned {
+                                    fabCompanionAnchor.onBarBoxPositioned(it)
+                                    bottomBarFootprint.onBarPositioned(it)
+                                },
                     ) {
                         SharedTransitionLayout(
                             modifier = Modifier.align(Alignment.BottomStart),
