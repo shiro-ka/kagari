@@ -687,6 +687,7 @@ private fun KagariTimelineItemContentBody(
         },
         isRefreshing = state.isRefreshing,
         indicatorPadding = paddingWithStatusBar,
+        pullFromBottom = newestEdge == TimelineNewestEdge.Bottom,
         content = {
             LazyStatusVerticalStaggeredGrid(
                 state = state.lazyListState,
