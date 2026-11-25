@@ -1,6 +1,7 @@
 package dev.dimension.flare.data.datasource.microblog.paging
 
 import androidx.paging.ExperimentalPagingApi
+import androidx.paging.LoadState
 import androidx.paging.LoadType
 import androidx.paging.PagingConfig
 import androidx.paging.PagingSource
@@ -40,6 +41,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -2452,6 +2454,47 @@ class TimelineGapTest : RobolectricTest() {
             val gap = contents(home).filterIsInstance<UiTimelineV2.Gap>().single()
             assertEquals("page-$appended", gap.nextKey)
             assertEquals(listOf("10", "9"), contents(home).map { it.statusKey.id }.takeLast(2))
+        }
+
+    @Test
+    fun gapStaysLoadingWhileRefreshKeepsReading() =
+        runTest {
+            var refreshing = false
+            var appended = 0
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val ordered =
+                source("continuing") { request ->
+                    when {
+                        !refreshing -> {
+                            PagingResult(listOf(10, 9).map(::datedPost), nextKey = "tail")
+                        }
+
+                        request is PagingRequest.Refresh -> {
+                            PagingResult(listOf(16, 15).map(::datedPost), nextKey = "page-2")
+                        }
+
+                        else -> {
+                            appended++
+                            entered.complete(Unit)
+                            release.await()
+                            PagingResult(listOf(14, 13, 12, 11, 10).map(::datedPost), nextKey = "page-3")
+                        }
+                    }
+                }
+            val home = TimelineRemoteMediator(ordered, database, false, retainHistory = true, gapFillTimeout = 1.minutes)
+            home.load(LoadType.REFRESH, state)
+            refreshing = true
+            val refresh = async { home.load(LoadType.REFRESH, state) }
+            entered.await()
+            val gap = contents(home).filterIsInstance<UiTimelineV2.Gap>().single()
+            assertIs<LoadState.Loading>(home.gapActivity.value[gap.stableItemKey])
+            assertEquals(GapLoadResult(), home.loadGap(gap))
+            assertEquals(1, appended)
+            release.complete(Unit)
+            assertIs<RemoteMediator.MediatorResult.Success>(refresh.await())
+            assertEquals(emptyMap<String, LoadState>(), home.gapActivity.value)
+            assertTrue(contents(home).none { it is UiTimelineV2.Gap })
         }
 
     @Test

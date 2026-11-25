@@ -3,6 +3,7 @@
 package dev.dimension.flare.data.datasource.microblog.paging
 
 import androidx.paging.ExperimentalPagingApi
+import androidx.paging.LoadState
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator.MediatorResult
@@ -29,6 +30,10 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -75,6 +80,8 @@ internal open class TimelineRemoteMediator(
     private val ordersByTime = mixedPageLoader?.ordersByTime == true
     private val fillsGaps = loader !is MixedRemoteMediator && loader.canJoinTimeline
     private val cachedNextKey = AtomicReference<CachedNextKey?>(null)
+    private val gapStates = MutableStateFlow<Map<String, LoadState>>(emptyMap())
+    internal val gapActivity: StateFlow<Map<String, LoadState>> = gapStates.asStateFlow()
 
     private data class CachedNextKey(
         val metadata: DbPagingKey,
@@ -316,6 +323,32 @@ internal open class TimelineRemoteMediator(
         gap: UiTimelineV2.Gap,
         pageSize: Int = 20,
         deadline: TimeMark = TimeSource.Monotonic.markNow() + gapFillTimeout,
+    ): GapLoadResult {
+        val key = gap.stableItemKey
+        var claimed = false
+        gapStates.update { states ->
+            claimed = states[key] !is LoadState.Loading
+            if (claimed) states + (key to LoadState.Loading) else states
+        }
+        if (!claimed) return GapLoadResult()
+        val result =
+            try {
+                fillGap(gap, pageSize, deadline)
+            } catch (error: Exception) {
+                gapStates.update {
+                    if (error is kotlinx.coroutines.CancellationException) it - key else it + (key to LoadState.Error(error))
+                }
+                throw error
+            }
+        val failure = result.failure
+        gapStates.update { if (failure != null) it + (key to LoadState.Error(failure)) else it - key }
+        return result
+    }
+
+    private suspend fun fillGap(
+        gap: UiTimelineV2.Gap,
+        pageSize: Int,
+        deadline: TimeMark,
     ): GapLoadResult {
         var current = gap
         val insertedKeys = mutableListOf<String>()

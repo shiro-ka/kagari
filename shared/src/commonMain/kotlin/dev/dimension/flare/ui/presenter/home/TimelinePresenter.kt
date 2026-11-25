@@ -89,7 +89,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -129,7 +128,6 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
     private val appScope: CoroutineScope by koinInject()
     private val viewport = MutableStateFlow<TimelineViewport?>(null)
     private val homeMediator = MutableStateFlow<TimelineRemoteMediator?>(null)
-    private val gapActivity = MutableStateFlow<Map<String, LoadState>>(emptyMap())
     private val startupRefresh = MutableStateFlow(false)
     internal var sourceActive: Flow<Boolean> = flowOf(true)
     internal var sourceAccounts: Set<dev.dimension.flare.model.MicroBlogKey> = emptySet()
@@ -207,10 +205,10 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
                             }.shareIn(sourceScope, SharingStarted.Lazily, replay = 1)
                         viewport.value?.deactivate()
                         viewport.value = null
-                        gapActivity.value = emptyMap()
                         contextMediator.value = null
                         homeMediator.value = null
                         startupRefresh.value = false
+                        val gapActivity = homeMediator.flatMapLatest { it?.gapActivity ?: flowOf(emptyMap()) }
                         emitAll(
                             when (remoteLoader) {
                                 is NotSupportRemoteLoader<UiTimelineV2> -> {
@@ -412,25 +410,19 @@ public open class TimelinePresenter : PresenterBase<TimelineState> {
         onInserted: (List<String>) -> Unit,
     ) {
         scope.launch(Dispatchers.Main.immediate) {
-            if (gapActivity.value[gap.stableItemKey] is LoadState.Loading) return@launch
             if (mediator == null || mediator !== homeMediator.value) {
                 onInserted(emptyList())
                 return@launch
             }
-            gapActivity.update { it + (gap.stableItemKey to LoadState.Loading) }
+            if (mediator.gapActivity.value[gap.stableItemKey] is LoadState.Loading) return@launch
             try {
                 val result = withContext(PlatformDispatchers.IO) { mediator.loadGap(gap) }
                 onInserted(result.insertedKeys)
-                gapActivity.update {
-                    if (result.failure != null) it + (gap.stableItemKey to LoadState.Error(result.failure)) else it - gap.stableItemKey
-                }
             } catch (error: CancellationException) {
                 onInserted(emptyList())
-                if (mediator === homeMediator.value) gapActivity.update { it - gap.stableItemKey }
                 throw error
             } catch (error: Exception) {
                 onInserted(emptyList())
-                gapActivity.update { it + (gap.stableItemKey to LoadState.Error(error)) }
             }
         }
     }
