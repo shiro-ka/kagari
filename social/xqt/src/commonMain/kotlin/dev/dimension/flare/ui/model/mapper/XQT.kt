@@ -854,6 +854,7 @@ internal fun Tweet.renderStatus(
                                     add(it)
                                     add(ActionMenu.Divider)
                                 }
+                            if (isFromMe) addAll(kagariXqtPinMenu(accountKey, statusKey, kagariAuthorPinnedIds()))
                             add(
                                 ActionMenu.xqtBookmark(
                                     statusKey = statusKey,

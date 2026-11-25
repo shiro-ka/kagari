@@ -4,6 +4,7 @@ import de.jensklingenberg.ktorfit.converter.ResponseConverterFactory
 import de.jensklingenberg.ktorfit.ktorfit
 import dev.dimension.flare.data.network.xqt.api.PostApi
 import dev.dimension.flare.data.network.xqt.api.createPostApi
+import dev.dimension.flare.data.network.xqt.api.kagariSetPinned
 import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -51,6 +52,26 @@ class KagariMutationTest {
                     ok()
                 },
             ) { it.kagariSetReplyHidden("42", hide = false) }
+        }
+
+    @Test
+    fun pinningSendsPinTweetAndUnpinningSendsUnpinTweet() =
+        runTest {
+            listOf(
+                true to "/graphql/${XQTMutationQueryIds.PIN_TWEET}/PinTweet",
+                false to "/graphql/${XQTMutationQueryIds.UNPIN_TWEET}/UnpinTweet",
+            ).forEach { (pin, path) ->
+                val queryId = if (pin) XQTMutationQueryIds.PIN_TWEET else XQTMutationQueryIds.UNPIN_TWEET
+                withPostApi(
+                    MockEngine { request ->
+                        request.assertGraphql(
+                            path = path,
+                            body = """{"variables":{"tweet_id":"42"},"queryId":"$queryId"}""",
+                        )
+                        ok()
+                    },
+                ) { it.kagariSetPinned("42", pin) }
+            }
         }
 
     @Test

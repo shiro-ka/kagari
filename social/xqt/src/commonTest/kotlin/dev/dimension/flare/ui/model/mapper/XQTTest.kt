@@ -43,6 +43,7 @@ import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
 import dev.dimension.flare.ui.route.DeeplinkRoute
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
+import dev.dimension.flare.ui.route.KagariPinPostRoute
 import kotlinx.serialization.json.JsonElement
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -1099,6 +1100,44 @@ class XQTTest {
             assertFalse(events.contains(ClickEvent.Deeplink(hideReplyRoute(hide))))
         }
     }
+
+    @Test
+    fun renderStatus_ownPinnedTweet_offersOnlyUnpin() {
+        val events = createOwnTweet(pinnedIds = listOf("123")).renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        assertTrue(events.contains(ClickEvent.Deeplink(pinRoute(pin = false))))
+        assertFalse(events.contains(ClickEvent.Deeplink(pinRoute(pin = true))))
+    }
+
+    @Test
+    fun renderStatus_ownTweetWithUnknownPin_offersPinAndUnpin() {
+        val events = createOwnTweet(pinnedIds = null).renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        listOf(true, false).forEach { pin ->
+            assertTrue(events.contains(ClickEvent.Deeplink(pinRoute(pin))))
+        }
+    }
+
+    @Test
+    fun renderStatus_someoneElsesTweet_hasNoPin() {
+        val events = createPlainTweet().renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        listOf(true, false).forEach { pin ->
+            assertFalse(events.contains(ClickEvent.Deeplink(pinRoute(pin))))
+        }
+    }
+
+    private fun createOwnTweet(pinnedIds: List<String>?): Tweet {
+        val me = createUser(id = accountKey.id).let { it.copy(legacy = it.legacy.copy(pinnedTweetIdsStr = pinnedIds)) }
+        return createPlainTweet().copy(core = UserResultCore(UserResults(me)))
+    }
+
+    private fun pinRoute(pin: Boolean) =
+        KagariPinPostRoute(
+            statusKey = MicroBlogKey("123", accountKey.host),
+            accountType = AccountType.Specific(accountKey),
+            pin = pin,
+        )
 
     private fun hideReplyRoute(hide: Boolean) =
         KagariHideReplyRoute(

@@ -7,4 +7,9 @@ public interface KagariPostModerationSource {
         statusKey: MicroBlogKey,
         hide: Boolean,
     )
+
+    public suspend fun kagariSetPinned(
+        statusKey: MicroBlogKey,
+        pin: Boolean,
+    )
 }

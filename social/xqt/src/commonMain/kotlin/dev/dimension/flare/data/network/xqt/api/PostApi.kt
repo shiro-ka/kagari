@@ -268,3 +268,14 @@ internal suspend fun PostApi.kagariSetReplyHidden(
         variables = buildJsonObject { put("tweetId", tweetId) },
     )
 }
+
+internal suspend fun PostApi.kagariSetPinned(
+    tweetId: String,
+    pin: Boolean,
+) {
+    kagariMutation(
+        queryId = if (pin) XQTMutationQueryIds.PIN_TWEET else XQTMutationQueryIds.UNPIN_TWEET,
+        operationName = if (pin) "PinTweet" else "UnpinTweet",
+        variables = buildJsonObject { put("tweet_id", tweetId) },
+    )
+}

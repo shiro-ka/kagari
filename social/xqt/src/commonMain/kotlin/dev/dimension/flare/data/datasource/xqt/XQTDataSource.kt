@@ -49,6 +49,7 @@ import dev.dimension.flare.data.network.xqt.XQTMediaUploader
 import dev.dimension.flare.data.network.xqt.XQTService
 import dev.dimension.flare.data.network.xqt.api.XQT_POLL_CONFIG
 import dev.dimension.flare.data.network.xqt.api.createPoll
+import dev.dimension.flare.data.network.xqt.api.kagariSetPinned
 import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import dev.dimension.flare.data.network.xqt.api.publishTweet
 import dev.dimension.flare.data.network.xqt.model.CreateBookmarkRequest
@@ -333,6 +334,13 @@ internal class XQTDataSource(
         hide: Boolean,
     ) {
         service.kagariSetReplyHidden(statusKey.id, hide)
+    }
+
+    override suspend fun kagariSetPinned(
+        statusKey: MicroBlogKey,
+        pin: Boolean,
+    ) {
+        service.kagariSetPinned(statusKey.id, pin)
     }
 
     override val listHandler: ListHandler<UiList.List> =

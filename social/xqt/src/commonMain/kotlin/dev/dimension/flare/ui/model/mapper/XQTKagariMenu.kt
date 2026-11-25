@@ -2,12 +2,14 @@ package dev.dimension.flare.ui.model.mapper
 
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.network.xqt.model.Tweet
+import dev.dimension.flare.data.network.xqt.model.User
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.route.KagariHideReplyRoute
+import dev.dimension.flare.ui.route.KagariPinPostRoute
 
 internal fun Tweet.kagariIsReplyInOwnConversation(
     accountKey: MicroBlogKey,
@@ -46,3 +48,40 @@ internal fun kagariXqtHideReplyMenu(
                 ),
         )
     }
+
+internal fun Tweet.kagariAuthorPinnedIds(): List<String>? = (core?.userResults?.result as? User)?.legacy?.pinnedTweetIdsStr
+
+internal fun kagariXqtPinMenu(
+    accountKey: MicroBlogKey,
+    statusKey: MicroBlogKey,
+    pinnedIds: List<String>?,
+): List<ActionMenu> {
+    val choices =
+        when {
+            pinnedIds == null -> listOf(true, false)
+            statusKey.id in pinnedIds -> listOf(false)
+            else -> listOf(true)
+        }
+    return choices.map { pin ->
+        ActionMenu.Item(
+            icon = UiIcon.KagariPin,
+            text =
+                ActionMenu.Item.Text.Localized(
+                    type =
+                        if (pin) {
+                            ActionMenu.Item.Text.Localized.Type.KagariPinPost
+                        } else {
+                            ActionMenu.Item.Text.Localized.Type.KagariUnpinPost
+                        },
+                ),
+            clickEvent =
+                ClickEvent.Deeplink(
+                    KagariPinPostRoute(
+                        statusKey = statusKey,
+                        accountType = AccountType.Specific(accountKey),
+                        pin = pin,
+                    ),
+                ),
+        )
+    }
+}
