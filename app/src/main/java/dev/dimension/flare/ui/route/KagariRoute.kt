@@ -15,6 +15,7 @@ internal data class KagariInteractionGateDialogRoute(
 internal data class KagariHideReplyDialogRoute(
     val statusKey: MicroBlogKey,
     val accountType: AccountType,
+    val hide: Boolean? = null,
 ) : Route.Status
 
 @Serializable
@@ -103,6 +104,7 @@ internal fun KagariDeeplink.toKagariRoute(): Route =
             KagariHideReplyDialogRoute(
                 statusKey = statusKey,
                 accountType = accountType,
+                hide = hide,
             )
         }
 

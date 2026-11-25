@@ -12,6 +12,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.DirectMessageDataSource
 import dev.dimension.flare.data.datasource.microblog.KagariMentionSearch
+import dev.dimension.flare.data.datasource.microblog.KagariPostModerationSource
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSource
 import dev.dimension.flare.data.datasource.microblog.PostDetailFilter
@@ -48,6 +49,7 @@ import dev.dimension.flare.data.network.xqt.XQTMediaUploader
 import dev.dimension.flare.data.network.xqt.XQTService
 import dev.dimension.flare.data.network.xqt.api.XQT_POLL_CONFIG
 import dev.dimension.flare.data.network.xqt.api.createPoll
+import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import dev.dimension.flare.data.network.xqt.api.publishTweet
 import dev.dimension.flare.data.network.xqt.model.CreateBookmarkRequest
 import dev.dimension.flare.data.network.xqt.model.CreateBookmarkRequestVariables
@@ -127,6 +129,7 @@ internal class XQTDataSource(
     TimelineTabConfigurationDataSource,
     DirectMessageDataSource,
     RelationDataSource,
+    KagariPostModerationSource,
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
@@ -323,6 +326,13 @@ internal class XQTDataSource(
                 updater.deleteFromCache(event.postKey)
             }
         }
+    }
+
+    override suspend fun kagariSetReplyHidden(
+        statusKey: MicroBlogKey,
+        hide: Boolean,
+    ) {
+        service.kagariSetReplyHidden(statusKey.id, hide)
     }
 
     override val listHandler: ListHandler<UiList.List> =

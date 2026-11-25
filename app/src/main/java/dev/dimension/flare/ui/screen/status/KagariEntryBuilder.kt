@@ -52,6 +52,7 @@ internal fun EntryProviderScope<NavKey>.kagariEntryBuilder(onBack: () -> Unit) {
         KagariHideReplyDialog(
             statusKey = args.statusKey,
             accountType = args.accountType,
+            hide = args.hide,
             onBack = onBack,
         )
     }

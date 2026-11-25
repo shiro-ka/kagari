@@ -17,6 +17,7 @@ public data class KagariInteractionGateRoute(
 public data class KagariHideReplyRoute(
     val statusKey: MicroBlogKey,
     val accountType: AccountType,
+    val hide: Boolean? = null,
 ) : DeeplinkRoute.Status(),
     KagariDeeplink
 

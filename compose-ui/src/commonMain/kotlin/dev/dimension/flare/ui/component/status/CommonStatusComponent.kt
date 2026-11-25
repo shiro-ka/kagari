@@ -1539,6 +1539,7 @@ private fun ActionMenu.Item.Text.asString(): String =
                     ActionMenu.Item.Text.Localized.Type.UnFavorite -> Res.string.unfavourite
                     ActionMenu.Item.Text.Localized.Type.KagariReplyGate,
                     ActionMenu.Item.Text.Localized.Type.KagariHideReply,
+                    ActionMenu.Item.Text.Localized.Type.KagariUnhideReply,
                     ActionMenu.Item.Text.Localized.Type.KagariPinPost,
                     ActionMenu.Item.Text.Localized.Type.KagariUnpinPost,
                     ActionMenu.Item.Text.Localized.Type.KagariMuteThread,

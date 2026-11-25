@@ -34,7 +34,10 @@ import dev.dimension.flare.data.network.xqt.model.PostFavoriteTweetRequest
 import dev.dimension.flare.data.network.xqt.model.PostUnfavoriteTweet200Response
 import dev.dimension.flare.data.network.xqt.model.PostUnfavoriteTweetRequest
 import dev.dimension.flare.data.network.xqt.model.UnfavoriteTweetResponse
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 internal interface PostApi {
     /**
@@ -149,6 +152,14 @@ internal interface PostApi {
     @POST("graphql/{pathQueryId}/UnfavoriteTweet")
     suspend fun postUnfavoriteTweet(@Header("Content-Type") contentType: kotlin.String = "application/json", @Path("pathQueryId") pathQueryId: kotlin.String = "ZYKSe-w7KEslx3JhSIk5LA", @Body postUnfavoriteTweetRequest: PostUnfavoriteTweetRequest): Response<PostUnfavoriteTweet200Response>
 
+    @POST("graphql/{pathQueryId}/{operationName}")
+    suspend fun postKagariMutation(
+        @Header("Content-Type") contentType: kotlin.String = "application/json",
+        @Path("pathQueryId") pathQueryId: kotlin.String,
+        @Path("operationName") operationName: kotlin.String,
+        @Body body: JsonObject,
+    ): Response<JsonObject>
+
     @POST("graphql/{pathQueryId}/AddParticipantsMutation")
     public suspend fun postDMAddParticipantsMutation(
         @Path("pathQueryId") pathQueryId: kotlin.String = "oBwyQ0_xVbAQ8FAyG0pCRA",
@@ -225,4 +236,35 @@ internal suspend fun PostApi.publishTweet(request: PostCreateTweetRequest) {
     check(!(result?.restId ?: result?.tweet?.restId).isNullOrBlank()) {
         body?.errors?.firstOrNull()?.message ?: "X did not confirm that the post was published."
     }
+}
+
+internal suspend fun PostApi.kagariMutation(
+    queryId: String,
+    operationName: String,
+    variables: JsonObject,
+) {
+    val response =
+        postKagariMutation(
+            pathQueryId = queryId,
+            operationName = operationName,
+            body =
+                buildJsonObject {
+                    put("variables", variables)
+                    put("queryId", queryId)
+                },
+        )
+    check(response.isSuccessful) { "X $operationName failed with HTTP ${response.code}" }
+    val errors = response.body()?.get("errors") as? JsonArray
+    check(errors.isNullOrEmpty()) { "X $operationName failed: ${errors?.firstOrNull()}" }
+}
+
+internal suspend fun PostApi.kagariSetReplyHidden(
+    tweetId: String,
+    hide: Boolean,
+) {
+    kagariMutation(
+        queryId = if (hide) XQTMutationQueryIds.MODERATE_TWEET else XQTMutationQueryIds.UNMODERATE_TWEET,
+        operationName = if (hide) "ModerateTweet" else "UnmoderateTweet",
+        variables = buildJsonObject { put("tweetId", tweetId) },
+    )
 }

@@ -22,11 +22,12 @@ import moe.tlaster.precompose.molecule.producePresenter
 internal fun KagariHideReplyDialog(
     statusKey: MicroBlogKey,
     accountType: AccountType,
+    hide: Boolean?,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val state by producePresenter(key = "KagariHideReplyPresenter_${accountType}_$statusKey") {
-        kagariHideReplyPresenter(statusKey = statusKey, accountType = accountType)
+        kagariHideReplyPresenter(statusKey = statusKey, accountType = accountType, hide = hide)
     }
     when (val current = state.hidden) {
         is UiState.Success -> {
@@ -66,10 +67,11 @@ internal fun KagariHideReplyDialog(
 private fun kagariHideReplyPresenter(
     statusKey: MicroBlogKey,
     accountType: AccountType,
+    hide: Boolean?,
 ) = run {
     val state =
-        remember(statusKey, accountType) {
-            KagariHideReplyPresenter(accountType = accountType, statusKey = statusKey)
+        remember(statusKey, accountType, hide) {
+            KagariHideReplyPresenter(accountType = accountType, statusKey = statusKey, hide = hide)
         }.invoke()
     object : KagariHideReplyState by state {
     }

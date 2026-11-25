@@ -10,6 +10,7 @@
     <string name="kagari_menu_gate_lists">リスト%1$s件</string>
     <string name="kagari_menu_gate_separator">・</string>
     <string name="kagari_menu_hide_reply">返信を非表示にする</string>
+    <string name="kagari_menu_unhide_reply">返信を表示に戻す</string>
     <string name="kagari_service_select_placeholder">URL からサーバーをさがす</string>
     <string name="kagari_login_oauth">OAuth でログイン</string>
     <string name="kagari_login_app_password">アプリパスワードでログイン</string>

@@ -901,6 +901,10 @@ internal fun Tweet.renderStatus(
                                     ),
                                 )
                             } else {
+                                if (kagariIsReplyInOwnConversation(accountKey, actualParents)) {
+                                    add(ActionMenu.Divider)
+                                    addAll(kagariXqtHideReplyMenu(accountKey, statusKey))
+                                }
                                 if (user != null) {
                                     add(ActionMenu.Divider)
                                     addAll(

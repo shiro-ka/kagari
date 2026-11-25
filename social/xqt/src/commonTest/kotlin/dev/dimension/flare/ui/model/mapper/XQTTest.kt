@@ -33,12 +33,16 @@ import dev.dimension.flare.data.network.xqt.model.UserMention
 import dev.dimension.flare.data.network.xqt.model.UserResultCore
 import dev.dimension.flare.data.network.xqt.model.UserResults
 import dev.dimension.flare.data.network.xqt.model.XqtUrl
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
+import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiArticleAuthor
 import dev.dimension.flare.ui.model.UiArticleBlock
+import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.render.RenderContent
 import dev.dimension.flare.ui.render.RenderRun
 import dev.dimension.flare.ui.route.DeeplinkRoute
+import dev.dimension.flare.ui.route.KagariHideReplyRoute
 import kotlinx.serialization.json.JsonElement
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -47,6 +51,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -1052,6 +1057,63 @@ class XQTTest {
         assertNull(tweet.renderKagariCommunityNote())
         assertNull(createPlainTweet().renderStatus(accountKey).kagariCommunityNote)
     }
+
+    @Test
+    fun renderStatus_replyToOwnConversationRoot_offersHideAndShowReply() {
+        val reply =
+            createPlainTweet().let {
+                it.copy(
+                    legacy =
+                        it.legacy?.copy(
+                            conversationIdStr = "100",
+                            in_reply_to_status_id_str = "100",
+                            in_reply_to_user_id_str = accountKey.id,
+                        ),
+                )
+            }
+
+        val events = reply.renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        listOf(true, false).forEach { hide ->
+            assertTrue(events.contains(ClickEvent.Deeplink(hideReplyRoute(hide))))
+        }
+    }
+
+    @Test
+    fun renderStatus_replyInSomeoneElsesConversation_hasNoHideReply() {
+        val reply =
+            createPlainTweet().let {
+                it.copy(
+                    legacy =
+                        it.legacy?.copy(
+                            conversationIdStr = "100",
+                            in_reply_to_status_id_str = "200",
+                            in_reply_to_user_id_str = accountKey.id,
+                        ),
+                )
+            }
+
+        val events = reply.renderStatus(accountKey).moreMenuItems().map { it.clickEvent }
+
+        listOf(true, false).forEach { hide ->
+            assertFalse(events.contains(ClickEvent.Deeplink(hideReplyRoute(hide))))
+        }
+    }
+
+    private fun hideReplyRoute(hide: Boolean) =
+        KagariHideReplyRoute(
+            statusKey = MicroBlogKey("123", accountKey.host),
+            accountType = AccountType.Specific(accountKey),
+            hide = hide,
+        )
+
+    private fun UiTimelineV2.Post.moreMenuItems(): List<ActionMenu.Item> =
+        actions
+            .filterIsInstance<ActionMenu.Group>()
+            .first {
+                it.displayItem.text == ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.More)
+            }.actions
+            .filterIsInstance<ActionMenu.Item>()
 
     private fun createPlainTweet(
         views: TweetView? = null,

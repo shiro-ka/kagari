@@ -22,6 +22,7 @@ import dev.dimension.flare.compose.ui.kagari_menu_unmute_thread
 import dev.dimension.flare.compose.ui.kagari_menu_detach_quote
 import dev.dimension.flare.compose.ui.kagari_menu_reattach_quote
 import dev.dimension.flare.compose.ui.kagari_menu_send_via_chat
+import dev.dimension.flare.compose.ui.kagari_menu_unhide_reply
 import dev.dimension.flare.compose.ui.kagari_menu_unpin_post
 import dev.dimension.flare.compose.ui.kagari_menu_open_in_browser
 import dev.dimension.flare.compose.ui.kagari_menu_pixiv_bookmark_private
@@ -71,6 +72,9 @@ internal fun kagariGateMenuText(
 ): String {
     if (type == ActionMenu.Item.Text.Localized.Type.KagariHideReply) {
         return stringResource(Res.string.kagari_menu_hide_reply)
+    }
+    if (type == ActionMenu.Item.Text.Localized.Type.KagariUnhideReply) {
+        return stringResource(Res.string.kagari_menu_unhide_reply)
     }
     if (type == ActionMenu.Item.Text.Localized.Type.KagariPinPost) {
         return stringResource(Res.string.kagari_menu_pin_post)

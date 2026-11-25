@@ -10,6 +10,7 @@
     <string name="kagari_menu_gate_lists">%1$s lists</string>
     <string name="kagari_menu_gate_separator">, </string>
     <string name="kagari_menu_hide_reply">Hide reply for everyone</string>
+    <string name="kagari_menu_unhide_reply">Show reply</string>
     <string name="kagari_service_select_placeholder">Find a server by URL</string>
     <string name="kagari_login_oauth">Log in with OAuth</string>
     <string name="kagari_login_app_password">Log in with app password</string>
