@@ -12,6 +12,10 @@ import dev.dimension.flare.data.network.xqt.model.NoteTweetResultData
 import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichText
 import dev.dimension.flare.data.network.xqt.model.NoteTweetResultRichTextTag
 import dev.dimension.flare.data.network.xqt.model.Tweet
+import dev.dimension.flare.data.network.xqt.model.TweetCard
+import dev.dimension.flare.data.network.xqt.model.TweetCardLegacy
+import dev.dimension.flare.data.network.xqt.model.TweetCardLegacyBindingValue
+import dev.dimension.flare.data.network.xqt.model.TweetCardLegacyBindingValueData
 import dev.dimension.flare.data.network.xqt.model.TweetLegacy
 import dev.dimension.flare.data.network.xqt.model.TweetView
 import dev.dimension.flare.data.network.xqt.model.TwitterArticle
@@ -1154,6 +1158,65 @@ class XQTTest {
             )
 
         assertEquals(true, legacy.conversationMuted)
+    }
+
+    @Test
+    fun renderStatus_openPoll_canBeVotedOn() {
+        val poll = assertNotNull(createPollTweet().renderStatus(accountKey).poll)
+
+        assertEquals("card://9", poll.id)
+        assertTrue(poll.canVote)
+    }
+
+    @Test
+    fun renderStatus_pollWithSelectedChoice_showsOwnVoteAndCannotVoteAgain() {
+        val poll = assertNotNull(createPollTweet("selected_choice" to "2").renderStatus(accountKey).poll)
+
+        assertEquals(listOf(1), poll.ownVotes)
+        assertFalse(poll.canVote)
+    }
+
+    @Test
+    fun renderStatus_finalPoll_cannotBeVotedOn() {
+        val tweet =
+            createPollTweet().let { tweet ->
+                val card = assertNotNull(tweet.card?.legacy)
+                tweet.copy(
+                    card =
+                        TweetCard(
+                            card.copy(
+                                bindingValues =
+                                    card.bindingValues +
+                                        TweetCardLegacyBindingValue(
+                                            key = "counts_are_final",
+                                            value = TweetCardLegacyBindingValueData(type = "BOOLEAN", booleanValue = true),
+                                        ),
+                            ),
+                        ),
+                )
+            }
+
+        assertFalse(assertNotNull(tweet.renderStatus(accountKey).poll).canVote)
+    }
+
+    private fun createPollTweet(vararg extra: Pair<String, String>): Tweet {
+        val strings = listOf("choice1_label" to "A", "choice1_count" to "3", "choice2_label" to "B", "choice2_count" to "1") + extra
+        return createPlainTweet().copy(
+            card =
+                TweetCard(
+                    TweetCardLegacy(
+                        bindingValues =
+                            strings.map { (key, value) ->
+                                TweetCardLegacyBindingValue(
+                                    key = key,
+                                    value = TweetCardLegacyBindingValueData(type = "STRING", stringValue = value),
+                                )
+                            },
+                        name = "poll2choice_text_only",
+                        url = "card://9",
+                    ),
+                ),
+        )
     }
 
     private fun muteThreadRoute(mute: Boolean) =

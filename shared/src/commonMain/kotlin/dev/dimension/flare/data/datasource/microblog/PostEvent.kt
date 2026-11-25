@@ -373,6 +373,18 @@ public sealed interface PostEvent {
             public override val postKey: MicroBlogKey,
             public val actionMetadata: String,
         ) : XQT
+
+        @Serializable
+        public data class Vote(
+            public override val accountKey: MicroBlogKey,
+            public override val postKey: MicroBlogKey,
+            public override val options: SerializableImmutableList<Int>,
+            public val cardUri: String,
+            public val cardName: String,
+        ) : XQT,
+            PollEvent {
+            public override fun copyWithOptions(options: List<Int>): PollEvent = copy(options = options.toImmutableList())
+        }
     }
 
     @Serializable

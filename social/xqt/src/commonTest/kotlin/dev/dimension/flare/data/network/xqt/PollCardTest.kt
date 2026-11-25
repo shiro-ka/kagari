@@ -4,8 +4,10 @@ import de.jensklingenberg.ktorfit.converter.ResponseConverterFactory
 import de.jensklingenberg.ktorfit.ktorfit
 import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.network.xqt.api.CardsApi
+import dev.dimension.flare.data.network.xqt.api.XqtPollResult
 import dev.dimension.flare.data.network.xqt.api.createCardsApi
 import dev.dimension.flare.data.network.xqt.api.createPoll
+import dev.dimension.flare.data.network.xqt.api.votePoll
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -75,6 +77,43 @@ class PollCardTest {
         runTest {
             withCardsApi(MockEngine { respond("{}", headers = headersOf(HttpHeaders.ContentType, "application/json")) }) { api ->
                 assertFailsWith<IllegalStateException> { api.createPoll(ComposeData.Poll(listOf("A", "B"), 300_000L, false)) }
+            }
+        }
+
+    @Test
+    fun votingPostsTheChoiceToPassthroughAndReadsTheReturnedCounts() =
+        runTest {
+            withCardsApi(
+                MockEngine { request ->
+                    assertEquals(HttpMethod.Post, request.method)
+                    assertEquals("/v2/capi/passthrough/1", request.url.encodedPath)
+                    val form = assertIs<FormDataContent>(request.body).formData
+                    assertEquals("card://9", form["twitter:string:card_uri"])
+                    assertEquals("42", form["twitter:long:original_tweet_id"])
+                    assertEquals("poll2choice_text_only", form["twitter:string:response_card_name"])
+                    assertEquals("Web-12", form["twitter:string:cards_platform"])
+                    assertEquals("2", form["twitter:string:selected_choice"])
+                    respond(
+                        """{"card":{"name":"poll2choice_text_only","binding_values":{"choice1_label":{"type":"STRING","string_value":"A"},"choice1_count":{"type":"STRING","string_value":"3"},"choice2_label":{"type":"STRING","string_value":"B"},"choice2_count":{"type":"STRING","string_value":"2"},"selected_choice":{"type":"STRING","string_value":"2"}}}}""",
+                        HttpStatusCode.OK,
+                        headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                },
+            ) { api ->
+                assertEquals(
+                    XqtPollResult(counts = listOf(3L, 2L), selected = 1),
+                    api.votePoll(cardUri = "card://9", tweetId = "42", cardName = "poll2choice_text_only", choice = 1),
+                )
+            }
+        }
+
+    @Test
+    fun rejectedVoteFails() =
+        runTest {
+            withCardsApi(MockEngine { respond("{}", HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json")) }) { api ->
+                assertFailsWith<IllegalStateException> {
+                    api.votePoll(cardUri = "card://9", tweetId = "42", cardName = "poll2choice_text_only", choice = 0)
+                }
             }
         }
 

@@ -50,6 +50,8 @@ import dev.dimension.flare.data.network.xqt.XQTService
 import dev.dimension.flare.data.network.xqt.api.XQT_POLL_CONFIG
 import dev.dimension.flare.data.network.xqt.api.createPoll
 import dev.dimension.flare.data.network.xqt.api.kagariSetConversationMuted
+import dev.dimension.flare.data.network.xqt.api.XqtPollResult
+import dev.dimension.flare.data.network.xqt.api.votePoll
 import dev.dimension.flare.data.network.xqt.api.kagariSetPinned
 import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import dev.dimension.flare.data.network.xqt.api.publishTweet
@@ -86,6 +88,7 @@ import dev.dimension.flare.shared.image.ImageCompressor
 import dev.dimension.flare.ui.model.UiArticle
 import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiList
+import dev.dimension.flare.ui.model.UiPoll
 import dev.dimension.flare.ui.model.UiPodcast
 import dev.dimension.flare.ui.model.UiStrings
 import dev.dimension.flare.ui.model.UiText
@@ -326,6 +329,22 @@ internal class XQTDataSource(
                     "X timeline feedback failed with HTTP ${response.code}"
                 }
                 updater.deleteFromCache(event.postKey)
+            }
+
+            is PostEvent.XQT.Vote -> {
+                val choice = requireNotNull(event.options.singleOrNull()) { "X polls take exactly one choice." }
+                val result =
+                    service.votePoll(
+                        cardUri = event.cardUri,
+                        tweetId = event.postKey.id,
+                        cardName = event.cardName,
+                        choice = choice,
+                    ) ?: return
+                updater.updateCache(event.postKey) { current ->
+                    if (current !is UiTimelineV2.Post) return@updateCache current
+                    val poll = current.poll ?: return@updateCache current
+                    current.copy(poll = poll.withXqtResult(result, choice))
+                }
             }
         }
     }
@@ -970,4 +989,23 @@ internal class XQTDataSource(
                 }.toImmutableList()
         }
     }
+}
+
+internal fun UiPoll.withXqtResult(
+    result: XqtPollResult,
+    choice: Int,
+): UiPoll {
+    val counts = options.mapIndexed { index, option -> result.counts.getOrNull(index) ?: option.votesCount }
+    val total = counts.sum().coerceAtLeast(1L)
+    return copy(
+        options =
+            options
+                .mapIndexed { index, option ->
+                    option.copy(
+                        votesCount = counts[index],
+                        percentage = counts[index].toFloat() / total.toFloat(),
+                    )
+                }.toImmutableList(),
+        ownVotes = persistentListOf(result.selected ?: choice),
+    )
 }

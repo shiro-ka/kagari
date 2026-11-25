@@ -612,29 +612,37 @@ internal fun Tweet.renderStatus(
                                 percentage = count.toFloat() / totalVotes.toFloat(),
                             )
                         }.toImmutableList()
+                val selectedChoice = cardLegacy.get("selected_choice")?.stringValue?.toIntOrNull()?.minus(1)
                 val ownVotes =
                     optionData
                         .mapNotNull { (index, _, _) ->
-                            if (cardLegacy.get("choice${index + 1}_selected")?.booleanValue == true) {
+                            if (index == selectedChoice || cardLegacy.get("choice${index + 1}_selected")?.booleanValue == true) {
                                 index
                             } else {
                                 null
                             }
                         }.toImmutableList()
+                val pollKey = MicroBlogKey(id = legacy?.idStr ?: restId, host = accountKey.host)
                 UiPoll(
-                    // xqt dose not have id
-                    id = "",
+                    id = cardLegacy.url,
                     options = options,
                     multiple = false,
                     ownVotes = ownVotes,
-                    voteEvent = null,
+                    voteEvent =
+                        PostEvent.XQT.Vote(
+                            accountKey = accountKey,
+                            postKey = pollKey,
+                            options = persistentListOf(),
+                            cardUri = cardLegacy.url,
+                            cardName = cardLegacy.name,
+                        ),
                     expiresAt =
                         cardLegacy.get("end_datetime_utc")?.stringValue?.let {
                             parseXQTCustomDateTime(
                                 it,
                             )
                         },
-                    enabled = false,
+                    enabled = cardLegacy.get("counts_are_final")?.booleanValue != true,
                 )
             } else {
                 null
