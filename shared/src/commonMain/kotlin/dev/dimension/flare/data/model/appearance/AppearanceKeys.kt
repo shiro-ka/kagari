@@ -86,6 +86,12 @@ public object AppearanceKeys {
         AppearanceKagariReactionLayout.serializer(),
     )
 
+    public object KagariAvailableReactionsFirst : Global<Boolean>(
+        "app.kagari_available_reactions_first",
+        false,
+        Boolean.serializer(),
+    )
+
     public object KagariPostActionLayoutByPlatform : Global<AppearanceKagariPlatformPostActionLayouts>(
         "app.kagari_post_action_layout_by_platform",
         AppearanceKagariPlatformPostActionLayouts.Default,
@@ -179,6 +185,7 @@ public object AppearanceKeys {
             KagariShortenLinks,
             KagariRemoteReactionMode,
             KagariReactionLayout,
+            KagariAvailableReactionsFirst,
             KagariPostActionLayoutByPlatform,
             ShowSensitiveContent,
             ExpandContentWarning,

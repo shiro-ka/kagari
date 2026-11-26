@@ -16,6 +16,14 @@ public val UiTimelineV2.Post.EmojiReaction.isKagariRemoteCustomEmoji: Boolean
         return host.isNotEmpty() && host != "."
     }
 
+public val UiTimelineV2.Post.EmojiReaction.isKagariReactable: Boolean
+    get() = !isKagariRemoteCustomEmoji
+
+public fun List<UiTimelineV2.Post.EmojiReaction>.kagariAvailableFirst(): ImmutableList<UiTimelineV2.Post.EmojiReaction> {
+    val (available, unavailable) = partition { it.isKagariReactable }
+    return (available + unavailable).toImmutableList()
+}
+
 public fun List<UiTimelineV2.Post.EmojiReaction>.kagariWithRemoteReactionMode(
     mode: KagariRemoteReactionMode,
 ): ImmutableList<UiTimelineV2.Post.EmojiReaction> {

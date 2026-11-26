@@ -73,6 +73,8 @@
     <string name="kagari_settings_reaction_layout_first_sixteen">First 16</string>
     <string name="kagari_settings_reaction_layout_two_lines">Two lines</string>
     <string name="kagari_settings_reaction_layout_one_line_scroll">One scrolling line</string>
+    <string name="kagari_settings_available_reactions_first">Show usable reactions first</string>
+    <string name="kagari_settings_available_reactions_first_description">On Misskey, put reactions you can also add (Unicode emoji and your server\'s emoji) before emoji from other servers</string>
     <string name="kagari_verification_title">Verified account</string>
     <string name="kagari_verification_message">This account has been verified by:</string>
     <string name="kagari_verification_message_simple">This account has been verified by its service.</string>

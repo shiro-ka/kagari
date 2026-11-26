@@ -72,6 +72,8 @@
     <string name="kagari_settings_reaction_layout_first_sixteen">16個で切る</string>
     <string name="kagari_settings_reaction_layout_two_lines">2行で切る</string>
     <string name="kagari_settings_reaction_layout_one_line_scroll">1行で横スクロール</string>
+    <string name="kagari_settings_available_reactions_first">使えるリアクションを先に並べる</string>
+    <string name="kagari_settings_available_reactions_first_description">Misskey で、自分も付けられるリアクション(Unicode の絵文字と自分のサーバーの絵文字)を、ほかのサーバーの絵文字より前に並べます</string>
     <string name="kagari_verification_title">認証済みのアカウント</string>
     <string name="kagari_verification_message">このアカウントは、次のアカウントに本人と確認されています。</string>
     <string name="kagari_verification_message_simple">このアカウントは、サービスに本人と確認されています。</string>

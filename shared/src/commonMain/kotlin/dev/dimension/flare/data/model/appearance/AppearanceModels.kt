@@ -36,6 +36,7 @@ public data class GlobalAppearance(
     val kagariShortenLinks: Boolean = AppearanceKeys.KagariShortenLinks.default,
     val kagariRemoteReactionMode: KagariRemoteReactionMode = AppearanceKeys.KagariRemoteReactionMode.default,
     val kagariReactionLayout: KagariReactionLayout = AppearanceKeys.KagariReactionLayout.default,
+    val kagariAvailableReactionsFirst: Boolean = AppearanceKeys.KagariAvailableReactionsFirst.default,
 ) {
     public companion object {
         public val Default: GlobalAppearance = GlobalAppearance()
@@ -102,6 +103,7 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         kagariShortenLinks = get(AppearanceKeys.KagariShortenLinks),
         kagariRemoteReactionMode = get(AppearanceKeys.KagariRemoteReactionMode),
         kagariReactionLayout = get(AppearanceKeys.KagariReactionLayout),
+        kagariAvailableReactionsFirst = get(AppearanceKeys.KagariAvailableReactionsFirst),
     )
 
 public fun AppearancePatch.toTimelineAppearance(): TimelineAppearance = toTimelineAppearance(override = null)

@@ -172,6 +172,8 @@ import dev.dimension.flare.ui.model.UiPoll
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
+import dev.dimension.flare.ui.model.isKagariReactable
+import dev.dimension.flare.ui.model.kagariAvailableFirst
 import dev.dimension.flare.ui.model.kagariWithRemoteReactionMode
 import dev.dimension.flare.ui.model.mapper.PixivPrivateFollows
 import dev.dimension.flare.ui.model.mapper.kagariPixivLongClickEvent
@@ -281,12 +283,18 @@ public fun CommonStatusComponent(
         val showsAttachments =
             showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null || kagariCommunityNote != null
         val kagariRemoteReactionMode = LocalGlobalAppearance.current.kagariRemoteReactionMode
+        val kagariAvailableReactionsFirst = LocalGlobalAppearance.current.kagariAvailableReactionsFirst
         val emojiReactions =
-            remember(item.emojiReactions, kagariRemoteReactionMode) {
-                item.emojiReactions
-                    .kagariWithRemoteReactionMode(kagariRemoteReactionMode)
-                    .sortedByDescending { it.count.value }
-                    .toImmutableList()
+            remember(item.emojiReactions, kagariRemoteReactionMode, kagariAvailableReactionsFirst) {
+                val sorted =
+                    item.emojiReactions
+                        .kagariWithRemoteReactionMode(kagariRemoteReactionMode)
+                        .sortedByDescending { it.count.value }
+                if (kagariAvailableReactionsFirst) {
+                    sorted.kagariAvailableFirst()
+                } else {
+                    sorted.toImmutableList()
+                }
             }
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
@@ -847,11 +855,12 @@ private fun StatusReactionComponent(
                 mineIndex = emojiReactions.indexOfFirst { it.me },
             ) { index ->
                 val reaction = emojiReactions[index]
+                val reactable = reaction.isKagariReactable
                 val color =
-                    if (reaction.me) {
-                        PlatformTheme.colorScheme.primaryContainer
-                    } else {
-                        PlatformTheme.colorScheme.cardAlt
+                    when {
+                        reaction.me -> PlatformTheme.colorScheme.primaryContainer
+                        reactable -> PlatformTheme.colorScheme.cardAlt
+                        else -> Color.Transparent
                     }
                 val borderColor =
                     if (reaction.me) {
@@ -874,7 +883,7 @@ private fun StatusReactionComponent(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier
-                                .clickable {
+                                .clickable(enabled = reactable) {
                                     reaction.onClicked.invoke(
                                         ClickContext(uriHandler::openUri),
                                     )

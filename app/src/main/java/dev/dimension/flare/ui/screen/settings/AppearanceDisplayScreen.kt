@@ -263,6 +263,26 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
             )
             SegmentedListItem(
                 onClick = {
+                    state.update(AppearanceKeys.KagariAvailableReactionsFirst, !globalAppearance.kagariAvailableReactionsFirst)
+                },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.kagari_settings_available_reactions_first))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.kagari_settings_available_reactions_first_description))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = globalAppearance.kagariAvailableReactionsFirst,
+                        onCheckedChange = {
+                            state.update(AppearanceKeys.KagariAvailableReactionsFirst, it)
+                        },
+                    )
+                },
+            )
+            SegmentedListItem(
+                onClick = {
                     state.update(AppearanceKeys.ShowLinkPreview, !timelineAppearance.showLinkPreview)
                 },
                 shapes =
