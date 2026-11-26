@@ -13,6 +13,8 @@ import dev.dimension.flare.data.model.Theme
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.data.model.TimelineMediaLayout
 import dev.dimension.flare.data.model.VideoAutoplay
+import dev.dimension.flare.data.model.resolveBehavior
+import dev.dimension.flare.data.model.supportedBehaviors
 import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.model.tab.resolveTimelineAppearance
 import dev.dimension.flare.data.model.tab.toUiTimelineTabItem
@@ -27,6 +29,31 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AppearancePatchTest {
+    @Test
+    fun bottomBarStyleKeepsSavedOrdinalsAndRoundTripsCompact() {
+        assertEquals(0, BottomBarStyle.Floating.ordinal)
+        assertEquals(1, BottomBarStyle.Classic.ordinal)
+        BottomBarStyle.entries.forEach { style ->
+            val patch = AppearancePatch.EMPTY.set(AppearanceKeys.BottomBarStyle, style)
+            assertEquals(style, patch.toBag().toPatch().toGlobalAppearance().bottomBarStyle)
+        }
+    }
+
+    @Test
+    fun bottomBarBehaviorFollowsStyle() {
+        assertEquals(
+            listOf(BottomBarBehavior.AlwaysShow, BottomBarBehavior.HideOnScroll),
+            BottomBarStyle.Classic.supportedBehaviors,
+        )
+        assertEquals(BottomBarBehavior.HideOnScroll, BottomBarStyle.Classic.resolveBehavior(BottomBarBehavior.MinimizeOnScroll))
+        assertEquals(BottomBarBehavior.AlwaysShow, BottomBarStyle.Classic.resolveBehavior(BottomBarBehavior.AlwaysShow))
+        listOf(BottomBarStyle.Floating, BottomBarStyle.FloatingCompact).forEach { style ->
+            BottomBarBehavior.entries.forEach { behavior ->
+                assertEquals(behavior, style.resolveBehavior(behavior))
+            }
+        }
+    }
+
     @Test
     fun postActionsStretchByDefaultOnNativeAndPreserveSavedStyle() {
         val expected = if (isWebPlatform) PostActionStyle.LeftAligned else PostActionStyle.Stretch
