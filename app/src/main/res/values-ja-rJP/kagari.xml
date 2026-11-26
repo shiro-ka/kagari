@@ -322,4 +322,9 @@
     <string name="kagari_search_tabs_edit">検索のタブを編集</string>
     <string name="kagari_search_tabs_add">タブを足す</string>
     <string name="kagari_search_tabs_empty">検索のタブがありません</string>
+    <string name="kagari_search_mixed_tab">まとめて</string>
+    <string name="kagari_search_mixed_tab_setting">まとめてのタブを出す</string>
+    <string name="kagari_search_mixed_tab_setting_description">「まとめてに表示」がオンの検索のタブの結果を、時刻順に1つにまとめます</string>
+    <string name="kagari_search_mixed_show">まとめてに表示</string>
+    <string name="kagari_search_mixed_show_description">まとめてのタブに、このタブの結果を含めます</string>
 </resources>

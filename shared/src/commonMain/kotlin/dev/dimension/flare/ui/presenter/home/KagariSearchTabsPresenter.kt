@@ -16,11 +16,15 @@ import dev.dimension.flare.common.PagingState
 import dev.dimension.flare.common.isEmpty
 import dev.dimension.flare.common.refreshSuspend
 import dev.dimension.flare.common.toPagingState
+import dev.dimension.flare.data.database.cache.CacheDatabase
 import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.accountKeyOrNull
 import dev.dimension.flare.data.datasource.microblog.accountProfileFlow
+import dev.dimension.flare.data.datasource.microblog.kagariCanMix
+import dev.dimension.flare.data.datasource.microblog.kagariMixedSearchLoader
 import dev.dimension.flare.data.datasource.microblog.kagariSearchKindList
+import dev.dimension.flare.data.datasource.microblog.kagariSearchNewestFirst
 import dev.dimension.flare.data.datasource.microblog.kagariSearchPosts
 import dev.dimension.flare.data.datasource.microblog.paging.toPagingSource
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
@@ -55,16 +59,34 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Immutable
-public data class KagariSearchTabItem(
-    val tab: KagariSearchTab,
-    val profile: UiProfile,
-)
+public sealed interface KagariSearchTabItem {
+    public val key: String
+
+    @Immutable
+    public data class Single(
+        val tab: KagariSearchTab,
+        val profile: UiProfile,
+    ) : KagariSearchTabItem {
+        override val key: String
+            get() = tab.sourceKey()
+    }
+
+    @Immutable
+    public data object Mixed : KagariSearchTabItem {
+        override val key: String = "mixed"
+    }
+}
 
 @Immutable
 public data class KagariSearchAccountOption(
     val profile: UiProfile,
     val kinds: ImmutableList<KagariSearchKind>,
-)
+    val mixedByDefault: ImmutableList<KagariSearchKind>,
+) {
+    public fun newTab(kind: KagariSearchKind): KagariSearchTab = KagariSearchTab(profile.key, kind, mixed = kind in mixedByDefault)
+}
+
+internal fun KagariSearchTab.sourceKey(): String = "${accountKey}_${kind.name}"
 
 @Immutable
 public interface KagariSearchTabsState {
@@ -90,8 +112,9 @@ public class KagariSearchTabsPresenter(
 ) : PresenterBase<KagariSearchTabsState>() {
     private val accountRepository: AccountRepository by koinInject()
     private val appDataStore: AppDataStore by koinInject()
+    private val database: CacheDatabase by koinInject()
     private val queryFlow = MutableStateFlow(initialQuery)
-    private val selectedTabFlow = MutableStateFlow<KagariSearchTab?>(null)
+    private val selectedKeyFlow = MutableStateFlow<String?>(null)
 
     private data class SearchAccount(
         val key: MicroBlogKey,
@@ -103,6 +126,8 @@ public class KagariSearchTabsPresenter(
     private data class Resolved(
         val accounts: List<SearchAccount> = emptyList(),
         val tabs: ImmutableList<KagariSearchTabItem> = persistentListOf(),
+        val mixedMembers: List<Pair<MicroblogDataSource, KagariSearchKind>> = emptyList(),
+        val mixedKey: String = "",
     )
 
     private val accountsFlow: Flow<List<SearchAccount>> by lazy {
@@ -132,13 +157,22 @@ public class KagariSearchTabsPresenter(
             appDataStore.kagariSearchTabsStore.data,
         ) { accounts, kindAccounts, preferences ->
             val byKey = accounts.associateBy { it.key }
-            val tabs =
+            val kindsByKey = kindAccounts.associateBy { it.key }
+            val singles =
                 preferences.kagariVisibleTabs(kindAccounts).mapNotNull { tab ->
                     byKey[tab.accountKey]
                         ?.takeIf { tab.kind in it.kinds }
-                        ?.let { KagariSearchTabItem(tab, it.profile) }
+                        ?.let { KagariSearchTabItem.Single(tab, it.profile) }
                 }
-            Resolved(accounts, tabs.toImmutableList())
+            val mixedItems = singles.filter { item -> item.tab.kagariIsMixed(kindsByKey[item.tab.accountKey]) }
+            val showMixed = preferences.mixedTabEnabled && singles.size >= 2
+            val tabs: List<KagariSearchTabItem> = if (showMixed) listOf(KagariSearchTabItem.Mixed) + singles else singles
+            Resolved(
+                accounts = accounts,
+                tabs = tabs.toImmutableList(),
+                mixedMembers = mixedItems.mapNotNull { item -> byKey[item.tab.accountKey]?.let { it.source to item.tab.kind } },
+                mixedKey = mixedItems.joinToString("|") { it.key },
+            )
         }
     }
 
@@ -151,27 +185,37 @@ public class KagariSearchTabsPresenter(
         }
         val resolved by resolvedFlow.collectAsState(Resolved())
         val query by queryFlow.collectAsState()
-        val selectedTab by selectedTabFlow.collectAsState()
+        val selectedKey by selectedKeyFlow.collectAsState()
         val tabs = resolved.tabs
         val selectedIndex =
-            tabs.indexOfFirst { it.tab == selectedTab }.takeIf { it >= 0 }
-                ?: tabs.indexOfFirst { it.tab.accountKey == preferredAccountKey }.takeIf { it >= 0 }
+            tabs.indexOfFirst { it.key == selectedKey }.takeIf { it >= 0 }
+                ?: tabs
+                    .indexOfFirst { it is KagariSearchTabItem.Single && it.tab.accountKey == preferredAccountKey }
+                    .takeIf { it >= 0 }
                 ?: 0
         val current = tabs.getOrNull(selectedIndex)
-        val account = current?.let { item -> resolved.accounts.firstOrNull { it.key == item.tab.accountKey } }
+        val single = current as? KagariSearchTabItem.Single
+        val account = single?.let { item -> resolved.accounts.firstOrNull { it.key == item.tab.accountKey } }
         val searching = query.isNotEmpty()
+        val pagerKey =
+            when (current) {
+                is KagariSearchTabItem.Single -> current.key
+                KagariSearchTabItem.Mixed -> "mixed/" + resolved.mixedKey
+                null -> null
+            }
+        val mixedMembers = resolved.mixedMembers
 
         return key(query) {
             val scope = rememberCoroutineScope()
-            val statusPagers = remember { mutableMapOf<KagariSearchTab, Flow<PagingData<UiTimelineV2>>>() }
-            val userPagers = remember { mutableMapOf<KagariSearchTab, Flow<PagingData<UiProfile>>>() }
-            key(current?.tab) {
-                val tab = current?.tab
+            val statusPagers = remember { mutableMapOf<String, Flow<PagingData<UiTimelineV2>>>() }
+            val userPagers = remember { mutableMapOf<String, Flow<PagingData<UiProfile>>>() }
+            key(pagerKey) {
+                val tab = single?.tab
                 val isUsers = tab?.kind == KagariSearchKind.Users
                 val users =
-                    if (searching && tab != null && account != null && isUsers) {
+                    if (searching && pagerKey != null && tab != null && account != null && isUsers) {
                         userPagers
-                            .getOrPut(tab) {
+                            .getOrPut(pagerKey) {
                                 Pager(config = pagingConfig) { account.source.searchUser(query).toPagingSource() }
                                     .flow
                                     .cachedIn(scope)
@@ -180,12 +224,22 @@ public class KagariSearchTabsPresenter(
                     } else {
                         PagingState.Empty {}
                     }
+                val isMixed = current == KagariSearchTabItem.Mixed
                 val status =
-                    if (searching && tab != null && account != null && !isUsers) {
+                    if (searching && pagerKey != null && !isUsers && (isMixed || (tab != null && account != null))) {
                         statusPagers
-                            .getOrPut(tab) {
+                            .getOrPut(pagerKey) {
                                 TimelinePresenter(
-                                    loader = flow { emit(account.source.kagariSearchPosts(query, tab.kind)) },
+                                    loader =
+                                        flow {
+                                            emit(
+                                                if (tab != null && account != null) {
+                                                    account.source.kagariSearchPosts(query, tab.kind)
+                                                } else {
+                                                    kagariMixedSearchLoader(database, query, mixedMembers)
+                                                },
+                                            )
+                                        },
                                 ).createPager(scope)
                             }.collectAsLazyPagingItems()
                             .toPagingState()
@@ -203,7 +257,7 @@ public class KagariSearchTabsPresenter(
                     override val hasNoResults = searching && current != null && users.isEmpty && status.isEmpty
 
                     override fun select(index: Int) {
-                        selectedTabFlow.value = tabs.getOrNull(index)?.tab
+                        selectedKeyFlow.value = tabs.getOrNull(index)?.key
                     }
 
                     override fun search(query: String) {
@@ -223,7 +277,11 @@ public class KagariSearchTabsPresenter(
 internal data class KagariSearchAccountKinds(
     val key: MicroBlogKey,
     val kinds: List<KagariSearchKind>,
+    val mixedByDefault: List<KagariSearchKind>,
 )
+
+internal fun KagariSearchTab.kagariIsMixed(account: KagariSearchAccountKinds?): Boolean =
+    kind.kagariCanMix() && (mixed ?: (account?.mixedByDefault?.contains(kind) == true))
 
 internal fun kagariSearchAccountKindsFlow(accountRepository: AccountRepository): Flow<List<KagariSearchAccountKinds>> =
     allAccountServicesFlow(accountRepository)
@@ -233,7 +291,7 @@ internal fun kagariSearchAccountKindsFlow(accountRepository: AccountRepository):
                 source
                     .kagariSearchKindList()
                     .takeIf { it.isNotEmpty() }
-                    ?.let { KagariSearchAccountKinds(key, it) }
+                    ?.let { kinds -> KagariSearchAccountKinds(key, kinds, kinds.filter { source.kagariSearchNewestFirst(it) }) }
             }
         }.distinctUntilChanged()
 
@@ -254,7 +312,7 @@ internal fun KagariSearchTabPreferences.withAccounts(accounts: List<KagariSearch
     val added = accounts.filter { it.key !in knownAccounts }
     if (added.isEmpty()) return this
     return copy(
-        tabs = (tabs + added.map { KagariSearchTab(it.key, it.kinds.kagariDefaultSearchKind()) }).distinct(),
+        tabs = (tabs + added.map { KagariSearchTab(it.key, it.kinds.kagariDefaultSearchKind()) }).distinctBy { it.sourceKey() },
         knownAccounts = (knownAccounts + added.map { it.key }).distinct(),
     )
 }
@@ -270,7 +328,7 @@ internal fun KagariSearchTabPreferences.kagariVisibleTabs(accounts: List<KagariS
         }
     return saved
         .ifEmpty { accounts.map { KagariSearchTab(it.key, it.kinds.kagariDefaultSearchKind()) } }
-        .distinct()
+        .distinctBy { it.sourceKey() }
 }
 
 @Immutable
@@ -279,8 +337,12 @@ public interface KagariSearchTabsEditState {
     public val tabs: ImmutableList<KagariSearchTab>
     public val profiles: ImmutableMap<MicroBlogKey, UiProfile>
     public val accountOptions: ImmutableList<KagariSearchAccountOption>
+    public val mixedTabEnabled: Boolean
 
-    public fun save(tabs: List<KagariSearchTab>)
+    public fun save(
+        tabs: List<KagariSearchTab>,
+        mixedTabEnabled: Boolean,
+    )
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -292,6 +354,7 @@ public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditS
     private data class Loaded(
         val accounts: List<KagariSearchAccountKinds>,
         val tabs: ImmutableList<KagariSearchTab>,
+        val mixedTabEnabled: Boolean,
     )
 
     private val loadedFlow: Flow<Loaded> by lazy {
@@ -299,7 +362,16 @@ public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditS
             kagariSearchAccountKindsFlow(accountRepository),
             appDataStore.kagariSearchTabsStore.data,
         ) { accounts, preferences ->
-            Loaded(accounts, preferences.kagariVisibleTabs(accounts).toImmutableList())
+            val byKey = accounts.associateBy { it.key }
+            Loaded(
+                accounts = accounts,
+                tabs =
+                    preferences
+                        .kagariVisibleTabs(accounts)
+                        .map { tab -> tab.copy(mixed = tab.kagariIsMixed(byKey[tab.accountKey])) }
+                        .toImmutableList(),
+                mixedTabEnabled = preferences.mixedTabEnabled,
+            )
         }
     }
 
@@ -335,7 +407,9 @@ public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditS
                     ?.accounts
                     .orEmpty()
                     .mapNotNull { account ->
-                        profiles[account.key]?.let { KagariSearchAccountOption(it, account.kinds.toImmutableList()) }
+                        profiles[account.key]?.let {
+                            KagariSearchAccountOption(it, account.kinds.toImmutableList(), account.mixedByDefault.toImmutableList())
+                        }
                     }.toImmutableList()
             }
         return object : KagariSearchTabsEditState {
@@ -343,8 +417,12 @@ public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditS
             override val tabs = current?.tabs ?: persistentListOf()
             override val profiles = profiles
             override val accountOptions = accountOptions
+            override val mixedTabEnabled = current?.mixedTabEnabled ?: true
 
-            override fun save(tabs: List<KagariSearchTab>) {
+            override fun save(
+                tabs: List<KagariSearchTab>,
+                mixedTabEnabled: Boolean,
+            ) {
                 val accounts = current?.accounts ?: return
                 val currentKeys = accounts.map { it.key }.toSet()
                 appScope.launch {
@@ -353,8 +431,9 @@ public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditS
                         synced.copy(
                             initialized = true,
                             accountsTracked = true,
-                            tabs = (tabs + synced.tabs.filter { it.accountKey !in currentKeys }).distinct(),
+                            tabs = (tabs + synced.tabs.filter { it.accountKey !in currentKeys }).distinctBy { it.sourceKey() },
                             knownAccounts = (synced.knownAccounts + currentKeys).distinct(),
+                            mixedTabEnabled = mixedTabEnabled,
                         )
                     }
                 }

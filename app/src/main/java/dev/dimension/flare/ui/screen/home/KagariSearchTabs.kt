@@ -18,13 +18,17 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SecondaryScrollableTabRow
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -50,11 +54,13 @@ import compose.icons.fontawesomeicons.Solid
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Pen
 import compose.icons.fontawesomeicons.solid.Plus
+import compose.icons.fontawesomeicons.solid.SquareRss
 import dev.dimension.flare.R
 import dev.dimension.flare.common.isEmpty
 import dev.dimension.flare.common.onLoading
 import dev.dimension.flare.common.onSuccess
 import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
+import dev.dimension.flare.data.datasource.microblog.kagariCanMix
 import dev.dimension.flare.data.datastore.model.KagariSearchTab
 import dev.dimension.flare.ui.component.AvatarComponent
 import dev.dimension.flare.ui.component.BackButton
@@ -70,6 +76,7 @@ import dev.dimension.flare.ui.component.status.UserPlaceholder
 import dev.dimension.flare.ui.component.status.pagingError
 import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.presenter.home.KagariSearchAccountOption
+import dev.dimension.flare.ui.presenter.home.KagariSearchTabItem
 import dev.dimension.flare.ui.presenter.home.KagariSearchTabsEditPresenter
 import dev.dimension.flare.ui.presenter.home.KagariSearchTabsState
 import dev.dimension.flare.ui.presenter.invoke
@@ -78,6 +85,7 @@ import dev.dimension.flare.ui.screen.settings.ListTabItem
 import dev.dimension.flare.ui.screen.settings.SwipeToDeleteTabItem
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import dev.dimension.flare.ui.theme.segmentedShapes2
+import dev.dimension.flare.ui.theme.single
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 import moe.tlaster.precompose.molecule.producePresenter
@@ -131,17 +139,32 @@ internal fun KagariSearchTabRow(
                         },
                         text = {
                             Text(
-                                text = item.tab.kind.label(),
+                                text =
+                                    when (item) {
+                                        is KagariSearchTabItem.Single -> item.tab.kind.label()
+                                        KagariSearchTabItem.Mixed -> stringResource(R.string.kagari_search_mixed_tab)
+                                    },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         },
                         icon = {
-                            AvatarComponent(
-                                item.profile.avatar,
-                                size = 24.dp,
-                                contentDescription = item.profile.handle.display,
-                            )
+                            when (item) {
+                                is KagariSearchTabItem.Single -> {
+                                    AvatarComponent(
+                                        item.profile.avatar,
+                                        size = 24.dp,
+                                        contentDescription = item.profile.handle.display,
+                                    )
+                                }
+
+                                KagariSearchTabItem.Mixed -> {
+                                    FAIcon(
+                                        FontAwesomeIcons.Solid.SquareRss,
+                                        contentDescription = null,
+                                    )
+                                }
+                            }
                         },
                     )
                 }
@@ -214,16 +237,19 @@ internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
     val tabs = remember { mutableStateListOf<KagariSearchTab>() }
     var loaded by remember { mutableStateOf(false) }
     var showAddTab by remember { mutableStateOf(false) }
+    var mixedTabEnabled by remember { mutableStateOf(true) }
+    var editingTab by remember { mutableStateOf<KagariSearchTab?>(null) }
     LaunchedEffect(state.loaded) {
         if (state.loaded && !loaded) {
             tabs.addAll(state.tabs)
+            mixedTabEnabled = state.mixedTabEnabled
             loaded = true
         }
     }
     DisposableEffect(Unit) {
         onDispose {
             if (loaded) {
-                state.save(tabs.toList())
+                state.save(tabs.toList(), mixedTabEnabled)
             }
         }
     }
@@ -282,6 +308,30 @@ internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
                     )
                 }
             }
+            if (loaded) {
+                item("header") {
+                    SegmentedListItem(
+                        onClick = {
+                            mixedTabEnabled = !mixedTabEnabled
+                        },
+                        shapes = ListItemDefaults.single(),
+                        content = {
+                            Text(stringResource(R.string.kagari_search_mixed_tab_setting))
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = mixedTabEnabled,
+                                onCheckedChange = {
+                                    mixedTabEnabled = it
+                                },
+                            )
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.kagari_search_mixed_tab_setting_description))
+                        },
+                    )
+                }
+            }
             item {
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -293,6 +343,13 @@ internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
                     reorderableLazyColumnState = reorderableLazyColumnState,
                     canSwipeToDelete = true,
                     shapes = ListItemDefaults.segmentedShapes2(index, tabs.size),
+                    isEditing = editingTab?.isSameSource(tab) == true,
+                    onEdit =
+                        if (tab.kind.kagariCanMix()) {
+                            { editingTab = tab }
+                        } else {
+                            null
+                        },
                     content = {
                         Text(tab.kind.label())
                     },
@@ -318,6 +375,21 @@ internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
             }
         }
     }
+    editingTab?.let { tab ->
+        KagariSearchTabEditDialog(
+            tab = tab,
+            onDismissRequest = {
+                editingTab = null
+            },
+            onConfirm = { edited ->
+                val index = tabs.indexOfFirst { it.isSameSource(edited) }
+                if (index != -1) {
+                    tabs[index] = edited
+                }
+                editingTab = null
+            },
+        )
+    }
     if (showAddTab) {
         KagariSearchTabAddBottomSheet(
             accountOptions = state.accountOptions,
@@ -326,12 +398,12 @@ internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
                 showAddTab = false
             },
             onAddTab = { tab ->
-                if (tab !in tabs) {
+                if (tabs.none { it.isSameSource(tab) }) {
                     tabs.add(tab)
                 }
             },
             onDeleteTab = { tab ->
-                tabs.remove(tab)
+                tabs.removeAll { it.isSameSource(tab) }
             },
         )
     }
@@ -393,8 +465,8 @@ private fun KagariSearchTabAddBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     itemsIndexed(account.kinds) { index, kind ->
-                        val tab = KagariSearchTab(account.profile.key, kind)
-                        val isAdded = tab in tabs
+                        val tab = account.newTab(kind)
+                        val isAdded = tabs.any { it.isSameSource(tab) }
                         ListTabItem(
                             isAdded = isAdded,
                             leadingContent = {
@@ -424,4 +496,47 @@ private fun KagariSearchTabAddBottomSheet(
             }
         }
     }
+}
+
+@Composable
+private fun KagariSearchTabEditDialog(
+    tab: KagariSearchTab,
+    onDismissRequest: () -> Unit,
+    onConfirm: (KagariSearchTab) -> Unit,
+) {
+    var mixed by remember(tab) { mutableStateOf(tab.mixed == true) }
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(tab.copy(mixed = mixed))
+                },
+            ) {
+                Text(text = stringResource(id = android.R.string.ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = stringResource(id = android.R.string.cancel))
+            }
+        },
+        title = {
+            Text(text = stringResource(id = R.string.edit_tab_title))
+        },
+        text = {
+            SegmentedListItem(
+                onClick = { mixed = !mixed },
+                shapes = ListItemDefaults.single(),
+                content = { Text(text = stringResource(id = R.string.kagari_search_mixed_show)) },
+                supportingContent = { Text(text = stringResource(id = R.string.kagari_search_mixed_show_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = mixed,
+                        onCheckedChange = { mixed = it },
+                    )
+                },
+            )
+        },
+    )
 }

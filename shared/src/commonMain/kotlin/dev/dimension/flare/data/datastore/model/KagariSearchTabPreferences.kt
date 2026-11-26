@@ -8,7 +8,10 @@ import kotlinx.serialization.Serializable
 public data class KagariSearchTab(
     val accountKey: MicroBlogKey,
     val kind: KagariSearchKind,
-)
+    val mixed: Boolean? = null,
+) {
+    public fun isSameSource(other: KagariSearchTab): Boolean = accountKey == other.accountKey && kind == other.kind
+}
 
 @Serializable
 internal data class KagariSearchTabPreferences(
@@ -16,4 +19,5 @@ internal data class KagariSearchTabPreferences(
     val tabs: List<KagariSearchTab> = emptyList(),
     val accountsTracked: Boolean = false,
     val knownAccounts: List<MicroBlogKey> = emptyList(),
+    val mixedTabEnabled: Boolean = true,
 )

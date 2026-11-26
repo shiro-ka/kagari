@@ -323,4 +323,9 @@
     <string name="kagari_search_tabs_edit">Edit search tabs</string>
     <string name="kagari_search_tabs_add">Add a tab</string>
     <string name="kagari_search_tabs_empty">No search tabs</string>
+    <string name="kagari_search_mixed_tab">All</string>
+    <string name="kagari_search_mixed_tab_setting">Show the All tab</string>
+    <string name="kagari_search_mixed_tab_setting_description">Mixes the results of the search tabs set to show in All, ordered by time</string>
+    <string name="kagari_search_mixed_show">Show in All</string>
+    <string name="kagari_search_mixed_show_description">Include the results of this tab in the All tab</string>
 </resources>
