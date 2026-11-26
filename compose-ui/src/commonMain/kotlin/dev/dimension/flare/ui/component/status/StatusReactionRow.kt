@@ -15,6 +15,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.compose.ui.Res
 import dev.dimension.flare.compose.ui.kagari_reaction_others
@@ -25,6 +30,20 @@ import dev.dimension.flare.ui.theme.PlatformTheme
 import org.jetbrains.compose.resources.stringResource
 
 private const val KAGARI_REACTION_LIMIT = 16
+
+private val KagariConsumeHorizontalOverscroll =
+    object : NestedScrollConnection {
+        override fun onPostScroll(
+            consumed: Offset,
+            available: Offset,
+            source: NestedScrollSource,
+        ): Offset = Offset(available.x, 0f)
+
+        override suspend fun onPostFling(
+            consumed: Velocity,
+            available: Velocity,
+        ): Velocity = Velocity(available.x, 0f)
+    }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Suppress("DEPRECATION")
@@ -39,7 +58,10 @@ internal fun StatusReactionRow(
 ) {
     if (!isDetail && layout == KagariReactionLayout.OneLineScroll) {
         Row(
-            modifier = modifier.horizontalScroll(rememberScrollState()),
+            modifier =
+                modifier
+                    .nestedScroll(KagariConsumeHorizontalOverscroll)
+                    .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
