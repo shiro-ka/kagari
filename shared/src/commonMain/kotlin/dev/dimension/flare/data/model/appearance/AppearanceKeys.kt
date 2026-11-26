@@ -38,7 +38,7 @@ public object AppearanceKeys {
 
     public object BottomBarStyle : Global<AppearanceBottomBarStyle>(
         "app.bottom_bar_style",
-        AppearanceBottomBarStyle.Classic,
+        AppearanceBottomBarStyle.Floating,
         AppearanceBottomBarStyle.serializer(),
     )
 
