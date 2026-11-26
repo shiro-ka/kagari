@@ -16,7 +16,6 @@ import dev.dimension.flare.common.isEmpty
 import dev.dimension.flare.common.refreshSuspend
 import dev.dimension.flare.common.toPagingState
 import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
-import dev.dimension.flare.data.datasource.microblog.KagariSortableSearch
 import dev.dimension.flare.data.datasource.microblog.MicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.accountKeyOrNull
 import dev.dimension.flare.data.datasource.microblog.accountProfileFlow
@@ -27,7 +26,6 @@ import dev.dimension.flare.data.datasource.microblog.pagingConfig
 import dev.dimension.flare.data.datastore.AppDataStore
 import dev.dimension.flare.data.datastore.model.KagariSearchTab
 import dev.dimension.flare.data.repository.AccountRepository
-import dev.dimension.flare.data.repository.SettingsRepository
 import dev.dimension.flare.data.repository.allAccountServicesFlow
 import dev.dimension.flare.di.koinInject
 import dev.dimension.flare.model.MicroBlogKey
@@ -88,7 +86,6 @@ public class KagariSearchTabsPresenter(
     private val initialQuery: String = "",
 ) : PresenterBase<KagariSearchTabsState>() {
     private val accountRepository: AccountRepository by koinInject()
-    private val settingsRepository: SettingsRepository by koinInject()
     private val appDataStore: AppDataStore by koinInject()
     private val appScope: CoroutineScope by koinInject()
     private val queryFlow = MutableStateFlow(initialQuery)
@@ -130,8 +127,7 @@ public class KagariSearchTabsPresenter(
         combine(
             accountsFlow,
             appDataStore.kagariSearchTabsStore.data,
-            settingsRepository.globalAppearance.map { it.kagariSearchTop }.distinctUntilChanged(),
-        ) { accounts, preferences, top ->
+        ) { accounts, preferences ->
             val byKey = accounts.associateBy { it.key }
             val saved =
                 if (preferences.initialized) {
@@ -146,22 +142,17 @@ public class KagariSearchTabsPresenter(
             val tabs =
                 saved.ifEmpty {
                     accounts.map { account ->
-                        KagariSearchTabItem(KagariSearchTab(account.key, account.defaultKind(top)), account.profile)
+                        KagariSearchTabItem(KagariSearchTab(account.key, account.defaultKind()), account.profile)
                     }
                 }
             Resolved(accounts, tabs.distinctBy { it.tab }.toImmutableList())
         }
     }
 
-    private fun SearchAccount.defaultKind(top: Boolean): KagariSearchKind =
+    private fun SearchAccount.defaultKind(): KagariSearchKind =
         when {
-            source is KagariSortableSearch && KagariSearchKind.Top in kinds && KagariSearchKind.Latest in kinds -> {
-                if (top) KagariSearchKind.Top else KagariSearchKind.Latest
-            }
-
-            else -> {
-                kinds.firstOrNull { it != KagariSearchKind.Users } ?: kinds.first()
-            }
+            KagariSearchKind.Latest in kinds -> KagariSearchKind.Latest
+            else -> kinds.firstOrNull { it != KagariSearchKind.Users } ?: kinds.first()
         }
 
     @Composable
