@@ -28,6 +28,8 @@ import dev.dimension.flare.data.model.BottomBarStyle
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.data.model.TimelineDisplayMode
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
+import dev.dimension.flare.data.model.resolveBehavior
+import dev.dimension.flare.data.model.supportedBehaviors
 import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
 import dev.dimension.flare.ui.component.FlareScaffold
@@ -41,6 +43,7 @@ import dev.dimension.flare.ui.theme.item
 import dev.dimension.flare.ui.theme.last
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentMap
 import moe.tlaster.precompose.molecule.producePresenter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -85,8 +88,10 @@ internal fun AppearanceLayoutScreen(
                     supporting = { Text(text = stringResource(id = R.string.settings_appearance_bottombar_style_description)) },
                     items =
                         persistentMapOf(
-                            BottomBarStyle.Floating to stringResource(id = R.string.settings_appearance_bottombar_style_floating),
                             BottomBarStyle.Classic to stringResource(id = R.string.settings_appearance_bottombar_style_classic),
+                            BottomBarStyle.Floating to stringResource(id = R.string.settings_appearance_bottombar_style_floating),
+                            BottomBarStyle.FloatingCompact to
+                                stringResource(id = R.string.kagari_settings_appearance_bottombar_style_floating_compact),
                         ),
                     selected = globalAppearance.bottomBarStyle,
                     onSelected = {
@@ -104,8 +109,9 @@ internal fun AppearanceLayoutScreen(
                                 stringResource(id = R.string.settings_appearance_bottombar_behavior_minimize_on_scroll),
                             BottomBarBehavior.HideOnScroll to
                                 stringResource(id = R.string.settings_appearance_bottombar_behavior_hide_on_scroll),
-                        ),
-                    selected = globalAppearance.bottomBarBehavior,
+                        ).filterKeys { it in globalAppearance.bottomBarStyle.supportedBehaviors }
+                            .toPersistentMap(),
+                    selected = globalAppearance.bottomBarStyle.resolveBehavior(globalAppearance.bottomBarBehavior),
                     onSelected = {
                         state.update(AppearanceKeys.BottomBarBehavior, it)
                     },

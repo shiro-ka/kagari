@@ -57,6 +57,7 @@ public enum class PostActionStyle {
 public enum class BottomBarStyle {
     Floating,
     Classic,
+    FloatingCompact,
 }
 
 @Serializable
@@ -65,6 +66,16 @@ public enum class BottomBarBehavior {
     HideOnScroll,
     MinimizeOnScroll,
 }
+
+public val BottomBarStyle.supportedBehaviors: List<BottomBarBehavior>
+    get() =
+        when (this) {
+            BottomBarStyle.Floating, BottomBarStyle.FloatingCompact -> BottomBarBehavior.entries
+            BottomBarStyle.Classic -> listOf(BottomBarBehavior.AlwaysShow, BottomBarBehavior.HideOnScroll)
+        }
+
+public fun BottomBarStyle.resolveBehavior(behavior: BottomBarBehavior): BottomBarBehavior =
+    if (behavior in supportedBehaviors) behavior else BottomBarBehavior.HideOnScroll
 
 @Serializable
 public enum class Theme {
