@@ -143,6 +143,7 @@ import dev.dimension.flare.ui.component.KagariActingAccountLine
 import dev.dimension.flare.ui.component.KagariActingAccountAvatar
 import dev.dimension.flare.ui.component.FlareDividerDefaults
 import dev.dimension.flare.ui.component.HorizontalDivider
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.TabIcon
@@ -170,6 +171,7 @@ import dev.dimension.flare.ui.model.UiPoll
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
+import dev.dimension.flare.ui.model.kagariWithRemoteReactionMode
 import dev.dimension.flare.ui.model.mapper.kagariPixivLongClickEvent
 import dev.dimension.flare.ui.model.onClicked
 import dev.dimension.flare.ui.model.onError
@@ -275,7 +277,12 @@ public fun CommonStatusComponent(
         val kagariCommunityNote = item.kagariCommunityNote?.takeIf { !isQuote }
         val showsAttachments =
             showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null || kagariCommunityNote != null
-        val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
+        val kagariRemoteReactionMode = LocalGlobalAppearance.current.kagariRemoteReactionMode
+        val emojiReactions =
+            remember(item.emojiReactions, kagariRemoteReactionMode) {
+                item.emojiReactions.kagariWithRemoteReactionMode(kagariRemoteReactionMode)
+            }
+        val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
         val showsActions = (appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions
         val replyBeforeAttachments = replyToHandle != null && !isGalleryFallback && !hasBodyAfterReply
@@ -630,6 +637,7 @@ public fun CommonStatusComponent(
                     Spacer(modifier = Modifier.height(if (replyBeforeFooter) 0.dp else 8.dp))
                     StatusReactionComponent(
                         data = item,
+                        emojiReactions = emojiReactions,
                         isDetail = isDetail,
                         showEmojiReactions = hasVisibleEmojiReactions,
                     )
@@ -794,6 +802,7 @@ private fun StatusQuoteComponent(
 @Composable
 private fun StatusReactionComponent(
     data: UiTimelineV2.Post,
+    emojiReactions: ImmutableList<UiTimelineV2.Post.EmojiReaction>,
     isDetail: Boolean,
     showEmojiReactions: Boolean,
     modifier: Modifier = Modifier,
@@ -826,10 +835,10 @@ private fun StatusReactionComponent(
         }
         if (showEmojiReactions) {
             StatusReactionRow(
-                itemCount = data.emojiReactions.size,
+                itemCount = emojiReactions.size,
                 isDetail = isDetail,
             ) { index ->
-                val reaction = data.emojiReactions[index]
+                val reaction = emojiReactions[index]
                 val color =
                     if (reaction.me) {
                         PlatformTheme.colorScheme.primaryContainer

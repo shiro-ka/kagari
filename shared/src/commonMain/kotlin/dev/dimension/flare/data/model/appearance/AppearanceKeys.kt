@@ -9,6 +9,7 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig as A
 import dev.dimension.flare.data.model.AvatarShape as AppearanceAvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior as AppearanceBottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle as AppearanceBottomBarStyle
+import dev.dimension.flare.data.model.KagariRemoteReactionMode as AppearanceKagariRemoteReactionMode
 import dev.dimension.flare.data.model.KagariVerifiedBadge as AppearanceKagariVerifiedBadge
 import dev.dimension.flare.data.model.PostActionStyle as AppearancePostActionStyle
 import dev.dimension.flare.data.model.Theme as AppearanceTheme
@@ -71,6 +72,12 @@ public object AppearanceKeys {
     public object KagariSearchTop : Global<Boolean>("app.kagari_search_top", false, Boolean.serializer())
 
     public object KagariShortenLinks : Global<Boolean>("app.kagari_shorten_links", true, Boolean.serializer())
+
+    public object KagariRemoteReactionMode : Global<AppearanceKagariRemoteReactionMode>(
+        "app.kagari_remote_reaction_mode",
+        AppearanceKagariRemoteReactionMode.AsIs,
+        AppearanceKagariRemoteReactionMode.serializer(),
+    )
 
     public object KagariPostActionLayoutByPlatform : Global<AppearanceKagariPlatformPostActionLayouts>(
         "app.kagari_post_action_layout_by_platform",
@@ -163,6 +170,7 @@ public object AppearanceKeys {
             KagariShowHiddenReplies,
             KagariSearchTop,
             KagariShortenLinks,
+            KagariRemoteReactionMode,
             KagariPostActionLayoutByPlatform,
             ShowSensitiveContent,
             ExpandContentWarning,

@@ -23,6 +23,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
+import dev.dimension.flare.data.model.KagariRemoteReactionMode
 import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
 import dev.dimension.flare.ui.component.BackButton
@@ -225,6 +226,22 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
                         },
                     )
                 },
+            )
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.kagari_settings_remote_reactions)) },
+                supporting = { Text(text = stringResource(id = R.string.kagari_settings_remote_reactions_description)) },
+                items =
+                    persistentMapOf(
+                        KagariRemoteReactionMode.AsIs to stringResource(id = R.string.kagari_settings_remote_reactions_as_is),
+                        KagariRemoteReactionMode.MergeIntoHeart to
+                            stringResource(id = R.string.kagari_settings_remote_reactions_merge_into_heart),
+                        KagariRemoteReactionMode.Hidden to stringResource(id = R.string.kagari_settings_remote_reactions_hidden),
+                    ),
+                selected = globalAppearance.kagariRemoteReactionMode,
+                onSelected = {
+                    state.update(AppearanceKeys.KagariRemoteReactionMode, it)
+                },
+                shapes = ListItemDefaults.item(),
             )
             SegmentedListItem(
                 onClick = {

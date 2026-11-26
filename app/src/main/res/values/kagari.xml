@@ -63,6 +63,11 @@
     <string name="kagari_settings_verified_badge_off">Off</string>
     <string name="kagari_settings_verified_badge_simple">Simple</string>
     <string name="kagari_settings_verified_badge_on">On</string>
+    <string name="kagari_settings_remote_reactions">Reactions with emoji from other servers</string>
+    <string name="kagari_settings_remote_reactions_description">Choose how Misskey reactions with custom emoji from other servers are shown</string>
+    <string name="kagari_settings_remote_reactions_as_is">As is</string>
+    <string name="kagari_settings_remote_reactions_merge_into_heart">Merge into ♡</string>
+    <string name="kagari_settings_remote_reactions_hidden">Hide</string>
     <string name="kagari_verification_title">Verified account</string>
     <string name="kagari_verification_message">This account has been verified by:</string>
     <string name="kagari_verification_message_simple">This account has been verified by its service.</string>

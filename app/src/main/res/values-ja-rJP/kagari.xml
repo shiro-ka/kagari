@@ -62,6 +62,11 @@
     <string name="kagari_settings_verified_badge_off">オフ</string>
     <string name="kagari_settings_verified_badge_simple">シンプル</string>
     <string name="kagari_settings_verified_badge_on">オン</string>
+    <string name="kagari_settings_remote_reactions">ほかのサーバーの絵文字のリアクション</string>
+    <string name="kagari_settings_remote_reactions_description">Misskey で、ほかのサーバーのカスタム絵文字のリアクションをどう出すかを選びます</string>
+    <string name="kagari_settings_remote_reactions_as_is">そのまま</string>
+    <string name="kagari_settings_remote_reactions_merge_into_heart">♡にまとめる</string>
+    <string name="kagari_settings_remote_reactions_hidden">表示しない</string>
     <string name="kagari_verification_title">認証済みのアカウント</string>
     <string name="kagari_verification_message">このアカウントは、次のアカウントに本人と確認されています。</string>
     <string name="kagari_verification_message_simple">このアカウントは、サービスに本人と確認されています。</string>
