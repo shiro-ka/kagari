@@ -301,4 +301,18 @@
     <string name="kagari_settings_timeline_newest_at_bottom">新しい投稿を下に並べる</string>
     <string name="kagari_settings_timeline_newest_at_bottom_description">古い投稿が上、新しい投稿が下になります。一番下で上に引っ張ると更新します。</string>
     <string name="kagari_settings_appearance_bottombar_style_floating_compact">フローティング(コンパクト)</string>
+    <string name="kagari_search_kind_posts">投稿</string>
+    <string name="kagari_search_kind_top">話題</string>
+    <string name="kagari_search_kind_latest">最新</string>
+    <string name="kagari_search_kind_users">ユーザー</string>
+    <string name="kagari_search_kind_media">メディア</string>
+    <string name="kagari_search_kind_oldest">古い順</string>
+    <string name="kagari_search_kind_popular">人気順</string>
+    <string name="kagari_search_tabs_title">検索のタブ</string>
+    <string name="kagari_search_tabs_edit">検索のタブを編集</string>
+    <string name="kagari_search_tabs_add">タブを足す</string>
+    <string name="kagari_search_tabs_account">アカウント</string>
+    <string name="kagari_search_tabs_kind">種類</string>
+    <string name="kagari_search_tabs_add_confirm">足す</string>
+    <string name="kagari_search_tabs_empty">検索のタブがありません</string>
 </resources>

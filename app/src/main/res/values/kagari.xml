@@ -302,4 +302,18 @@
     <string name="kagari_settings_timeline_newest_at_bottom">Show newest posts at the bottom</string>
     <string name="kagari_settings_timeline_newest_at_bottom_description">Older posts are at the top and newer posts at the bottom. Pull up at the bottom to refresh.</string>
     <string name="kagari_settings_appearance_bottombar_style_floating_compact">Floating (compact)</string>
+    <string name="kagari_search_kind_posts">Posts</string>
+    <string name="kagari_search_kind_top">Top</string>
+    <string name="kagari_search_kind_latest">Latest</string>
+    <string name="kagari_search_kind_users">Users</string>
+    <string name="kagari_search_kind_media">Media</string>
+    <string name="kagari_search_kind_oldest">Oldest</string>
+    <string name="kagari_search_kind_popular">Popular</string>
+    <string name="kagari_search_tabs_title">Search tabs</string>
+    <string name="kagari_search_tabs_edit">Edit search tabs</string>
+    <string name="kagari_search_tabs_add">Add a tab</string>
+    <string name="kagari_search_tabs_account">Account</string>
+    <string name="kagari_search_tabs_kind">Type</string>
+    <string name="kagari_search_tabs_add_confirm">Add</string>
+    <string name="kagari_search_tabs_empty">No search tabs</string>
 </resources>

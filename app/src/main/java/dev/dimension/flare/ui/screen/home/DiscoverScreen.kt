@@ -4,9 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -58,7 +58,6 @@ import dev.dimension.flare.ui.component.SearchBarState
 import dev.dimension.flare.ui.component.placeholder
 import dev.dimension.flare.ui.component.platform.isBigScreen
 import dev.dimension.flare.ui.component.searchBarPresenter
-import dev.dimension.flare.ui.component.searchContent
 import dev.dimension.flare.ui.component.status.AdaptiveOutlinedCard
 import dev.dimension.flare.ui.component.status.CommonStatusHeaderComponent
 import dev.dimension.flare.ui.component.status.LazyStatusVerticalStaggeredGrid
@@ -69,7 +68,7 @@ import dev.dimension.flare.ui.component.status.status
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.presenter.home.DiscoverPresenter
 import dev.dimension.flare.ui.presenter.home.DiscoverState
-import dev.dimension.flare.ui.presenter.home.rememberDiscoverSearchState
+import dev.dimension.flare.ui.presenter.home.KagariSearchTabsPresenter
 import dev.dimension.flare.ui.presenter.invoke
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.coroutines.launch
@@ -91,14 +90,20 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
     BackHandler(enabled = state.isInSearchMode) {
         state.clearSearch()
     }
+    var showTabEditor by remember { mutableStateOf(false) }
+    if (showTabEditor) {
+        KagariSearchTabsSheet(
+            state = state.searchState,
+            onDismissRequest = { showTabEditor = false },
+        )
+    }
     FlareScaffold(
         topBar = {
-            Row(
+            Column(
                 modifier =
                     Modifier
                         .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 SearchBar(
                     state = state,
@@ -106,7 +111,7 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
                         state.commitSearch(it)
                     },
                     trailingIcon =
-                        if (!isBigScreen && (state.selectedAccount != null || state.canSwitchAccount)) {
+                        if (!isBigScreen && !state.isInSearchMode && (state.selectedAccount != null || state.canSwitchAccount)) {
                             {
                                 state.accounts.onSuccess { accounts ->
                                     var showMenu by remember { mutableStateOf(false) }
@@ -176,6 +181,12 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
                             null
                         },
                 )
+                if (state.isInSearchMode) {
+                    KagariSearchTabRow(
+                        state = state.searchState,
+                        onEdit = { showTabEditor = true },
+                    )
+                }
             }
         },
     ) { contentPadding ->
@@ -191,7 +202,7 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
                     state = lazyListState,
                     contentPadding = contentPadding,
                 ) {
-                    if (isBigScreen) {
+                    if (isBigScreen && !state.isInSearchMode) {
                         state.accounts.onSuccess { accounts ->
                             if (state.canSwitchAccount) {
                                 item(
@@ -226,7 +237,7 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
                         }
                     }
                     if (state.isInSearchMode) {
-                        searchContent(state.searchState)
+                        kagariSearchTabContent(state.searchState)
                     } else {
                         if (state.hasNoRecommendations) {
                             item(span = StaggeredGridItemSpan.FullLine) {
@@ -401,7 +412,7 @@ private fun discoverPresenter() =
         val scope = rememberCoroutineScope()
         val state = remember { DiscoverPresenter() }.invoke()
         val searchBarState = searchBarPresenter()
-        val searchState = rememberDiscoverSearchState(state)
+        val searchState = remember { KagariSearchTabsPresenter() }.invoke()
 
         object : DiscoverState by state, SearchBarState by searchBarState {
             val searchState = searchState
@@ -428,11 +439,13 @@ private fun discoverPresenter() =
             fun commitSearch(new: String) {
                 searchBarState.setQuery(new)
                 searchBarState.addSearchHistory(new)
+                state.setSearchActive(new.isNotEmpty())
                 searchState.search(new)
             }
 
             fun clearSearch() {
                 searchBarState.setQuery("")
+                state.setSearchActive(false)
                 searchState.search("")
             }
         }
