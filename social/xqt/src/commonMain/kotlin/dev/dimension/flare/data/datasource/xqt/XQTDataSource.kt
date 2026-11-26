@@ -55,6 +55,7 @@ import dev.dimension.flare.data.network.xqt.api.kagariSetConversationMuted
 import dev.dimension.flare.data.network.xqt.api.XqtPollResult
 import dev.dimension.flare.data.network.xqt.api.votePoll
 import dev.dimension.flare.data.network.xqt.api.kagariSetPinned
+import dev.dimension.flare.data.network.xqt.api.kagariRetweet
 import dev.dimension.flare.data.network.xqt.api.kagariSetReplyHidden
 import dev.dimension.flare.data.network.xqt.api.publishTweet
 import dev.dimension.flare.data.network.xqt.model.CreateBookmarkRequest
@@ -62,7 +63,6 @@ import dev.dimension.flare.data.network.xqt.model.CreateBookmarkRequestVariables
 import dev.dimension.flare.data.network.xqt.model.DeleteBookmarkRequest
 import dev.dimension.flare.data.network.xqt.model.DeleteBookmarkRequestVariables
 import dev.dimension.flare.data.network.xqt.model.LiveVideoStreamStatusResponse
-import dev.dimension.flare.data.network.xqt.model.PostCreateRetweetRequest
 import dev.dimension.flare.data.network.xqt.model.PostCreateRetweetRequestVariables
 import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequest
 import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequestFeatures
@@ -70,8 +70,6 @@ import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequestVariable
 import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequestVariablesMedia
 import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequestVariablesMediaMediaEntitiesInner
 import dev.dimension.flare.data.network.xqt.model.PostCreateTweetRequestVariablesReply
-import dev.dimension.flare.data.network.xqt.model.PostDeleteRetweetRequest
-import dev.dimension.flare.data.network.xqt.model.PostDeleteRetweetRequestVariables
 import dev.dimension.flare.data.network.xqt.model.PostFavoriteTweetRequest
 import dev.dimension.flare.data.network.xqt.model.PostMediaMetadataCreateRequest
 import dev.dimension.flare.data.network.xqt.model.PostUnfavoriteTweetRequest
@@ -261,24 +259,7 @@ internal class XQTDataSource(
         require(event is PostEvent.XQT)
         when (event) {
             is PostEvent.XQT.Retweet -> {
-                if (event.retweeted) {
-                    service.postDeleteRetweet(
-                        postDeleteRetweetRequest =
-                            PostDeleteRetweetRequest(
-                                variables = PostDeleteRetweetRequestVariables(sourceTweetId = event.postKey.id),
-                            ),
-                    )
-                } else {
-                    service.postCreateRetweet(
-                        postCreateRetweetRequest =
-                            PostCreateRetweetRequest(
-                                variables =
-                                    PostCreateRetweetRequestVariables(
-                                        tweetId = event.postKey.id,
-                                    ),
-                            ),
-                    )
-                }
+                service.kagariRetweet(tweetId = event.postKey.id, retweet = !event.retweeted)
             }
 
             is PostEvent.XQT.Like -> {
