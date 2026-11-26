@@ -321,8 +321,5 @@
     <string name="kagari_search_tabs_title">検索のタブ</string>
     <string name="kagari_search_tabs_edit">検索のタブを編集</string>
     <string name="kagari_search_tabs_add">タブを足す</string>
-    <string name="kagari_search_tabs_account">アカウント</string>
-    <string name="kagari_search_tabs_kind">種類</string>
-    <string name="kagari_search_tabs_add_confirm">足す</string>
     <string name="kagari_search_tabs_empty">検索のタブがありません</string>
 </resources>

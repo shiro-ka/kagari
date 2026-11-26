@@ -1,72 +1,86 @@
 package dev.dimension.flare.ui.screen.home
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridScope
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LeadingIconTab
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import compose.icons.FontAwesomeIcons
 import compose.icons.fontawesomeicons.Solid
-import compose.icons.fontawesomeicons.solid.Bars
 import compose.icons.fontawesomeicons.solid.MagnifyingGlass
 import compose.icons.fontawesomeicons.solid.Pen
-import compose.icons.fontawesomeicons.solid.Trash
+import compose.icons.fontawesomeicons.solid.Plus
 import dev.dimension.flare.R
 import dev.dimension.flare.common.isEmpty
 import dev.dimension.flare.common.onLoading
 import dev.dimension.flare.common.onSuccess
 import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
 import dev.dimension.flare.data.datastore.model.KagariSearchTab
-import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.component.AvatarComponent
+import dev.dimension.flare.ui.component.BackButton
 import dev.dimension.flare.ui.component.FAIcon
+import dev.dimension.flare.ui.component.FlareLargeFlexibleTopAppBar
+import dev.dimension.flare.ui.component.FlareScaffold
 import dev.dimension.flare.ui.component.TabRowIndicator
+import dev.dimension.flare.ui.component.listCard
 import dev.dimension.flare.ui.component.status.AdaptiveCard
 import dev.dimension.flare.ui.component.status.CommonStatusHeaderComponent
 import dev.dimension.flare.ui.component.status.ListEmptyView
 import dev.dimension.flare.ui.component.status.UserPlaceholder
 import dev.dimension.flare.ui.component.status.pagingError
 import dev.dimension.flare.ui.component.status.status
+import dev.dimension.flare.ui.presenter.home.KagariSearchAccountOption
+import dev.dimension.flare.ui.presenter.home.KagariSearchTabsEditPresenter
 import dev.dimension.flare.ui.presenter.home.KagariSearchTabsState
+import dev.dimension.flare.ui.presenter.invoke
+import dev.dimension.flare.ui.screen.settings.AccountLeadingIconTab
+import dev.dimension.flare.ui.screen.settings.ListTabItem
+import dev.dimension.flare.ui.screen.settings.SwipeToDeleteTabItem
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import dev.dimension.flare.ui.theme.segmentedShapes2
-import sh.calvin.reorderable.ReorderableItem
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.launch
+import moe.tlaster.precompose.molecule.producePresenter
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
@@ -189,28 +203,60 @@ internal fun LazyStaggeredGridScope.kagariSearchTabContent(state: KagariSearchTa
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun KagariSearchTabsSheet(
-    state: KagariSearchTabsState,
-    onDismissRequest: () -> Unit,
-) {
+internal fun KagariSearchTabSettingScreen(onBack: () -> Unit) {
+    val topAppBarScrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val haptics = LocalHapticFeedback.current
-    val tabs =
-        remember {
-            mutableStateListOf<KagariSearchTab>().apply {
-                addAll(state.tabs.map { it.tab })
+    val state by producePresenter {
+        remember { KagariSearchTabsEditPresenter() }.invoke()
+    }
+    val tabs = remember { mutableStateListOf<KagariSearchTab>() }
+    var loaded by remember { mutableStateOf(false) }
+    var showAddTab by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loaded) {
+        if (state.loaded && !loaded) {
+            tabs.addAll(state.tabs)
+            loaded = true
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            if (loaded) {
+                state.save(tabs.toList())
             }
         }
-    val profiles = state.accountOptions.associate { it.profile.key to it.profile }
-    ModalBottomSheet(
-        onDismissRequest = {
-            state.saveTabs(tabs.toList())
-            onDismissRequest()
+    }
+    FlareScaffold(
+        topBar = {
+            FlareLargeFlexibleTopAppBar(
+                title = {
+                    Text(text = stringResource(R.string.kagari_search_tabs_title))
+                },
+                navigationIcon = {
+                    BackButton(onBack = onBack)
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            showAddTab = true
+                        },
+                    ) {
+                        FAIcon(
+                            imageVector = FontAwesomeIcons.Solid.Plus,
+                            contentDescription = stringResource(R.string.kagari_search_tabs_add),
+                        )
+                    }
+                },
+                scrollBehavior = topAppBarScrollBehavior,
+            )
         },
-    ) {
+        modifier =
+            Modifier
+                .nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
+    ) { contentPadding ->
         val lazyListState = rememberLazyListState()
-        val reorderableState =
+        val reorderableLazyColumnState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
                 val fromIndex = tabs.indexOfFirst { it.itemKey() == from.key }
                 val toIndex = tabs.indexOfFirst { it.itemKey() == to.key }
@@ -221,172 +267,161 @@ internal fun KagariSearchTabsSheet(
             }
         LazyColumn(
             state = lazyListState,
-            contentPadding = PaddingValues(horizontal = screenHorizontalPadding, vertical = 8.dp),
+            contentPadding = contentPadding,
+            modifier =
+                Modifier
+                    .padding(horizontal = screenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
-            item(key = "title") {
-                Text(
-                    text = stringResource(R.string.kagari_search_tabs_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-            }
-            if (tabs.isEmpty()) {
-                item(key = "empty") {
-                    Text(
+            if (loaded && tabs.isEmpty()) {
+                item {
+                    ListEmptyView(
+                        modifier = Modifier.fillParentMaxSize(),
                         text = stringResource(R.string.kagari_search_tabs_empty),
-                        color = MaterialTheme.colorScheme.outline,
+                        icon = FontAwesomeIcons.Solid.MagnifyingGlass,
                     )
                 }
             }
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             itemsIndexed(tabs, key = { _, tab -> tab.itemKey() }) { index, tab ->
-                ReorderableItem(reorderableState, key = tab.itemKey()) { isDragging ->
-                    val profile = profiles[tab.accountKey]
-                    SegmentedListItem(
-                        selected = isDragging,
-                        onClick = {},
-                        shapes = ListItemDefaults.segmentedShapes2(index, tabs.size),
-                        content = {
-                            Text(tab.kind.label())
-                        },
-                        supportingContent = {
-                            profile?.let {
+                val profile = state.profiles[tab.accountKey]
+                SwipeToDeleteTabItem(
+                    key = tab.itemKey(),
+                    onDelete = { tabs.remove(tab) },
+                    reorderableLazyColumnState = reorderableLazyColumnState,
+                    canSwipeToDelete = true,
+                    shapes = ListItemDefaults.segmentedShapes2(index, tabs.size),
+                    content = {
+                        Text(tab.kind.label())
+                    },
+                    supportingContent =
+                        if (profile != null) {
+                            {
                                 Text(
-                                    text = it.handle.display,
+                                    text = profile.handle.display,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                        } else {
+                            null
                         },
-                        leadingContent = {
-                            AvatarComponent(
-                                profile?.avatar,
-                                size = 24.dp,
-                            )
-                        },
-                        trailingContent = {
-                            Row {
-                                IconButton(
-                                    onClick = {
-                                        tabs.remove(tab)
-                                    },
-                                ) {
-                                    FAIcon(
-                                        FontAwesomeIcons.Solid.Trash,
-                                        contentDescription = stringResource(R.string.tab_settings_remove),
-                                    )
-                                }
-                                IconButton(
-                                    modifier =
-                                        Modifier.draggableHandle(
-                                            onDragStarted = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                                            },
-                                            onDragStopped = {
-                                                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                                            },
-                                        ),
-                                    onClick = {},
-                                ) {
-                                    FAIcon(
-                                        FontAwesomeIcons.Solid.Bars,
-                                        contentDescription = stringResource(R.string.tab_settings_drag),
-                                    )
-                                }
-                            }
-                        },
-                    )
-                }
-            }
-            item(key = "add") {
-                KagariSearchTabAddSection(
-                    state = state,
-                    tabs = tabs,
-                    onAdd = { tabs.add(it) },
+                    leadingContent = {
+                        AvatarComponent(
+                            profile?.avatar,
+                            size = 24.dp,
+                        )
+                    },
                 )
             }
         }
     }
+    if (showAddTab) {
+        KagariSearchTabAddBottomSheet(
+            accountOptions = state.accountOptions,
+            tabs = tabs,
+            onDismissRequest = {
+                showAddTab = false
+            },
+            onAddTab = { tab ->
+                if (tab !in tabs) {
+                    tabs.add(tab)
+                }
+            },
+            onDeleteTab = { tab ->
+                tabs.remove(tab)
+            },
+        )
+    }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KagariSearchTabAddSection(
-    state: KagariSearchTabsState,
+private fun KagariSearchTabAddBottomSheet(
+    accountOptions: ImmutableList<KagariSearchAccountOption>,
     tabs: List<KagariSearchTab>,
-    onAdd: (KagariSearchTab) -> Unit,
+    onDismissRequest: () -> Unit,
+    onAddTab: (KagariSearchTab) -> Unit,
+    onDeleteTab: (KagariSearchTab) -> Unit,
 ) {
-    var selectedAccount by remember { mutableStateOf<MicroBlogKey?>(state.accountOptions.firstOrNull()?.profile?.key) }
-    var selectedKind by remember { mutableStateOf<KagariSearchKind?>(null) }
-    val option = state.accountOptions.firstOrNull { it.profile.key == selectedAccount }
-    val candidate = option?.let { account -> selectedKind?.let { KagariSearchTab(account.profile.key, it) } }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(top = 24.dp, bottom = 16.dp),
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
     ) {
-        Text(
-            text = stringResource(R.string.kagari_search_tabs_add),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.kagari_search_tabs_account),
-            style = MaterialTheme.typography.labelLarge,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            state.accountOptions.forEach { account ->
-                FilterChip(
-                    selected = account.profile.key == selectedAccount,
-                    onClick = {
-                        selectedAccount = account.profile.key
-                        selectedKind = null
-                    },
-                    label = {
-                        Text(
-                            text = account.profile.handle.display,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+            val pagerState =
+                rememberPagerState {
+                    accountOptions.size
+                }
+            val scope = rememberCoroutineScope()
+            if (accountOptions.isNotEmpty()) {
+                SecondaryScrollableTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    containerColor = Color.Transparent,
+                    indicator = {
+                        TabRowIndicator(
+                            selectedIndex = pagerState.currentPage,
                         )
                     },
-                    leadingIcon = {
-                        AvatarComponent(
-                            account.profile.avatar,
-                            size = 18.dp,
+                    divider = {},
+                ) {
+                    accountOptions.forEachIndexed { index, account ->
+                        AccountLeadingIconTab(
+                            profile = account.profile,
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
                         )
-                    },
-                )
-            }
-        }
-        if (option != null) {
-            Text(
-                text = stringResource(R.string.kagari_search_tabs_kind),
-                style = MaterialTheme.typography.labelLarge,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                option.kinds.forEach { kind ->
-                    FilterChip(
-                        selected = kind == selectedKind,
-                        onClick = {
-                            selectedKind = kind
-                        },
-                        label = {
-                            Text(kind.label())
-                        },
-                    )
+                    }
                 }
             }
-        }
-        Button(
-            enabled = candidate != null && candidate !in tabs,
-            onClick = {
-                candidate?.let(onAdd)
-                selectedKind = null
-            },
-        ) {
-            Text(stringResource(R.string.kagari_search_tabs_add_confirm))
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxHeight(),
+                verticalAlignment = Alignment.Top,
+            ) { page ->
+                val account = accountOptions[page]
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = screenHorizontalPadding),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    itemsIndexed(account.kinds) { index, kind ->
+                        val tab = KagariSearchTab(account.profile.key, kind)
+                        val isAdded = tab in tabs
+                        ListTabItem(
+                            isAdded = isAdded,
+                            leadingContent = {
+                                AvatarComponent(
+                                    account.profile.avatar,
+                                    size = 24.dp,
+                                )
+                            },
+                            content = {
+                                Text(kind.label())
+                            },
+                            modifier =
+                                Modifier
+                                    .listCard(
+                                        index = index,
+                                        totalCount = account.kinds.size,
+                                    ).clickable {
+                                        if (isAdded) {
+                                            onDeleteTab(tab)
+                                        } else {
+                                            onAddTab(tab)
+                                        }
+                                    },
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -269,6 +269,9 @@ internal sealed interface Route : NavKey {
     data object TabSettings : Route
 
     @Serializable
+    data object KagariSearchTabSettings : Route
+
+    @Serializable
     data class TabGroupConfig(
         val groupId: String? = null,
     ) : Route

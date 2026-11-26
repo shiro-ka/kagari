@@ -2,6 +2,7 @@ package dev.dimension.flare.ui.presenter.home
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -25,6 +26,7 @@ import dev.dimension.flare.data.datasource.microblog.paging.toPagingSource
 import dev.dimension.flare.data.datasource.microblog.pagingConfig
 import dev.dimension.flare.data.datastore.AppDataStore
 import dev.dimension.flare.data.datastore.model.KagariSearchTab
+import dev.dimension.flare.data.datastore.model.KagariSearchTabPreferences
 import dev.dimension.flare.data.repository.AccountRepository
 import dev.dimension.flare.data.repository.allAccountServicesFlow
 import dev.dimension.flare.di.koinInject
@@ -34,12 +36,16 @@ import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.takeSuccess
 import dev.dimension.flare.ui.presenter.PresenterBase
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -63,7 +69,6 @@ public data class KagariSearchAccountOption(
 @Immutable
 public interface KagariSearchTabsState {
     public val tabs: ImmutableList<KagariSearchTabItem>
-    public val accountOptions: ImmutableList<KagariSearchAccountOption>
     public val selectedIndex: Int
     public val selectedTab: KagariSearchTabItem?
     public val users: PagingState<UiProfile>
@@ -75,8 +80,6 @@ public interface KagariSearchTabsState {
 
     public fun search(query: String)
 
-    public fun saveTabs(tabs: List<KagariSearchTab>)
-
     public suspend fun refreshSuspend()
 }
 
@@ -87,7 +90,6 @@ public class KagariSearchTabsPresenter(
 ) : PresenterBase<KagariSearchTabsState>() {
     private val accountRepository: AccountRepository by koinInject()
     private val appDataStore: AppDataStore by koinInject()
-    private val appScope: CoroutineScope by koinInject()
     private val queryFlow = MutableStateFlow(initialQuery)
     private val selectedTabFlow = MutableStateFlow<KagariSearchTab?>(null)
 
@@ -126,37 +128,27 @@ public class KagariSearchTabsPresenter(
     private val resolvedFlow: Flow<Resolved> by lazy {
         combine(
             accountsFlow,
+            kagariSearchAccountKindsFlow(accountRepository),
             appDataStore.kagariSearchTabsStore.data,
-        ) { accounts, preferences ->
+        ) { accounts, kindAccounts, preferences ->
             val byKey = accounts.associateBy { it.key }
-            val saved =
-                if (preferences.initialized) {
-                    preferences.tabs.mapNotNull { tab ->
-                        byKey[tab.accountKey]
-                            ?.takeIf { tab.kind in it.kinds }
-                            ?.let { KagariSearchTabItem(tab, it.profile) }
-                    }
-                } else {
-                    emptyList()
-                }
             val tabs =
-                saved.ifEmpty {
-                    accounts.map { account ->
-                        KagariSearchTabItem(KagariSearchTab(account.key, account.defaultKind()), account.profile)
-                    }
+                preferences.kagariVisibleTabs(kindAccounts).mapNotNull { tab ->
+                    byKey[tab.accountKey]
+                        ?.takeIf { tab.kind in it.kinds }
+                        ?.let { KagariSearchTabItem(tab, it.profile) }
                 }
-            Resolved(accounts, tabs.distinctBy { it.tab }.toImmutableList())
+            Resolved(accounts, tabs.toImmutableList())
         }
     }
 
-    private fun SearchAccount.defaultKind(): KagariSearchKind =
-        when {
-            KagariSearchKind.Latest in kinds -> KagariSearchKind.Latest
-            else -> kinds.firstOrNull { it != KagariSearchKind.Users } ?: kinds.first()
-        }
-
     @Composable
     override fun body(): KagariSearchTabsState {
+        LaunchedEffect(Unit) {
+            kagariSearchAccountKindsFlow(accountRepository).collectLatest { accounts ->
+                appDataStore.kagariSearchTabsStore.updateData { it.withAccounts(accounts) }
+            }
+        }
         val resolved by resolvedFlow.collectAsState(Resolved())
         val query by queryFlow.collectAsState()
         val selectedTab by selectedTabFlow.collectAsState()
@@ -168,12 +160,6 @@ public class KagariSearchTabsPresenter(
         val current = tabs.getOrNull(selectedIndex)
         val account = current?.let { item -> resolved.accounts.firstOrNull { it.key == item.tab.accountKey } }
         val searching = query.isNotEmpty()
-        val accountOptions =
-            remember(resolved.accounts) {
-                resolved.accounts
-                    .map { KagariSearchAccountOption(it.profile, it.kinds.toImmutableList()) }
-                    .toImmutableList()
-            }
 
         return key(query) {
             val scope = rememberCoroutineScope()
@@ -209,7 +195,6 @@ public class KagariSearchTabsPresenter(
 
                 object : KagariSearchTabsState {
                     override val tabs = tabs
-                    override val accountOptions = accountOptions
                     override val selectedIndex = selectedIndex
                     override val selectedTab = current
                     override val users = users
@@ -225,17 +210,152 @@ public class KagariSearchTabsPresenter(
                         queryFlow.value = query
                     }
 
-                    override fun saveTabs(tabs: List<KagariSearchTab>) {
-                        appScope.launch {
-                            appDataStore.kagariSearchTabsStore.updateData {
-                                it.copy(initialized = true, tabs = tabs.distinct())
-                            }
-                        }
-                    }
-
                     override suspend fun refreshSuspend() {
                         users.refreshSuspend()
                         status.refreshSuspend()
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal data class KagariSearchAccountKinds(
+    val key: MicroBlogKey,
+    val kinds: List<KagariSearchKind>,
+)
+
+internal fun kagariSearchAccountKindsFlow(accountRepository: AccountRepository): Flow<List<KagariSearchAccountKinds>> =
+    allAccountServicesFlow(accountRepository)
+        .map { sources ->
+            sources.mapNotNull { source ->
+                val key = source.accountKeyOrNull ?: return@mapNotNull null
+                source
+                    .kagariSearchKindList()
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { KagariSearchAccountKinds(key, it) }
+            }
+        }.distinctUntilChanged()
+
+internal fun List<KagariSearchKind>.kagariDefaultSearchKind(): KagariSearchKind =
+    when {
+        KagariSearchKind.Latest in this -> KagariSearchKind.Latest
+        else -> firstOrNull { it != KagariSearchKind.Users } ?: first()
+    }
+
+internal fun KagariSearchTabPreferences.withAccounts(accounts: List<KagariSearchAccountKinds>): KagariSearchTabPreferences {
+    if (!initialized) return this
+    if (!accountsTracked) {
+        return copy(
+            accountsTracked = true,
+            knownAccounts = (knownAccounts + tabs.map { it.accountKey } + accounts.map { it.key }).distinct(),
+        )
+    }
+    val added = accounts.filter { it.key !in knownAccounts }
+    if (added.isEmpty()) return this
+    return copy(
+        tabs = (tabs + added.map { KagariSearchTab(it.key, it.kinds.kagariDefaultSearchKind()) }).distinct(),
+        knownAccounts = (knownAccounts + added.map { it.key }).distinct(),
+    )
+}
+
+internal fun KagariSearchTabPreferences.kagariVisibleTabs(accounts: List<KagariSearchAccountKinds>): List<KagariSearchTab> {
+    val byKey = accounts.associateBy { it.key }
+    val synced = withAccounts(accounts)
+    val saved =
+        if (synced.initialized) {
+            synced.tabs.filter { tab -> byKey[tab.accountKey]?.kinds?.contains(tab.kind) == true }
+        } else {
+            emptyList()
+        }
+    return saved
+        .ifEmpty { accounts.map { KagariSearchTab(it.key, it.kinds.kagariDefaultSearchKind()) } }
+        .distinct()
+}
+
+@Immutable
+public interface KagariSearchTabsEditState {
+    public val loaded: Boolean
+    public val tabs: ImmutableList<KagariSearchTab>
+    public val profiles: ImmutableMap<MicroBlogKey, UiProfile>
+    public val accountOptions: ImmutableList<KagariSearchAccountOption>
+
+    public fun save(tabs: List<KagariSearchTab>)
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+public class KagariSearchTabsEditPresenter : PresenterBase<KagariSearchTabsEditState>() {
+    private val accountRepository: AccountRepository by koinInject()
+    private val appDataStore: AppDataStore by koinInject()
+    private val appScope: CoroutineScope by koinInject()
+
+    private data class Loaded(
+        val accounts: List<KagariSearchAccountKinds>,
+        val tabs: ImmutableList<KagariSearchTab>,
+    )
+
+    private val loadedFlow: Flow<Loaded> by lazy {
+        combine(
+            kagariSearchAccountKindsFlow(accountRepository),
+            appDataStore.kagariSearchTabsStore.data,
+        ) { accounts, preferences ->
+            Loaded(accounts, preferences.kagariVisibleTabs(accounts).toImmutableList())
+        }
+    }
+
+    private val profilesFlow: Flow<ImmutableMap<MicroBlogKey, UiProfile>> by lazy {
+        allAccountServicesFlow(accountRepository)
+            .flatMapLatest { sources ->
+                val flows =
+                    sources.mapNotNull { source ->
+                        val key = source.accountKeyOrNull ?: return@mapNotNull null
+                        source.accountProfileFlow()?.map { state -> key to state.takeSuccess() }
+                    }
+                if (flows.isEmpty()) {
+                    flowOf(persistentMapOf())
+                } else {
+                    combine(flows) { pairs ->
+                        pairs
+                            .mapNotNull { (key, profile) -> profile?.let { key to it } }
+                            .toMap()
+                            .toImmutableMap()
+                    }
+                }
+            }.distinctUntilChanged()
+    }
+
+    @Composable
+    override fun body(): KagariSearchTabsEditState {
+        val loadedState by loadedFlow.collectAsState(null)
+        val profiles by profilesFlow.collectAsState(persistentMapOf())
+        val current = loadedState
+        val accountOptions =
+            remember(current?.accounts, profiles) {
+                current
+                    ?.accounts
+                    .orEmpty()
+                    .mapNotNull { account ->
+                        profiles[account.key]?.let { KagariSearchAccountOption(it, account.kinds.toImmutableList()) }
+                    }.toImmutableList()
+            }
+        return object : KagariSearchTabsEditState {
+            override val loaded = current != null
+            override val tabs = current?.tabs ?: persistentListOf()
+            override val profiles = profiles
+            override val accountOptions = accountOptions
+
+            override fun save(tabs: List<KagariSearchTab>) {
+                val accounts = current?.accounts ?: return
+                val currentKeys = accounts.map { it.key }.toSet()
+                appScope.launch {
+                    appDataStore.kagariSearchTabsStore.updateData { preferences ->
+                        val synced = preferences.withAccounts(accounts)
+                        synced.copy(
+                            initialized = true,
+                            accountsTracked = true,
+                            tabs = (tabs + synced.tabs.filter { it.accountKey !in currentKeys }).distinct(),
+                            knownAccounts = (synced.knownAccounts + currentKeys).distinct(),
+                        )
                     }
                 }
             }

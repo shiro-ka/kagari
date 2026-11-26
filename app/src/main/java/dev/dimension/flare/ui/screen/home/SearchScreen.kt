@@ -8,10 +8,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,6 +37,7 @@ internal fun SearchScreen(
     initialQuery: String,
     accountType: AccountType,
     onAskAiClick: (String?) -> Unit,
+    toSearchTabSettings: () -> Unit,
 ) {
     val state by producePresenter("search_${accountType}_$initialQuery") {
         presenter(
@@ -54,13 +53,6 @@ internal fun SearchScreen(
             state.refresh()
         },
     )
-    var showTabEditor by remember { mutableStateOf(false) }
-    if (showTabEditor) {
-        KagariSearchTabsSheet(
-            state = state.searchState,
-            onDismissRequest = { showTabEditor = false },
-        )
-    }
     FlareScaffold(
         topBar = {
             Column(
@@ -104,7 +96,7 @@ internal fun SearchScreen(
                 )
                 KagariSearchTabRow(
                     state = state.searchState,
-                    onEdit = { showTabEditor = true },
+                    onEdit = toSearchTabSettings,
                 )
             }
         },

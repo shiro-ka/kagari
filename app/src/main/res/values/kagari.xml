@@ -322,8 +322,5 @@
     <string name="kagari_search_tabs_title">Search tabs</string>
     <string name="kagari_search_tabs_edit">Edit search tabs</string>
     <string name="kagari_search_tabs_add">Add a tab</string>
-    <string name="kagari_search_tabs_account">Account</string>
-    <string name="kagari_search_tabs_kind">Type</string>
-    <string name="kagari_search_tabs_add_confirm">Add</string>
     <string name="kagari_search_tabs_empty">No search tabs</string>
 </resources>

@@ -73,6 +73,9 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             onAskAiClick = { initialMessage ->
                 navigate(newGenericChatRoute(initialMessage))
             },
+            toSearchTabSettings = {
+                navigate(Route.KagariSearchTabSettings)
+            },
         )
     }
     entry<Route.Notification> {
@@ -102,7 +105,24 @@ internal fun EntryProviderScope<NavKey>.homeEntryBuilder(
             onAskAiClick = { initialMessage ->
                 navigate(newGenericChatRoute(initialMessage))
             },
+            toSearchTabSettings = {
+                navigate(Route.KagariSearchTabSettings)
+            },
         )
+    }
+    entry<Route.KagariSearchTabSettings>(
+        metadata =
+            ListDetailSceneStrategy.extraPane(
+                "home",
+            ),
+    ) {
+        CompositionLocalProvider(
+            LocalWindowSizeClass provides WindowSizeClass.Compact,
+        ) {
+            KagariSearchTabSettingScreen(
+                onBack = onBack,
+            )
+        }
     }
     entry<Route.TabSettings>(
         metadata =

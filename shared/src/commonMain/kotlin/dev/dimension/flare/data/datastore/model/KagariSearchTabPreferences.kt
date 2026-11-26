@@ -14,4 +14,6 @@ public data class KagariSearchTab(
 internal data class KagariSearchTabPreferences(
     val initialized: Boolean = false,
     val tabs: List<KagariSearchTab> = emptyList(),
+    val accountsTracked: Boolean = false,
+    val knownAccounts: List<MicroBlogKey> = emptyList(),
 )

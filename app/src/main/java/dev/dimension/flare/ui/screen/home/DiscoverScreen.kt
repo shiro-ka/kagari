@@ -76,7 +76,10 @@ import moe.tlaster.precompose.molecule.producePresenter
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
+internal fun DiscoverScreen(
+    onAskAiClick: (String?) -> Unit,
+    toSearchTabSettings: () -> Unit,
+) {
     val state by producePresenter("discover") { discoverPresenter() }
     val lazyListState = rememberLazyStaggeredGridState()
     val isBigScreen = isBigScreen()
@@ -89,13 +92,6 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
     )
     BackHandler(enabled = state.isInSearchMode) {
         state.clearSearch()
-    }
-    var showTabEditor by remember { mutableStateOf(false) }
-    if (showTabEditor) {
-        KagariSearchTabsSheet(
-            state = state.searchState,
-            onDismissRequest = { showTabEditor = false },
-        )
     }
     FlareScaffold(
         topBar = {
@@ -184,7 +180,7 @@ internal fun DiscoverScreen(onAskAiClick: (String?) -> Unit) {
                 if (state.isInSearchMode) {
                     KagariSearchTabRow(
                         state = state.searchState,
-                        onEdit = { showTabEditor = true },
+                        onEdit = toSearchTabSettings,
                     )
                 }
             }
