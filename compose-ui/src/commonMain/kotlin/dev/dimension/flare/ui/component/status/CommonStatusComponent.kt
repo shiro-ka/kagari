@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
@@ -172,7 +173,9 @@ import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
 import dev.dimension.flare.ui.model.kagariWithRemoteReactionMode
+import dev.dimension.flare.ui.model.mapper.PixivPrivateFollows
 import dev.dimension.flare.ui.model.mapper.kagariPixivLongClickEvent
+import dev.dimension.flare.ui.model.mapper.withPixivPrivateFollows
 import dev.dimension.flare.ui.model.onClicked
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
@@ -1167,9 +1170,10 @@ internal fun StatusActions(
     val appearanceSettings = LocalTimelineAppearance.current
     val postActionLayout =
         appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
+    val kagariItems = rememberKagariPixivPrivateFollowItems(items, kagariPost)
     val displayItems =
-        remember(items, postActionLayout) {
-            items.applyPostActionLayout(postActionLayout).filterNot { it == ActionMenu.Divider }
+        remember(kagariItems, postActionLayout) {
+            kagariItems.applyPostActionLayout(postActionLayout).filterNot { it == ActionMenu.Divider }
         }
     if (displayItems.isEmpty()) return@CompositionLocalProvider
     val haptics = LocalHapticFeedback.current
@@ -1355,10 +1359,11 @@ internal fun StatusActionsDropdownMenu(
     val appearanceSettings = LocalTimelineAppearance.current
     val postActionLayout =
         appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
+    val kagariItems = rememberKagariPixivPrivateFollowItems(items, kagariPost)
     val displayItems =
-        remember(items, postActionLayout) {
+        remember(kagariItems, postActionLayout) {
             lazy(LazyThreadSafetyMode.NONE) {
-                items
+                kagariItems
                     .applyPostActionLayout(postActionLayout)
                     .flattenStatusActionMenuItems()
             }
@@ -1492,6 +1497,21 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
             }
         },
     )
+}
+
+@Composable
+private fun rememberKagariPixivPrivateFollowItems(
+    items: ImmutableList<ActionMenu>,
+    post: UiTimelineV2.Post?,
+): ImmutableList<ActionMenu> {
+    val accountKey = (post?.accountType as? AccountType.Specific)?.accountKey
+    LaunchedEffect(accountKey) {
+        accountKey?.let(PixivPrivateFollows::request)
+    }
+    val privateFollows by PixivPrivateFollows.state.collectAsState()
+    return remember(items, post, privateFollows) {
+        items.withPixivPrivateFollows(post, privateFollows)
+    }
 }
 
 @Composable

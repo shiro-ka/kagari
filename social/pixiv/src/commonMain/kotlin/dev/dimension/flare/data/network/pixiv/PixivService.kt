@@ -240,6 +240,15 @@ internal class PixivService private constructor(
 
     suspend fun recommendedUsers(): PixivUserListResponse = appResources.recommendedUsers()
 
+    suspend fun userFollowing(
+        userId: Long,
+        restrict: PixivRestrict,
+    ): PixivUserListResponse =
+        appResources.userFollowing(
+            userId = userId,
+            restrict = restrict.value,
+        )
+
     suspend fun trendingTags(type: PixivTrendingTagType = PixivTrendingTagType.Illust): PixivTrendingTagsResponse =
         appResources.trendingTags(
             type = type.value,

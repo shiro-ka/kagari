@@ -111,6 +111,12 @@ internal interface PixivAppResources {
         @Query("word") word: String,
     ): PixivUserListResponse
 
+    @GET("v1/user/following")
+    suspend fun userFollowing(
+        @Query("user_id") userId: Long,
+        @Query("restrict") restrict: String,
+    ): PixivUserListResponse
+
     @GET("v1/user/recommended")
     suspend fun recommendedUsers(
         @Query("filter") filter: String = "for_android",
