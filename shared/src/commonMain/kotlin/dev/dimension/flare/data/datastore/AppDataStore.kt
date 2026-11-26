@@ -9,6 +9,7 @@ import dev.dimension.flare.data.datastore.model.AppSettings
 import dev.dimension.flare.data.datastore.model.ComposeConfigData
 import dev.dimension.flare.data.datastore.model.FlareConfig
 import dev.dimension.flare.data.datastore.model.HomeTimelinePreferences
+import dev.dimension.flare.data.datastore.model.KagariSearchTabPreferences
 import dev.dimension.flare.data.datastore.model.KagariTimelineSwitchPreferences
 import dev.dimension.flare.data.datastore.model.PlatformOAuthPendingData
 import dev.dimension.flare.data.io.FileStorage
@@ -55,6 +56,13 @@ internal class AppDataStore(
         createDataStore(
             name = "kagari_timeline_switch.pb",
             serializer = protobufSerializer(KagariTimelineSwitchPreferences()),
+        )
+    }
+
+    val kagariSearchTabsStore: DataStore<KagariSearchTabPreferences> by lazy {
+        createDataStore(
+            name = "kagari_search_tabs.pb",
+            serializer = protobufSerializer(KagariSearchTabPreferences()),
         )
     }
 
