@@ -65,9 +65,15 @@ public fun ActionMenu.Companion.pixivBookmark(
         updateKey = pixivBookmarkUpdateKey(kind, statusKey),
         icon =
             when (kind) {
-                PixivBookmarkKind.MatchFollow,
-                PixivBookmarkKind.Public,
-                -> if (active) UiIcon.Unlike else UiIcon.Like
+                PixivBookmarkKind.MatchFollow -> {
+                    when {
+                        state == PixivBookmarkState.Private -> UiIcon.KagariPrivateBookmarked
+                        active -> UiIcon.Unlike
+                        else -> UiIcon.Like
+                    }
+                }
+
+                PixivBookmarkKind.Public -> if (active) UiIcon.Unlike else UiIcon.Like
 
                 PixivBookmarkKind.Private -> if (active) UiIcon.KagariPrivateBookmarked else UiIcon.KagariPrivateBookmark
             },
