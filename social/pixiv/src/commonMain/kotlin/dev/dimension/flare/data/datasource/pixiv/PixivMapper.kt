@@ -428,6 +428,7 @@ internal fun UiTimelineV2.Post.toGalleryDetail(accountKey: MicroBlogKey): Galler
         createdAt = createdAt,
         content = content.original.takeUnless { content -> content.isEmpty },
         isBookmarked = favourited,
+        bookmarkIcon = favouriteAction?.icon,
         bookmarkAction =
             favouriteAction?.clickEvent ?: ClickEvent.event(
                 accountKey = accountKey,

@@ -3,6 +3,7 @@ package dev.dimension.flare.ui.model.mapper
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.PostEvent
+import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
 import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
@@ -249,6 +250,14 @@ public fun ImmutableList<ActionMenu>.withPixivPrivateFollows(
     return replacePixivItems { item ->
         item.takeIf { it.updateKey == bookmarkKey && it.icon == UiIcon.Like }?.copy(icon = UiIcon.KagariPrivateBookmark)
     }
+}
+
+public fun GalleryDetail.kagariBookmarkIcon(privateFollows: Map<MicroBlogKey, Set<MicroBlogKey>>): UiIcon {
+    val icon = bookmarkIcon ?: if (isBookmarked) UiIcon.Unlike else UiIcon.Like
+    if (icon != UiIcon.Like) return icon
+    val accountKey = (accountType as? AccountType.Specific)?.accountKey ?: return icon
+    val authorKey = author?.key ?: return icon
+    return if (authorKey in privateFollows[accountKey].orEmpty()) UiIcon.KagariPrivateBookmark else icon
 }
 
 private fun ImmutableList<ActionMenu>.pixivAuthorFollowed(followKey: String): Boolean? =

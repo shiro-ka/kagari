@@ -38,6 +38,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,6 +103,8 @@ import dev.dimension.flare.ui.model.UiIcon
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiState
 import dev.dimension.flare.ui.model.UiTimelineV2
+import dev.dimension.flare.ui.model.mapper.PixivPrivateFollows
+import dev.dimension.flare.ui.model.mapper.kagariBookmarkIcon
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
 import dev.dimension.flare.ui.model.onSuccess
@@ -657,13 +661,13 @@ private fun GalleryAuthorCard(
                 }
             }
             GalleryTranslationButton(detail)
+            val bookmarkAccountKey = (detail.accountType as? AccountType.Specific)?.accountKey
+            LaunchedEffect(bookmarkAccountKey) {
+                bookmarkAccountKey?.let(PixivPrivateFollows::request)
+            }
+            val privateFollows by PixivPrivateFollows.state.collectAsState()
             StatusActionButton(
-                icon =
-                    if (detail.isBookmarked) {
-                        UiIcon.Unlike.toImageVector()
-                    } else {
-                        UiIcon.Like.toImageVector()
-                    },
+                icon = detail.kagariBookmarkIcon(privateFollows).toImageVector(),
                 number = null,
                 color =
                     if (detail.isBookmarked) {
