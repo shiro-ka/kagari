@@ -3,6 +3,8 @@ package dev.dimension.flare.data.datasource.pixiv
 import dev.dimension.flare.common.Cacheable
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKinds
 import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDataSource
@@ -33,6 +35,7 @@ import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
+import dev.dimension.flare.data.network.pixiv.PixivSearchSort
 import dev.dimension.flare.data.network.pixiv.PixivService
 import dev.dimension.flare.data.network.pixiv.PixivWorkType
 import dev.dimension.flare.data.platform.CommonTimelineSpecs
@@ -72,6 +75,7 @@ internal class PixivDataSource(
     PostDataSource,
     RelationDataSource,
     KagariPixivBookmarkDataSource,
+    KagariSearchKinds,
     PostEventHandler.Handler {
     private val service =
         PixivService(
@@ -405,6 +409,25 @@ internal class PixivDataSource(
             service = service,
             accountKey = accountKey,
             query = query,
+        )
+
+    override val kagariSearchKinds: List<KagariSearchKind> =
+        listOf(KagariSearchKind.Latest, KagariSearchKind.Oldest, KagariSearchKind.Popular, KagariSearchKind.Users)
+
+    override fun kagariSearchStatus(
+        query: String,
+        kind: KagariSearchKind,
+    ): RemoteLoader<UiTimelineV2> =
+        PixivSearchTimelineLoader(
+            service = service,
+            accountKey = accountKey,
+            query = query,
+            sort =
+                when (kind) {
+                    KagariSearchKind.Oldest -> PixivSearchSort.DateAsc
+                    KagariSearchKind.Popular -> PixivSearchSort.PopularDesc
+                    else -> PixivSearchSort.DateDesc
+                },
         )
 
     override fun searchUser(query: String): RemoteLoader<UiProfile> =

@@ -13,6 +13,8 @@ import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
 import dev.dimension.flare.data.datasource.microblog.DirectMessageDataSource
 import dev.dimension.flare.data.datasource.microblog.KagariMentionSearch
 import dev.dimension.flare.data.datasource.microblog.KagariPostModerationSource
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKinds
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSource
 import dev.dimension.flare.data.datasource.microblog.PostDetailFilter
@@ -135,6 +137,7 @@ internal class XQTDataSource(
     DirectMessageDataSource,
     RelationDataSource,
     KagariPostModerationSource,
+    KagariSearchKinds,
     PostEventHandler.Handler {
     private val coroutineScope: CoroutineScope by koinInject()
     private val imageCompressor: ImageCompressor by koinInject()
@@ -741,6 +744,25 @@ internal class XQTDataSource(
             service,
             accountKey,
             query,
+        )
+
+    override val kagariSearchKinds: List<KagariSearchKind> =
+        listOf(KagariSearchKind.Top, KagariSearchKind.Latest, KagariSearchKind.Users, KagariSearchKind.Media)
+
+    override fun kagariSearchStatus(
+        query: String,
+        kind: KagariSearchKind,
+    ): RemoteLoader<UiTimelineV2> =
+        SearchStatusPagingSource(
+            service,
+            accountKey,
+            query,
+            product =
+                when (kind) {
+                    KagariSearchKind.Latest -> "Latest"
+                    KagariSearchKind.Media -> "Media"
+                    else -> "Top"
+                },
         )
 
     override fun searchUser(query: String) =
