@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +80,7 @@ import dev.dimension.flare.ui.component.TabRowIndicator
 import dev.dimension.flare.ui.component.listCard
 import dev.dimension.flare.ui.component.status.ListEmptyView
 import dev.dimension.flare.ui.model.asText
+import dev.dimension.flare.ui.model.UiProfile
 import dev.dimension.flare.ui.model.onSuccess
 import dev.dimension.flare.ui.theme.screenHorizontalPadding
 import kotlinx.collections.immutable.ImmutableList
@@ -152,38 +154,13 @@ internal fun TabAddBottomSheet(
                         modifier = Modifier.clip(CircleShape),
                     )
                     accountTabGroups.forEachIndexed { index, tab ->
-                        LeadingIconTab(
-                            modifier = Modifier.clip(CircleShape),
+                        AccountLeadingIconTab(
+                            profile = tab.profile,
                             selected = pagerState.currentPage == index + 1,
                             onClick = {
                                 scope.launch {
                                     pagerState.animateScrollToPage(index + 1)
                                 }
-                            },
-                            text = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    RichText(
-                                        text = tab.profile.name,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        text = tab.profile.handle.display,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            },
-                            icon = {
-                                AvatarComponent(
-                                    tab.profile.avatar,
-                                    size = 24.dp,
-                                )
                             },
                         )
                     }
@@ -300,16 +277,71 @@ internal fun TabAddBottomSheet(
 }
 
 @Composable
+internal fun AccountLeadingIconTab(
+    profile: UiProfile,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    LeadingIconTab(
+        modifier = Modifier.clip(CircleShape),
+        selected = selected,
+        onClick = onClick,
+        text = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RichText(
+                    text = profile.name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = profile.handle.display,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
+        icon = {
+            AvatarComponent(
+                profile.avatar,
+                size = 24.dp,
+            )
+        },
+    )
+}
+
+@Composable
 internal fun ListTabItem(
     data: UiTimelineTabItem,
     isAdded: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    ListItem(
+    ListTabItem(
+        isAdded = isAdded,
         modifier = modifier,
         leadingContent = {
             TabIcon(data)
         },
+        content = {
+            UiText(data.title)
+        },
+    )
+}
+
+@Composable
+internal fun ListTabItem(
+    isAdded: Boolean,
+    leadingContent: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ListItem(
+        modifier = modifier,
+        leadingContent = leadingContent,
         trailingContent = {
             if (isAdded) {
                 FAIcon(
@@ -324,13 +356,10 @@ internal fun ListTabItem(
             }
         },
         elevation = ListItemDefaults.elevation(),
-        content = {
-            UiText(data.title)
-        },
+        content = content,
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LazyItemScope.TabCustomItem(
     item: UiTimelineTabItem,
@@ -342,17 +371,53 @@ internal fun LazyItemScope.TabCustomItem(
     modifier: Modifier = Modifier,
     shapes: ListItemShapes = ListItemDefaults.shapes(),
 ) {
+    SwipeToDeleteTabItem(
+        key = item.id,
+        onDelete = { deleteTab(item) },
+        reorderableLazyColumnState = reorderableLazyColumnState,
+        canSwipeToDelete = canSwipeToDelete,
+        modifier = modifier,
+        shapes = shapes,
+        isEditing = isEditing,
+        onEdit = { editTab(item) },
+        content = {
+            UiText(item.title)
+        },
+        leadingContent = {
+            TabIcon(
+                item,
+            )
+        },
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun LazyItemScope.SwipeToDeleteTabItem(
+    key: Any,
+    onDelete: () -> Unit,
+    reorderableLazyColumnState: ReorderableLazyListState,
+    canSwipeToDelete: Boolean,
+    content: @Composable () -> Unit,
+    leadingContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    supportingContent: (@Composable () -> Unit)? = null,
+    shapes: ListItemShapes = ListItemDefaults.shapes(),
+    isEditing: Boolean = false,
+    onEdit: (() -> Unit)? = null,
+) {
     val haptics = LocalHapticFeedback.current
+    val currentOnDelete by rememberUpdatedState(onDelete)
     val swipeState =
         rememberSwipeToDismissBoxState()
     LaunchedEffect(swipeState.settledValue) {
         if (swipeState.settledValue != SwipeToDismissBoxValue.Settled) {
             delay(AnimationConstants.DefaultDurationMillis.toLong())
             swipeState.reset()
-            deleteTab(item)
+            currentOnDelete()
         }
     }
-    ReorderableItem(reorderableLazyColumnState, key = item.id, modifier = modifier) { isDragging ->
+    ReorderableItem(reorderableLazyColumnState, key = key, modifier = modifier) { isDragging ->
         AnimatedVisibility(
             visible = swipeState.settledValue == SwipeToDismissBoxValue.Settled,
             exit =
@@ -400,25 +465,20 @@ internal fun LazyItemScope.TabCustomItem(
                     selected = isDragging || isSwiping || isEditing,
                     onClick = {},
                     shapes = shapes,
-                    content = {
-                        UiText(item.title)
-                    },
-                    leadingContent = {
-                        TabIcon(
-                            item,
-                        )
-                    },
+                    content = content,
+                    supportingContent = supportingContent,
+                    leadingContent = leadingContent,
                     trailingContent = {
                         Row {
-                            IconButton(
-                                onClick = {
-                                    editTab.invoke(item)
-                                },
-                            ) {
-                                FAIcon(
-                                    FontAwesomeIcons.Solid.Pen,
-                                    contentDescription = stringResource(id = R.string.tab_settings_edit),
-                                )
+                            if (onEdit != null) {
+                                IconButton(
+                                    onClick = onEdit,
+                                ) {
+                                    FAIcon(
+                                        FontAwesomeIcons.Solid.Pen,
+                                        contentDescription = stringResource(id = R.string.tab_settings_edit),
+                                    )
+                                }
                             }
                             IconButton(
                                 modifier =
