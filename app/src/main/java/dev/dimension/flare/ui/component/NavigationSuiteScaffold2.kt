@@ -84,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -103,6 +104,7 @@ import compose.icons.fontawesomeicons.solid.Pen
 import dev.dimension.flare.R
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
+import dev.dimension.flare.data.model.resolveBehavior
 import dev.dimension.flare.ui.theme.segmentedShapes2
 import soup.compose.material.motion.animation.materialElevationScaleIn
 import soup.compose.material.motion.animation.materialElevationScaleOut
@@ -265,8 +267,8 @@ fun NavigationSuiteScaffold2(
     val bottomBarBehavior = LocalGlobalAppearance.current.bottomBarBehavior
     val showBottomBarLabels = LocalGlobalAppearance.current.showBottomBarLabels
     val bottomBarHeight =
-        remember(showBottomBarLabels) {
-            if (showBottomBarLabels) {
+        remember(showBottomBarLabels, bottomBarStyle) {
+            if (showBottomBarLabels && bottomBarStyle != BottomBarStyle.FloatingCompact) {
                 56.dp
             } else {
                 48.dp
@@ -279,55 +281,11 @@ fun NavigationSuiteScaffold2(
             isBottomBarExpanded,
             bottomBarAutoHideEnabled,
         ) {
-            when (bottomBarStyle) {
-                BottomBarStyle.Floating -> {
-                    when (bottomBarBehavior) {
-                        BottomBarBehavior.AlwaysShow -> {
-                            BottomBarState.FloatingNormal
-                        }
-
-                        BottomBarBehavior.HideOnScroll -> {
-                            if (!isBottomBarExpanded && bottomBarAutoHideEnabled) {
-                                BottomBarState.FloatingHidden
-                            } else {
-                                BottomBarState.FloatingNormal
-                            }
-                        }
-
-                        BottomBarBehavior.MinimizeOnScroll -> {
-                            if (!isBottomBarExpanded && bottomBarAutoHideEnabled) {
-                                BottomBarState.FloatingMinimized
-                            } else {
-                                BottomBarState.FloatingNormal
-                            }
-                        }
-                    }
-                }
-
-                BottomBarStyle.Classic -> {
-                    when (bottomBarBehavior) {
-                        BottomBarBehavior.AlwaysShow -> {
-                            BottomBarState.ClassicNormal
-                        }
-
-                        BottomBarBehavior.HideOnScroll -> {
-                            if (!isBottomBarExpanded && bottomBarAutoHideEnabled) {
-                                BottomBarState.ClassicHidden
-                            } else {
-                                BottomBarState.ClassicNormal
-                            }
-                        }
-
-                        BottomBarBehavior.MinimizeOnScroll -> {
-                            if (!isBottomBarExpanded && bottomBarAutoHideEnabled) {
-                                BottomBarState.ClassicHidden
-                            } else {
-                                BottomBarState.ClassicNormal
-                            }
-                        }
-                    }
-                }
-            }
+            BottomBarState.of(
+                style = bottomBarStyle,
+                behavior = bottomBarBehavior,
+                collapsed = !isBottomBarExpanded && bottomBarAutoHideEnabled,
+            )
         }
     Surface(
         modifier =
@@ -426,10 +384,7 @@ fun NavigationSuiteScaffold2(
                 val bottomBarVisible =
                     layoutType == NavigationSuiteType.NavigationBar &&
                         scope.itemList.any { item -> item is NavigationSuiteItem.DefaultItem && item.selected } &&
-                        (
-                            bottomBarState != BottomBarState.FloatingHidden &&
-                                bottomBarState != BottomBarState.ClassicHidden
-                        )
+                        !bottomBarState.isHidden
                 val density = LocalDensity.current
                 val reservedForBottomBar =
                     if (
@@ -437,9 +392,10 @@ fun NavigationSuiteScaffold2(
                             item is NavigationSuiteItem.DefaultItem && item.selected
                         } && layoutType == NavigationSuiteType.NavigationBar
                     ) {
-                        when (bottomBarStyle) {
-                            BottomBarStyle.Floating -> bottomBarHeight + 16.dp
-                            BottomBarStyle.Classic -> bottomBarHeight + 8.dp
+                        if (bottomBarState.isFloating) {
+                            bottomBarHeight + 16.dp
+                        } else {
+                            bottomBarHeight + 8.dp
                         }
                     } else {
                         0.dp
@@ -481,32 +437,12 @@ fun NavigationSuiteScaffold2(
                     LocalBottomBarShowing provides (layoutType == NavigationSuiteType.NavigationBar),
                     LocalFabCompanion provides
                         fabCompanion.takeIf {
-                            bottomBarStyle == BottomBarStyle.Floating && layoutType == NavigationSuiteType.NavigationBar
+                            bottomBarState.isFloating && layoutType == NavigationSuiteType.NavigationBar
                         },
                 ) {
                     content.invoke()
                 }
 
-                val isFloating =
-                    remember(bottomBarState) {
-                        when (bottomBarState) {
-                            BottomBarState.FloatingNormal -> true
-                            BottomBarState.FloatingMinimized -> true
-                            BottomBarState.FloatingHidden -> true
-                            BottomBarState.ClassicNormal -> false
-                            BottomBarState.ClassicHidden -> false
-                        }
-                    }
-                val isHidden =
-                    remember(bottomBarState) {
-                        when (bottomBarState) {
-                            BottomBarState.FloatingNormal -> false
-                            BottomBarState.FloatingMinimized -> false
-                            BottomBarState.FloatingHidden -> true
-                            BottomBarState.ClassicNormal -> false
-                            BottomBarState.ClassicHidden -> true
-                        }
-                    }
                 Column(
                     modifier =
                         Modifier
@@ -517,8 +453,8 @@ fun NavigationSuiteScaffold2(
                                     WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
                                 ),
                             ).let {
-                                if (!isHidden) {
-                                    if (isFloating) {
+                                if (!bottomBarState.isHidden) {
+                                    if (bottomBarState.isFloating) {
                                         it.padding(bottom = bottomBarHeight)
                                     } else {
                                         it.padding(bottom = bottomBarHeight + 24.dp, end = bottomBarHeight)
@@ -595,7 +531,7 @@ fun NavigationSuiteScaffold2(
                             showFab,
                             modifier =
                                 Modifier.align(
-                                    if (bottomBarStyle == BottomBarStyle.Classic) {
+                                    if (!bottomBarState.isFloating) {
                                         Alignment.BottomEnd
                                     } else {
                                         Alignment.CenterEnd
@@ -719,12 +655,51 @@ private fun FabCompanionButton(
     }
 }
 
-enum class BottomBarState {
-    FloatingNormal,
-    FloatingMinimized,
-    FloatingHidden,
-    ClassicNormal,
-    ClassicHidden,
+enum class BottomBarPhase {
+    Resting,
+    Minimized,
+    Hidden,
+}
+
+data class BottomBarState(
+    val style: BottomBarStyle,
+    val phase: BottomBarPhase,
+) {
+    val isFloating: Boolean
+        get() = style != BottomBarStyle.Classic
+
+    val isHidden: Boolean
+        get() = phase == BottomBarPhase.Hidden
+
+    val showsAllItems: Boolean
+        get() = phase != BottomBarPhase.Minimized
+
+    val isCompact: Boolean
+        get() = style == BottomBarStyle.FloatingCompact || phase == BottomBarPhase.Minimized
+
+    val shape: Shape
+        get() = if (isFloating) RoundedCornerShape(50) else RoundedCornerShape(0)
+
+    companion object {
+        fun of(
+            style: BottomBarStyle,
+            behavior: BottomBarBehavior,
+            collapsed: Boolean,
+        ): BottomBarState =
+            BottomBarState(
+                style = style,
+                phase =
+                    if (!collapsed) {
+                        BottomBarPhase.Resting
+                    } else {
+                        when (style.resolveBehavior(behavior)) {
+                            BottomBarBehavior.AlwaysShow -> BottomBarPhase.Resting
+                            BottomBarBehavior.HideOnScroll -> BottomBarPhase.Hidden
+                            BottomBarBehavior.MinimizeOnScroll -> BottomBarPhase.Minimized
+                        }
+                    },
+            )
+    }
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -737,26 +712,6 @@ private fun SharedTransitionScope.BottomFab(
     onCirclePositioned: (LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isFloating =
-        remember(state) {
-            when (state) {
-                BottomBarState.FloatingNormal -> true
-                BottomBarState.FloatingMinimized -> true
-                BottomBarState.FloatingHidden -> true
-                BottomBarState.ClassicNormal -> false
-                BottomBarState.ClassicHidden -> false
-            }
-        }
-    val isExpanded =
-        remember(state) {
-            when (state) {
-                BottomBarState.FloatingNormal -> true
-                BottomBarState.FloatingMinimized -> false
-                BottomBarState.FloatingHidden -> true
-                BottomBarState.ClassicNormal -> true
-                BottomBarState.ClassicHidden -> true
-            }
-        }
     Glassify(
         onClick = onFabClicked,
         shape = CircleShape,
@@ -776,7 +731,7 @@ private fun SharedTransitionScope.BottomFab(
                         WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom,
                     ),
                 ).let {
-                    if (isFloating) {
+                    if (state.isFloating) {
                         it
                     } else {
                         it.padding(
@@ -785,10 +740,10 @@ private fun SharedTransitionScope.BottomFab(
                     }
                 }.onGloballyPositioned(onCirclePositioned)
                 .size(
-                    if (isExpanded) {
-                        56.dp
-                    } else {
+                    if (state.isCompact) {
                         40.dp
+                    } else {
+                        56.dp
                     },
                 ),
     ) {
@@ -810,39 +765,10 @@ private fun SharedTransitionScope.BottomBar(
     onSurfacePositioned: (LayoutCoordinates) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val containerShape =
-        remember(state) {
-            when (state) {
-                BottomBarState.FloatingNormal -> RoundedCornerShape(50)
-                BottomBarState.FloatingMinimized -> RoundedCornerShape(50)
-                BottomBarState.FloatingHidden -> RoundedCornerShape(50)
-                BottomBarState.ClassicNormal -> RoundedCornerShape(0)
-                BottomBarState.ClassicHidden -> RoundedCornerShape(0)
-            }
-        }
-    val isFloating =
-        remember(state) {
-            when (state) {
-                BottomBarState.FloatingNormal -> true
-                BottomBarState.FloatingMinimized -> true
-                BottomBarState.FloatingHidden -> true
-                BottomBarState.ClassicNormal -> false
-                BottomBarState.ClassicHidden -> false
-            }
-        }
-    val isExpanded =
-        remember(state) {
-            when (state) {
-                BottomBarState.FloatingNormal -> true
-                BottomBarState.FloatingMinimized -> false
-                BottomBarState.FloatingHidden -> true
-                BottomBarState.ClassicNormal -> true
-                BottomBarState.ClassicHidden -> true
-            }
-        }
+    val isFloating = state.isFloating
 
     Glassify(
-        shape = containerShape,
+        shape = state.shape,
         shadowElevation = 8.dp,
         tonalElevation = 8.dp,
         modifier =
@@ -889,7 +815,7 @@ private fun SharedTransitionScope.BottomBar(
                 require(it is NavigationSuiteItem.DefaultItem) {
                     "Only default items are supported in the bottom bar. Found: ${it::class.simpleName}"
                 }
-                if (isExpanded || it.selected) {
+                if (state.showsAllItems || it.selected) {
                     ShortNavigationBarItem(
                         modifier =
                             it.modifier
@@ -923,7 +849,7 @@ private fun SharedTransitionScope.BottomBar(
                             }
                         },
                         enabled = it.enabled,
-                        label = if (isExpanded && showBottomBarLabels) it.label else null,
+                        label = if (!state.isCompact && showBottomBarLabels) it.label else null,
                         interactionSource = it.interactionSource,
                     )
                 }
