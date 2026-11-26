@@ -280,7 +280,10 @@ public fun CommonStatusComponent(
         val kagariRemoteReactionMode = LocalGlobalAppearance.current.kagariRemoteReactionMode
         val emojiReactions =
             remember(item.emojiReactions, kagariRemoteReactionMode) {
-                item.emojiReactions.kagariWithRemoteReactionMode(kagariRemoteReactionMode)
+                item.emojiReactions
+                    .kagariWithRemoteReactionMode(kagariRemoteReactionMode)
+                    .sortedByDescending { it.count.value }
+                    .toImmutableList()
             }
         val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
@@ -837,6 +840,8 @@ private fun StatusReactionComponent(
             StatusReactionRow(
                 itemCount = emojiReactions.size,
                 isDetail = isDetail,
+                layout = LocalGlobalAppearance.current.kagariReactionLayout,
+                mineIndex = emojiReactions.indexOfFirst { it.me },
             ) { index ->
                 val reaction = emojiReactions[index]
                 val color =

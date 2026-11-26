@@ -67,6 +67,11 @@
     <string name="kagari_settings_remote_reactions_as_is">そのまま</string>
     <string name="kagari_settings_remote_reactions_merge_into_heart">♡にまとめる</string>
     <string name="kagari_settings_remote_reactions_hidden">表示しない</string>
+    <string name="kagari_settings_reaction_layout">リアクションの並べ方</string>
+    <string name="kagari_settings_reaction_layout_description">タイムラインで、投稿の下のリアクションをどう並べるかを選びます</string>
+    <string name="kagari_settings_reaction_layout_first_sixteen">16個で切る</string>
+    <string name="kagari_settings_reaction_layout_two_lines">2行で切る</string>
+    <string name="kagari_settings_reaction_layout_one_line_scroll">1行で横スクロール</string>
     <string name="kagari_verification_title">認証済みのアカウント</string>
     <string name="kagari_verification_message">このアカウントは、次のアカウントに本人と確認されています。</string>
     <string name="kagari_verification_message_simple">このアカウントは、サービスに本人と確認されています。</string>

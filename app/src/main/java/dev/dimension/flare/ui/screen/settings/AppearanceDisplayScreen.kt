@@ -23,6 +23,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
+import dev.dimension.flare.data.model.KagariReactionLayout
 import dev.dimension.flare.data.model.KagariRemoteReactionMode
 import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
@@ -240,6 +241,23 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
                 selected = globalAppearance.kagariRemoteReactionMode,
                 onSelected = {
                     state.update(AppearanceKeys.KagariRemoteReactionMode, it)
+                },
+                shapes = ListItemDefaults.item(),
+            )
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.kagari_settings_reaction_layout)) },
+                supporting = { Text(text = stringResource(id = R.string.kagari_settings_reaction_layout_description)) },
+                items =
+                    persistentMapOf(
+                        KagariReactionLayout.FirstSixteen to
+                            stringResource(id = R.string.kagari_settings_reaction_layout_first_sixteen),
+                        KagariReactionLayout.TwoLines to stringResource(id = R.string.kagari_settings_reaction_layout_two_lines),
+                        KagariReactionLayout.OneLineScroll to
+                            stringResource(id = R.string.kagari_settings_reaction_layout_one_line_scroll),
+                    ),
+                selected = globalAppearance.kagariReactionLayout,
+                onSelected = {
+                    state.update(AppearanceKeys.KagariReactionLayout, it)
                 },
                 shapes = ListItemDefaults.item(),
             )

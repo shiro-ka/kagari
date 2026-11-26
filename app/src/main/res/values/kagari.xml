@@ -68,6 +68,11 @@
     <string name="kagari_settings_remote_reactions_as_is">As is</string>
     <string name="kagari_settings_remote_reactions_merge_into_heart">Merge into ♡</string>
     <string name="kagari_settings_remote_reactions_hidden">Hide</string>
+    <string name="kagari_settings_reaction_layout">Reaction layout</string>
+    <string name="kagari_settings_reaction_layout_description">Choose how reactions under posts are laid out in timelines</string>
+    <string name="kagari_settings_reaction_layout_first_sixteen">First 16</string>
+    <string name="kagari_settings_reaction_layout_two_lines">Two lines</string>
+    <string name="kagari_settings_reaction_layout_one_line_scroll">One scrolling line</string>
     <string name="kagari_verification_title">Verified account</string>
     <string name="kagari_verification_message">This account has been verified by:</string>
     <string name="kagari_verification_message_simple">This account has been verified by its service.</string>
