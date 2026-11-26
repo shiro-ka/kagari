@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateIntOffsetAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -31,8 +32,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -42,6 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalWideNavigationRail
 import androidx.compose.material3.NavigationBarItem
@@ -62,6 +66,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScope
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -81,6 +86,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -91,6 +97,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -106,9 +113,9 @@ import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
 import dev.dimension.flare.data.model.resolveBehavior
 import dev.dimension.flare.ui.theme.segmentedShapes2
+import kotlin.math.roundToInt
 import soup.compose.material.motion.animation.materialElevationScaleIn
 import soup.compose.material.motion.animation.materialElevationScaleOut
-import kotlin.math.roundToInt
 
 val LocalBottomBarHeight = androidx.compose.runtime.staticCompositionLocalOf<Dp> { 0.dp }
 val LocalBottomBarShowing = androidx.compose.runtime.staticCompositionLocalOf<Boolean> { false }
@@ -268,10 +275,10 @@ fun NavigationSuiteScaffold2(
     val showBottomBarLabels = LocalGlobalAppearance.current.showBottomBarLabels
     val bottomBarHeight =
         remember(showBottomBarLabels, bottomBarStyle) {
-            if (showBottomBarLabels && bottomBarStyle != BottomBarStyle.FloatingCompact) {
-                56.dp
-            } else {
-                48.dp
+            when {
+                bottomBarStyle == BottomBarStyle.FloatingCompact -> 40.dp
+                showBottomBarLabels -> 56.dp
+                else -> 48.dp
             }
         }
     val bottomBarState =
@@ -755,6 +762,41 @@ private fun SharedTransitionScope.BottomFab(
     }
 }
 
+@Composable
+private fun CompactBarItem(
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    interactionSource: MutableInteractionSource?,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier =
+            modifier
+                .height(32.dp)
+                .widthIn(min = 56.dp)
+                .clip(CircleShape)
+                .background(if (selected) colors.secondaryContainer else Color.Transparent)
+                .selectable(
+                    selected = selected,
+                    interactionSource = interactionSource,
+                    indication = ripple(),
+                    enabled = enabled,
+                    role = Role.Tab,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
+        ) {
+            icon()
+        }
+    }
+}
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SharedTransitionScope.BottomBar(
@@ -815,7 +857,32 @@ private fun SharedTransitionScope.BottomBar(
                 require(it is NavigationSuiteItem.DefaultItem) {
                     "Only default items are supported in the bottom bar. Found: ${it::class.simpleName}"
                 }
-                if (state.showsAllItems || it.selected) {
+                if ((state.showsAllItems || it.selected) && state.style == BottomBarStyle.FloatingCompact) {
+                    CompactBarItem(
+                        selected = it.selected,
+                        onClick = it.onClick,
+                        enabled = it.enabled,
+                        interactionSource = it.interactionSource,
+                        modifier =
+                            it.modifier.sharedElement(
+                                rememberSharedContentState("item_$index"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                            ),
+                    ) {
+                        Box(
+                            modifier =
+                                Modifier.sharedElement(
+                                    rememberSharedContentState("item_icon_$index"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                ),
+                        ) {
+                            NavigationItemIcon(
+                                badge = it.badge,
+                                icon = it.icon,
+                            )
+                        }
+                    }
+                } else if (state.showsAllItems || it.selected) {
                     ShortNavigationBarItem(
                         modifier =
                             it.modifier
