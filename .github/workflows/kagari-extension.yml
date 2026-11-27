@@ -33,6 +33,9 @@ jobs:
           java-version: 25
           cache: gradle
 
+      - name: Bluesky tests
+        run: ./gradlew :social:bluesky:jvmTest --stacktrace
+
       - name: Build
         run: ./gradlew :web-shared:wasmJsBrowserProductionLibraryDistribution --stacktrace
 
