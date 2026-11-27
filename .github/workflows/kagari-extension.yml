@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: kagari-extension-${{ github.ref }}
+  group: kagari-extension-${{ github.ref }}-${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[extension]') || contains(github.event.head_commit.message, '[prerelease]')) && 'build' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
