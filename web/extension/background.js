@@ -21,6 +21,7 @@ browser.webRequest.onBeforeRequest.addListener(
 
 const carriedHeaderPrefix = 'x-kagari-h-';
 const extensionOrigin = browser.runtime.getURL('');
+const imageReferers = new Map([['i.pximg.net', 'https://www.pixiv.net/']]);
 
 browser.webRequest.onBeforeSendHeaders.addListener(
 	(details) => {
@@ -28,10 +29,12 @@ browser.webRequest.onBeforeSendHeaders.addListener(
 		const carried = details.requestHeaders.filter((header) =>
 			header.name.toLowerCase().startsWith(carriedHeaderPrefix)
 		);
-		if (carried.length === 0) return {};
 		const restored = new Map(
 			carried.map((header) => [header.name.toLowerCase().slice(carriedHeaderPrefix.length), header.value])
 		);
+		const referer = imageReferers.get(new URL(details.url).hostname);
+		if (referer && !restored.has('referer')) restored.set('referer', referer);
+		if (restored.size === 0) return {};
 		const requestHeaders = details.requestHeaders.filter((header) => {
 			const name = header.name.toLowerCase();
 			return !name.startsWith(carriedHeaderPrefix) && !restored.has(name);
@@ -41,4 +44,16 @@ browser.webRequest.onBeforeSendHeaders.addListener(
 	},
 	{ urls: ['<all_urls>'] },
 	['blocking', 'requestHeaders']
+);
+
+browser.webRequest.onHeadersReceived.addListener(
+	(details) => {
+		const location = details.responseHeaders?.find((header) => header.name.toLowerCase() === 'location')?.value;
+		if (!location?.toLowerCase().startsWith('pixiv://account/login')) return {};
+		const target = `index.html#/login/callback/oauth${new URL(location).search}`;
+		void browser.tabs.update(details.tabId, { url: browser.runtime.getURL(target) });
+		return { cancel: true };
+	},
+	{ urls: ['https://app-api.pixiv.net/web/v1/users/auth/pixiv/callback*'], types: ['main_frame'] },
+	['blocking', 'responseHeaders']
 );
