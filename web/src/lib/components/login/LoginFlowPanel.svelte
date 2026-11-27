@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
     import { browser } from "$app/env";
     import { goto } from "$app/navigation";
     import { untrack } from "svelte";
@@ -46,7 +47,7 @@
             qrContent = content;
         },
         () => {
-            void goto("/");
+            void goto(appHref("/"));
         },
     );
 

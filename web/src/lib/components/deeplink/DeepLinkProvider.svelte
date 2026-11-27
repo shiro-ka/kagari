@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import { goto } from '$app/navigation';
 	import { createDeepLinkPresenter } from '@flare/web-presenters/deepLink.svelte';
 	import { createDeepLinkContext, provideDeepLink } from '$lib/deeplink/deepLink.svelte';
@@ -16,7 +17,7 @@
 			});
 			if (!dispatchEvent(composeRouteEvent)) return;
 
-			void goto(routeUrl);
+			void goto(appHref(routeUrl));
 			return;
 		}
 

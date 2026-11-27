@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref, appUrl } from '$lib/routing';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { createAccountsPresenter } from '@flare/web-presenters/accounts.svelte';
@@ -45,7 +46,7 @@
 	const hasSignedInAccount = $derived(
 		accountsPresenter.accounts.type === 'Success' && accountsPresenter.accounts.data.length > 0
 	);
-	const visiblePathname = $derived(shallowPath ?? page.url.pathname);
+	const visiblePathname = $derived(shallowPath ?? appUrl(page.url).pathname);
 	const activeTab = $derived(tabForPath(visiblePathname));
 	const pageTitle = $derived(
 		selectedSecondaryTimeline ? timelineTabTitle(selectedSecondaryTimeline) : activeTab ? tabTitle(activeTab) : 'Flare'
@@ -62,7 +63,7 @@
 	});
 
 	$effect(() => {
-		page.url.pathname;
+		appUrl(page.url).pathname;
 		if (composeOverlayOpen) return;
 		selectedSecondaryTimeline = null;
 	});
@@ -195,7 +196,7 @@
 		if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
 			return;
 		}
-		if (page.url.pathname === '/compose' && composeOverlayOpen) return;
+		if (appUrl(page.url).pathname === '/compose' && composeOverlayOpen) return;
 
 		event.preventDefault();
 		openComposeUrl('/compose');
@@ -205,7 +206,7 @@
 		if (!composeOverlayOpen) {
 			captureBackgroundSnapshot();
 		}
-		history.pushState({ composeOverlay: true }, '', routeUrl);
+		history.pushState({ composeOverlay: true }, '', appHref(routeUrl));
 		composeOverlayUrl = routeUrl;
 		shallowPath = '/compose';
 		composeOverlayOpen = true;
@@ -216,7 +217,7 @@
 			history.back();
 			return;
 		}
-		void goto('/');
+		void goto(appHref('/'));
 	}
 
 	function captureBackgroundSnapshot(): void {
@@ -254,7 +255,7 @@
 							<a
 								class:active-primary={isTabActive(tab)}
 								class="tooltip tooltip-right rounded-box"
-								href={tabHref(tab)}
+								href={appHref(tabHref(tab))}
 								aria-label={tabTitle(tab)}
 								aria-current={isTabActive(tab) ? 'page' : undefined}
 								data-tip={tabTitle(tab)}
@@ -276,7 +277,7 @@
 					<a
 						class:btn-active={activeTab === 'Compose'}
 						class="btn btn-primary btn-square compose-nav-button tooltip tooltip-right"
-						href="/compose"
+						href={appHref('/compose')}
 						aria-label={m.composeTitle()}
 						aria-current={activeTab === 'Compose' ? 'page' : undefined}
 						data-tip={m.composeTitle()}
@@ -314,7 +315,7 @@
 				{#each navigationTabs as tab (tab)}
 					<a
 						class:dock-active={isTabActive(tab)}
-						href={tabHref(tab)}
+						href={appHref(tabHref(tab))}
 						aria-label={tabTitle(tab)}
 						aria-current={isTabActive(tab) ? 'page' : undefined}
 					>
@@ -330,7 +331,7 @@
 				{/each}
 				<a
 					class:dock-active={isTabActive('Settings')}
-					href="/settings"
+					href={appHref('/settings')}
 					aria-label={m.settingsTitle()}
 					aria-current={isTabActive('Settings') ? 'page' : undefined}
 				>
@@ -343,7 +344,7 @@
 					<a
 						class:btn-active={activeTab === 'Compose'}
 						class="btn btn-primary btn-circle btn-lg shadow-lg"
-						href="/compose"
+						href={appHref('/compose')}
 						aria-label={m.composeTitle()}
 						aria-current={activeTab === 'Compose' ? 'page' : undefined}
 						onclick={openCompose}

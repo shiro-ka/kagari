@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import AppTopBar from '$lib/components/AppTopBar.svelte';
 	import FaIcon from '$lib/components/FaIcon.svelte';
 	import { useEnvironmentSettings } from '$lib/environment/environmentSettings.svelte';
@@ -127,7 +128,7 @@
 		<div class="list rounded-box border border-base-300 bg-base-100">
 			{#each items as item (item.title)}
 				{#if item.href}
-					<a class="list-row setting-row" href={item.href}>
+					<a class="list-row setting-row" href={appHref(item.href)}>
 						{@render SettingsItemContent(item)}
 					</a>
 				{:else}

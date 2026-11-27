@@ -81,6 +81,9 @@ export default defineConfig({
 				assets: 'build',
 				fallback: 'index.html'
 			}),
+			router: {
+				type: 'hash'
+			},
 			// shortcut: keep existing aliases; migrate to subpath imports before SvelteKit removes config.alias.
 			alias: {
 				$lib: './src/lib',

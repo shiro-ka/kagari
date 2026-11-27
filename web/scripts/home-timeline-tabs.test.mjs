@@ -32,7 +32,8 @@ before(async () => {
 		'$lib/paraglide/messages.js': './fixture.mjs',
 		'$lib/components/UiTimeline/TimelineLoadingPlaceholderList.svelte': './Empty.mjs',
 		'$lib/presenter/presenterStore.svelte': './fixture.mjs',
-		'$lib/environment/environmentSettings.svelte': './fixture.mjs'
+		'$lib/environment/environmentSettings.svelte': './fixture.mjs',
+		'$lib/routing': new URL('../src/lib/routing.ts', import.meta.url).href
 	};
 	for (const [original, replacement] of Object.entries(imports)) {
 		source = source.replaceAll(`'${original}'`, `'${replacement}'`);

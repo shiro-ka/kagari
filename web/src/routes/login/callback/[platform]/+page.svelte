@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
     import { browser } from "$app/env";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
@@ -26,7 +27,7 @@
               () => {},
               () => {
                   clearLoginOAuthContext();
-                  void goto("/");
+                  void goto(appHref("/"));
               },
           )
         : null;
@@ -71,7 +72,7 @@
                 </p>
             </div>
             {#if loginFlow?.error || !context}
-                <a class="btn btn-primary btn-sm" href="/login">{m.loginBackToLogin()}</a>
+                <a class="btn btn-primary btn-sm" href={appHref('/login')}>{m.loginBackToLogin()}</a>
             {/if}
         </section>
     </main>

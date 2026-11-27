@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref, appUrl } from '$lib/routing';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import AppBackButton from '$lib/components/AppBackButton.svelte';
@@ -22,7 +23,7 @@
 		UiTimelineV2,
 	} from '@flare/web-presenters/timeline.svelte';
 
-	const requestedAccount = $derived(page.url.searchParams.get('account'));
+	const requestedAccount = $derived(appUrl(page.url).searchParams.get('account'));
 	const accountSegment = $derived(requestedAccount ?? '');
 	const searchQuerySegment = $derived(initialQueryFromUrl());
 	const accountType = $derived(parseAccountType(accountSegment));
@@ -50,20 +51,20 @@
 		if (requestedAccount !== null || search.defaultAccountType.type !== 'Success') return;
 		const account = search.defaultAccountType.data;
 		const segment = account.type === 'Specific' ? accountSegmentFromKey(account.accountKey) : 'guest';
-		void goto(searchUrl(searchQuerySegment, segment), {
+		void goto(appHref(searchUrl(searchQuerySegment, segment)), {
 			reset: false,
 			replace: true,
 		});
 	});
 
 	function initialQueryFromUrl(): string {
-		return page.url.searchParams.get('q') ?? '';
+		return appUrl(page.url).searchParams.get('q') ?? '';
 	}
 
 	function submitSearch(): void {
 		const next = query.trim();
 		query = next;
-		void goto(searchUrl(next, accountSegment), {
+		void goto(appHref(searchUrl(next, accountSegment)), {
 			reset: false,
 			replace: true,
 		});
@@ -71,7 +72,7 @@
 
 	function selectAccount(profile: SearchUiProfile): void {
 		showAccountMenu = false;
-		void goto(searchUrl(searchQuerySegment, accountSegmentFromKey(profile.key)), {
+		void goto(appHref(searchUrl(searchQuerySegment, accountSegmentFromKey(profile.key))), {
 			reset: false,
 			replace: true,
 		});
