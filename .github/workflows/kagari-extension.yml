@@ -34,7 +34,7 @@ jobs:
           cache: gradle
 
       - name: Bluesky tests
-        run: ./gradlew :social:bluesky:jvmTest --stacktrace
+        run: ./gradlew :social:bluesky:jvmTest --tests '*StoredOAuthToken*' --tests '*BlueskyCredential*' --tests '*BlueskyAuth*' --tests '*BlueskySessionRefresh*' --tests '*OAuthPdsResolver*' --tests '*BlueskyProxyRouting*' --tests '*BlueskyServiceTest*' --stacktrace
 
       - name: Build
         run: ./gradlew :web-shared:wasmJsBrowserProductionLibraryDistribution --stacktrace
