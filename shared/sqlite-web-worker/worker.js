@@ -25,10 +25,29 @@ const statementDatabases = new Map();
 let nextDatabaseId = 0;
 let nextStatementId = 0;
 
+const POOL_ATTEMPTS = 40;
+const POOL_RETRY_MS = 250;
+
+async function installPool(fileName) {
+  let lastError = null;
+  for (let attempt = 0; attempt < POOL_ATTEMPTS; attempt++) {
+    try {
+      return await sqlite3.installOpfsSAHPoolVfs({
+        name: `kagari-${fileName}`,
+        forceReinitIfPreviouslyFailed: true,
+      });
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, POOL_RETRY_MS));
+    }
+  }
+  throw lastError;
+}
+
 async function createDatabase(fileName) {
   if (fileName) {
     try {
-      const pool = await sqlite3.installOpfsSAHPoolVfs({ name: `kagari-${fileName}` });
+      const pool = await installPool(fileName);
       return new pool.OpfsSAHPoolDb(`/${fileName}`);
     } catch (error) {
       console.error("OPFS SAH pool unavailable", fileName, error);
