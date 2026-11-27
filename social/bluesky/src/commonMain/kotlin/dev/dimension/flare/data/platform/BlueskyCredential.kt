@@ -3,7 +3,6 @@ package dev.dimension.flare.data.platform
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import sh.christian.ozone.oauth.OAuthToken
 
 @Serializable
 internal sealed interface BlueskyCredential {
@@ -25,7 +24,7 @@ internal sealed interface BlueskyCredential {
     @SerialName("BlueskyOAuthCredential")
     data class OAuthCredential(
         override val baseUrl: String,
-        val oAuthToken: OAuthToken,
+        val oAuthToken: StoredOAuthToken,
         val pdsUrlVerified: Boolean = false,
         // OAuthToken.nonce belongs to the authorization server; resource requests use this nonce.
         val pdsNonce: String? = null,

@@ -3,6 +3,8 @@ package dev.dimension.flare.data.network.bluesky
 import com.sun.net.httpserver.HttpServer
 import dev.dimension.flare.common.UploadMedia
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
+import dev.dimension.flare.data.platform.toStored
 import dev.dimension.flare.di.startProxyTestStore
 import dev.dimension.flare.model.MicroBlogKey
 import io.ktor.http.Url
@@ -12,7 +14,6 @@ import kotlinx.coroutines.withTimeout
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import java.net.InetSocketAddress
 import java.util.Collections
 import kotlin.test.AfterTest
@@ -156,10 +157,10 @@ class BlueskyServiceTest {
                     BlueskyCredential.OAuthCredential(
                         baseUrl = authOrigin,
                         oAuthToken =
-                            OAuthToken(
+                            StoredOAuthToken(
                                 accessToken = "access-old",
                                 refreshToken = "refresh-old",
-                                keyPair = DpopKeyPair.generateKeyPair(),
+                                keyPair = DpopKeyPair.generateKeyPair().toStored(),
                                 expiresIn = 10.minutes,
                                 scopes = listOf(OAuthScope.AtProto),
                                 subject = Did("did:plc:alice"),
