@@ -38,6 +38,7 @@
     "https://kagari.pages.dev/*",
     "https://x.com/*",
     "https://api.x.com/*",
+    "https://upload.x.com/*",
     "https://app-api.pixiv.net/*",
     "https://oauth.secure.pixiv.net/*",
     "https://i.pximg.net/*"
