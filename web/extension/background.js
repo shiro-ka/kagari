@@ -18,3 +18,27 @@ browser.webRequest.onBeforeRequest.addListener(
 	{ urls: ['https://kagari.pages.dev/callback*'], types: ['main_frame'] },
 	['blocking']
 );
+
+const carriedHeaderPrefix = 'x-kagari-h-';
+const extensionOrigin = browser.runtime.getURL('');
+
+browser.webRequest.onBeforeSendHeaders.addListener(
+	(details) => {
+		if (!details.originUrl?.startsWith(extensionOrigin)) return {};
+		const carried = details.requestHeaders.filter((header) =>
+			header.name.toLowerCase().startsWith(carriedHeaderPrefix)
+		);
+		if (carried.length === 0) return {};
+		const restored = new Map(
+			carried.map((header) => [header.name.toLowerCase().slice(carriedHeaderPrefix.length), header.value])
+		);
+		const requestHeaders = details.requestHeaders.filter((header) => {
+			const name = header.name.toLowerCase();
+			return !name.startsWith(carriedHeaderPrefix) && !restored.has(name);
+		});
+		for (const [name, value] of restored) requestHeaders.push({ name, value });
+		return { requestHeaders };
+	},
+	{ urls: ['<all_urls>'] },
+	['blocking', 'requestHeaders']
+);
