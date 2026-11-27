@@ -44,6 +44,8 @@ public class WebLoginFlowPresenter(
 
         public fun resume(value: String)
 
+        public fun canResume(value: String): Boolean
+
         public fun clear()
     }
 
@@ -105,6 +107,8 @@ public class WebLoginFlowPresenter(
                     handler.resume(value)
                 }
             }
+
+            override fun canResume(value: String): Boolean = handler.canResume(value)
 
             override fun clear() {
                 handler.clear()

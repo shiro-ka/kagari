@@ -4,7 +4,8 @@ export type LoginMethodType =
     | "OAuth"
     | "Password"
     | "CredentialImport"
-    | "QrConnect";
+    | "QrConnect"
+    | "WebCookie";
 
 export type LoginOAuthContext = {
     platformId: string;

@@ -26,6 +26,7 @@
   "permissions": [
     "storage",
     "unlimitedStorage",
+    "cookies",
     "tabs",
     "webRequest",
     "webRequestBlocking"
@@ -34,6 +35,8 @@
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
   "host_permissions": [
-    "https://kagari.pages.dev/*"
+    "https://kagari.pages.dev/*",
+    "https://x.com/*",
+    "https://api.x.com/*"
   ]
 }

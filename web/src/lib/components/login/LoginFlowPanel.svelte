@@ -8,6 +8,7 @@
         saveLoginOAuthContext,
         type LoginMethodType,
     } from "$lib/login/oauthContext";
+    import { captureWebCookies } from "$lib/login/webCookie";
     import { m } from "$lib/paraglide/messages.js";
     import {
         createLoginFlowPresenter,
@@ -42,7 +43,13 @@
             });
             globalThis.location.href = url;
         },
-        () => {},
+        (url) => {
+            void captureWebCookies(url, (cookie) => loginFlow.canResume(cookie)).then(
+                (cookie) => {
+                    if (cookie) loginFlow.resume(cookie);
+                },
+            );
+        },
         (content) => {
             qrContent = content;
         },
