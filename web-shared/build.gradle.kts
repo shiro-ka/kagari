@@ -42,6 +42,8 @@ kotlin {
                 implementation(projects.social.bluesky)
                 implementation(projects.social.mastodon)
                 implementation(projects.social.misskey)
+                implementation(projects.social.pixiv)
+                implementation(projects.social.xqt)
                 implementation(dependencies.platform(libs.compose.bom))
                 implementation(libs.compose.runtime)
                 implementation(libs.kotlinx.coroutines.core)

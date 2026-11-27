@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import { goto } from '$app/navigation';
 	import AppTopBar from '$lib/components/AppTopBar.svelte';
 	import DiscoverSection from '$lib/components/discover/DiscoverSection.svelte';
@@ -38,7 +39,7 @@
 		if (!pendingQuery || !discover.isAccountReady) return;
 		const next = pendingQuery;
 		pendingQuery = '';
-		void goto(searchUrl(next));
+		void goto(appHref(searchUrl(next)));
 	});
 
 	function submitSearch(): void {

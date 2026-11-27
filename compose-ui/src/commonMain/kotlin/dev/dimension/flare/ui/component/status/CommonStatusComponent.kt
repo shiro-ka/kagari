@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
@@ -143,6 +144,7 @@ import dev.dimension.flare.ui.component.KagariActingAccountLine
 import dev.dimension.flare.ui.component.KagariActingAccountAvatar
 import dev.dimension.flare.ui.component.FlareDividerDefaults
 import dev.dimension.flare.ui.component.HorizontalDivider
+import dev.dimension.flare.ui.component.LocalGlobalAppearance
 import dev.dimension.flare.ui.component.LocalTimelineAppearance
 import dev.dimension.flare.ui.component.RichText
 import dev.dimension.flare.ui.component.TabIcon
@@ -170,7 +172,12 @@ import dev.dimension.flare.ui.model.UiPoll
 import dev.dimension.flare.ui.model.UiMedia
 import dev.dimension.flare.ui.model.UiTimelineV2
 import dev.dimension.flare.ui.model.UiTranslatableText
+import dev.dimension.flare.ui.model.isKagariReactable
+import dev.dimension.flare.ui.model.kagariAvailableFirst
+import dev.dimension.flare.ui.model.kagariWithRemoteReactionMode
+import dev.dimension.flare.ui.model.mapper.PixivPrivateFollows
 import dev.dimension.flare.ui.model.mapper.kagariPixivLongClickEvent
+import dev.dimension.flare.ui.model.mapper.withPixivPrivateFollows
 import dev.dimension.flare.ui.model.onClicked
 import dev.dimension.flare.ui.model.onError
 import dev.dimension.flare.ui.model.onLoading
@@ -275,7 +282,21 @@ public fun CommonStatusComponent(
         val kagariCommunityNote = item.kagariCommunityNote?.takeIf { !isQuote }
         val showsAttachments =
             showsImages || showsFiles || showsCard || showsQuotes || kagariEmbed != null || kagariCommunityNote != null
-        val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && item.emojiReactions.isNotEmpty()
+        val kagariRemoteReactionMode = LocalGlobalAppearance.current.kagariRemoteReactionMode
+        val kagariAvailableReactionsFirst = LocalGlobalAppearance.current.kagariAvailableReactionsFirst
+        val emojiReactions =
+            remember(item.emojiReactions, kagariRemoteReactionMode, kagariAvailableReactionsFirst) {
+                val sorted =
+                    item.emojiReactions
+                        .kagariWithRemoteReactionMode(kagariRemoteReactionMode)
+                        .sortedByDescending { it.count.value }
+                if (kagariAvailableReactionsFirst) {
+                    sorted.kagariAvailableFirst()
+                } else {
+                    sorted.toImmutableList()
+                }
+            }
+        val hasVisibleEmojiReactions = appearanceSettings.showEmojiReactions && emojiReactions.isNotEmpty()
         val showsReactions = !isQuote && (hasVisibleEmojiReactions || item.sourceChannel != null)
         val showsActions = (appearanceSettings.postActionStyle != PostActionStyle.Hidden || isDetail) && !forceHideActions
         val replyBeforeAttachments = replyToHandle != null && !isGalleryFallback && !hasBodyAfterReply
@@ -630,6 +651,7 @@ public fun CommonStatusComponent(
                     Spacer(modifier = Modifier.height(if (replyBeforeFooter) 0.dp else 8.dp))
                     StatusReactionComponent(
                         data = item,
+                        emojiReactions = emojiReactions,
                         isDetail = isDetail,
                         showEmojiReactions = hasVisibleEmojiReactions,
                     )
@@ -794,6 +816,7 @@ private fun StatusQuoteComponent(
 @Composable
 private fun StatusReactionComponent(
     data: UiTimelineV2.Post,
+    emojiReactions: ImmutableList<UiTimelineV2.Post.EmojiReaction>,
     isDetail: Boolean,
     showEmojiReactions: Boolean,
     modifier: Modifier = Modifier,
@@ -826,15 +849,18 @@ private fun StatusReactionComponent(
         }
         if (showEmojiReactions) {
             StatusReactionRow(
-                itemCount = data.emojiReactions.size,
+                itemCount = emojiReactions.size,
                 isDetail = isDetail,
+                layout = LocalGlobalAppearance.current.kagariReactionLayout,
+                mineIndex = emojiReactions.indexOfFirst { it.me },
             ) { index ->
-                val reaction = data.emojiReactions[index]
+                val reaction = emojiReactions[index]
+                val reactable = reaction.isKagariReactable
                 val color =
-                    if (reaction.me) {
-                        PlatformTheme.colorScheme.primaryContainer
-                    } else {
-                        PlatformTheme.colorScheme.cardAlt
+                    when {
+                        reaction.me -> PlatformTheme.colorScheme.primaryContainer
+                        reactable -> PlatformTheme.colorScheme.cardAlt
+                        else -> Color.Transparent
                     }
                 val borderColor =
                     if (reaction.me) {
@@ -857,7 +883,7 @@ private fun StatusReactionComponent(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier =
                             Modifier
-                                .clickable {
+                                .clickable(enabled = reactable) {
                                     reaction.onClicked.invoke(
                                         ClickContext(uriHandler::openUri),
                                     )
@@ -1153,9 +1179,10 @@ internal fun StatusActions(
     val appearanceSettings = LocalTimelineAppearance.current
     val postActionLayout =
         appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
+    val kagariItems = rememberKagariPixivPrivateFollowItems(items, kagariPost)
     val displayItems =
-        remember(items, postActionLayout) {
-            items.applyPostActionLayout(postActionLayout).filterNot { it == ActionMenu.Divider }
+        remember(kagariItems, postActionLayout) {
+            kagariItems.applyPostActionLayout(postActionLayout).filterNot { it == ActionMenu.Divider }
         }
     if (displayItems.isEmpty()) return@CompositionLocalProvider
     val haptics = LocalHapticFeedback.current
@@ -1341,10 +1368,11 @@ internal fun StatusActionsDropdownMenu(
     val appearanceSettings = LocalTimelineAppearance.current
     val postActionLayout =
         appearanceSettings.kagariPostActionLayouts.layoutFor(kagariPlatformId, appearanceSettings.postActionLayout)
+    val kagariItems = rememberKagariPixivPrivateFollowItems(items, kagariPost)
     val displayItems =
-        remember(items, postActionLayout) {
+        remember(kagariItems, postActionLayout) {
             lazy(LazyThreadSafetyMode.NONE) {
-                items
+                kagariItems
                     .applyPostActionLayout(postActionLayout)
                     .flattenStatusActionMenuItems()
             }
@@ -1478,6 +1506,21 @@ private fun PlatformDropdownMenuScope.StatusActionItemMenu(
             }
         },
     )
+}
+
+@Composable
+private fun rememberKagariPixivPrivateFollowItems(
+    items: ImmutableList<ActionMenu>,
+    post: UiTimelineV2.Post?,
+): ImmutableList<ActionMenu> {
+    val accountKey = (post?.accountType as? AccountType.Specific)?.accountKey
+    LaunchedEffect(accountKey) {
+        accountKey?.let(PixivPrivateFollows::request)
+    }
+    val privateFollows by PixivPrivateFollows.state.collectAsState()
+    return remember(items, post, privateFollows) {
+        items.withPixivPrivateFollows(post, privateFollows)
+    }
 }
 
 @Composable

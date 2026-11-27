@@ -25,17 +25,41 @@ const statementDatabases = new Map();
 let nextDatabaseId = 0;
 let nextStatementId = 0;
 
-function createDatabase(fileName) {
-  if (fileName && typeof sqlite3.oo1.OpfsDb === "function") {
-    return new sqlite3.oo1.OpfsDb(fileName);
+const POOL_ATTEMPTS = 40;
+const POOL_RETRY_MS = 250;
+
+async function installPool(fileName) {
+  let lastError = null;
+  for (let attempt = 0; attempt < POOL_ATTEMPTS; attempt++) {
+    try {
+      return await sqlite3.installOpfsSAHPoolVfs({
+        name: `kagari-${fileName}`,
+        forceReinitIfPreviouslyFailed: true,
+      });
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, POOL_RETRY_MS));
+    }
+  }
+  throw lastError;
+}
+
+async function createDatabase(fileName) {
+  if (fileName) {
+    try {
+      const pool = await installPool(fileName);
+      return new pool.OpfsSAHPoolDb(`/${fileName}`);
+    } catch (error) {
+      console.error("OPFS SAH pool unavailable", fileName, error);
+    }
   }
   return new sqlite3.oo1.DB(fileName || ":memory:", "c");
 }
 
-function openRequest(id, requestData) {
+async function openRequest(id, requestData) {
   try {
     const newDatabaseId = nextDatabaseId++;
-    const newDatabase = createDatabase(requestData.fileName);
+    const newDatabase = await createDatabase(requestData.fileName);
     databases.set(newDatabaseId, newDatabase);
     postMessage({ id, data: { databaseId: newDatabaseId } });
   } catch (error) {
@@ -163,24 +187,16 @@ function handleMessage(e) {
   const command = requestMsg.data.cmd;
   const requestHandler = commandMap[command];
   if (requestHandler) {
-    requestHandler(requestMsg.id, requestMsg.data);
+    return requestHandler(requestMsg.id, requestMsg.data);
   } else {
     postMessage({ id: requestMsg.id, error: `Invalid request, unknown command: '${command}'.` });
   }
 }
 
-const messageQueue = [];
-onmessage = (e) => {
-  if (!sqlite3) {
-    messageQueue.push(e);
-  } else {
-    handleMessage(e);
-  }
-};
-
-sqlite3InitModule().then((instance) => {
+const ready = sqlite3InitModule().then((instance) => {
   sqlite3 = instance;
-  while (messageQueue.length > 0) {
-    handleMessage(messageQueue.shift());
-  }
 });
+let queue = ready;
+onmessage = (e) => {
+  queue = queue.then(() => handleMessage(e)).catch((error) => console.error(error));
+};

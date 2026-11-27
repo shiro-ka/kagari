@@ -3,6 +3,8 @@ package dev.dimension.flare.data.datasource.pixiv
 import dev.dimension.flare.common.Cacheable
 import dev.dimension.flare.data.datasource.microblog.AuthenticatedMicroblogDataSource
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKind
+import dev.dimension.flare.data.datasource.microblog.KagariSearchKinds
 import dev.dimension.flare.data.datasource.microblog.PostEvent
 import dev.dimension.flare.data.datasource.microblog.ProfileTab
 import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDataSource
@@ -33,6 +35,7 @@ import dev.dimension.flare.data.model.tab.TimelineSpec
 import dev.dimension.flare.data.network.pixiv.PixivFollowRestrict
 import dev.dimension.flare.data.network.pixiv.PixivRankingMode
 import dev.dimension.flare.data.network.pixiv.PixivRestrict
+import dev.dimension.flare.data.network.pixiv.PixivSearchSort
 import dev.dimension.flare.data.network.pixiv.PixivService
 import dev.dimension.flare.data.network.pixiv.PixivWorkType
 import dev.dimension.flare.data.platform.CommonTimelineSpecs
@@ -51,6 +54,7 @@ import dev.dimension.flare.ui.model.asText
 import dev.dimension.flare.ui.model.contentPostOrNull
 import dev.dimension.flare.ui.model.mapper.PixivBookmarkKind
 import dev.dimension.flare.ui.model.mapper.PixivBookmarkState
+import dev.dimension.flare.ui.model.mapper.PixivPrivateFollows
 import dev.dimension.flare.ui.model.mapper.isBookmarked
 import dev.dimension.flare.ui.model.mapper.pixivBookmarkCount
 import dev.dimension.flare.ui.model.mapper.withPixivBookmarkState
@@ -59,6 +63,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 internal class PixivDataSource(
     override val accountKey: MicroBlogKey,
@@ -72,6 +77,7 @@ internal class PixivDataSource(
     PostDataSource,
     RelationDataSource,
     KagariPixivBookmarkDataSource,
+    KagariSearchKinds,
     PostEventHandler.Handler {
     private val service =
         PixivService(
@@ -79,6 +85,10 @@ internal class PixivDataSource(
             credentialFlow = credentialFlow,
             onCredentialRefreshed = updateCredential,
         )
+    init {
+        PixivPrivateFollows.register(accountKey) { fetchPrivateFollows() }
+    }
+
     private val loader by lazy {
         PixivLoader(
             accountKey = accountKey,
@@ -407,6 +417,25 @@ internal class PixivDataSource(
             query = query,
         )
 
+    override val kagariSearchKinds: List<KagariSearchKind> =
+        listOf(KagariSearchKind.Latest, KagariSearchKind.Oldest, KagariSearchKind.Popular, KagariSearchKind.Users)
+
+    override fun kagariSearchStatus(
+        query: String,
+        kind: KagariSearchKind,
+    ): RemoteLoader<UiTimelineV2> =
+        PixivSearchTimelineLoader(
+            service = service,
+            accountKey = accountKey,
+            query = query,
+            sort =
+                when (kind) {
+                    KagariSearchKind.Oldest -> PixivSearchSort.DateAsc
+                    KagariSearchKind.Popular -> PixivSearchSort.PopularDesc
+                    else -> PixivSearchSort.DateDesc
+                },
+        )
+
     override fun searchUser(query: String): RemoteLoader<UiProfile> =
         PixivSearchUserLoader(
             service = service,
@@ -530,13 +559,24 @@ internal class PixivDataSource(
     }
 
     private suspend fun followMatchedRestrict(authorKey: MicroBlogKey?): PixivRestrict {
-        val userId = authorKey?.id?.toLongOrNull() ?: return PixivRestrict.Public
+        if (authorKey == null) return PixivRestrict.Public
+        val userId = authorKey.id.toLongOrNull() ?: return PixivRestrict.Public
         val followDetail = service.followDetail(userId).followDetail
-        return if (followDetail.isFollowed && followDetail.restrict == PixivRestrict.Private.value) {
-            PixivRestrict.Private
-        } else {
-            PixivRestrict.Public
+        val isPrivate = followDetail.isFollowed && followDetail.restrict == PixivRestrict.Private.value
+        PixivPrivateFollows.update(accountKey, authorKey, isPrivate)
+        return if (isPrivate) PixivRestrict.Private else PixivRestrict.Public
+    }
+
+    private suspend fun fetchPrivateFollows(): Set<MicroBlogKey> {
+        val userId = credentialFlow.first().userId
+        val users = mutableSetOf<MicroBlogKey>()
+        var response = service.userFollowing(userId = userId, restrict = PixivRestrict.Private)
+        while (true) {
+            response.userPreviews.mapTo(users) { pixivUserKey(it.user.id) }
+            val nextUrl = response.nextUrl ?: break
+            response = service.nextUsers(nextUrl)
         }
+        return users
     }
 
     private suspend fun follow(
@@ -568,6 +608,7 @@ internal class PixivDataSource(
         } else {
             service.unfollowUser(userId = userId)
         }
+        PixivPrivateFollows.update(accountKey, event.userKey, followed && event.isPrivate)
     }
 
     private suspend fun updateBookmarkCache(

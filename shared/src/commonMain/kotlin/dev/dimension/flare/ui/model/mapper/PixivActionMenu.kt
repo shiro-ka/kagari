@@ -3,6 +3,8 @@ package dev.dimension.flare.ui.model.mapper
 import dev.dimension.flare.data.datasource.microblog.ActionMenu
 import dev.dimension.flare.data.datasource.microblog.PostActionFamily
 import dev.dimension.flare.data.datasource.microblog.PostEvent
+import dev.dimension.flare.data.datasource.microblog.datasource.GalleryDetail
+import dev.dimension.flare.model.AccountType
 import dev.dimension.flare.model.MicroBlogKey
 import dev.dimension.flare.ui.model.ClickEvent
 import dev.dimension.flare.ui.model.UiIcon
@@ -65,9 +67,15 @@ public fun ActionMenu.Companion.pixivBookmark(
         updateKey = pixivBookmarkUpdateKey(kind, statusKey),
         icon =
             when (kind) {
-                PixivBookmarkKind.MatchFollow,
-                PixivBookmarkKind.Public,
-                -> if (active) UiIcon.Unlike else UiIcon.Like
+                PixivBookmarkKind.MatchFollow -> {
+                    when {
+                        state == PixivBookmarkState.Private -> UiIcon.KagariPrivateBookmarked
+                        active -> UiIcon.Unlike
+                        else -> UiIcon.Like
+                    }
+                }
+
+                PixivBookmarkKind.Public -> if (active) UiIcon.Unlike else UiIcon.Like
 
                 PixivBookmarkKind.Private -> if (active) UiIcon.KagariPrivateBookmarked else UiIcon.KagariPrivateBookmark
             },
@@ -225,6 +233,38 @@ public fun ImmutableList<ActionMenu>.pixivBookmarkCount(statusKey: MicroBlogKey)
         when (action) {
             is ActionMenu.Item -> action.takeIf { it.updateKey == pixivBookmarkUpdateKey(PixivBookmarkKind.MatchFollow, statusKey) }?.count?.value
             is ActionMenu.Group -> action.actions.pixivBookmarkCount(statusKey)
+            ActionMenu.Divider -> null
+        }
+    }
+
+public fun ImmutableList<ActionMenu>.withPixivPrivateFollows(
+    post: UiTimelineV2.Post?,
+    privateFollows: Map<MicroBlogKey, Set<MicroBlogKey>>,
+): ImmutableList<ActionMenu> {
+    if (post == null) return this
+    val accountKey = (post.accountType as? AccountType.Specific)?.accountKey ?: return this
+    val authorKey = post.user?.key ?: return this
+    if (authorKey !in privateFollows[accountKey].orEmpty()) return this
+    if (pixivAuthorFollowed(pixivFollowUpdateKey(false, post.statusKey)) == false) return this
+    val bookmarkKey = pixivBookmarkUpdateKey(PixivBookmarkKind.MatchFollow, post.statusKey)
+    return replacePixivItems { item ->
+        item.takeIf { it.updateKey == bookmarkKey && it.icon == UiIcon.Like }?.copy(icon = UiIcon.KagariPrivateBookmark)
+    }
+}
+
+public fun GalleryDetail.kagariBookmarkIcon(privateFollows: Map<MicroBlogKey, Set<MicroBlogKey>>): UiIcon {
+    val icon = bookmarkIcon ?: if (isBookmarked) UiIcon.Unlike else UiIcon.Like
+    if (icon != UiIcon.Like) return icon
+    val accountKey = (accountType as? AccountType.Specific)?.accountKey ?: return icon
+    val authorKey = author?.key ?: return icon
+    return if (authorKey in privateFollows[accountKey].orEmpty()) UiIcon.KagariPrivateBookmark else icon
+}
+
+private fun ImmutableList<ActionMenu>.pixivAuthorFollowed(followKey: String): Boolean? =
+    firstNotNullOfOrNull { action ->
+        when (action) {
+            is ActionMenu.Item -> action.takeIf { it.updateKey == followKey }?.let { it.icon == UiIcon.KagariFollowing }
+            is ActionMenu.Group -> action.actions.pixivAuthorFollowed(followKey)
             ActionMenu.Divider -> null
         }
     }

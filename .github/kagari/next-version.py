@@ -4,11 +4,12 @@ import sys
 
 
 def next_version(base, kind, tags):
-    prefix = f"v{base}-kagari."
+    prefixes = (f"android-{base}-kagari.", f"v{base}-kagari.")
     releases = []
     prereleases = []
     for tag in tags:
-        if not tag.startswith(prefix):
+        prefix = next((p for p in prefixes if tag.startswith(p)), None)
+        if prefix is None:
             continue
         rest = tag[len(prefix):]
         if re.fullmatch(r"[0-9]+", rest):

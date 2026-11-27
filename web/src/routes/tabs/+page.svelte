@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import AppBackButton from '$lib/components/AppBackButton.svelte';
 	import AppTopBar from '$lib/components/AppTopBar.svelte';
 	import FaIcon from '$lib/components/FaIcon.svelte';
@@ -763,7 +764,7 @@
 						{#each allTabs.rssTabs as tab (tab.id)}
 							{@render CandidateRow(tab)}
 						{/each}
-						<a class="ios-add-source-row" href="/subscriptions">
+						<a class="ios-add-source-row" href={appHref('/subscriptions')}>
 							<span class="ios-action-icon text-primary">
 								<FaIcon name="Plus" size={13} />
 							</span>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import AppBackButton from '$lib/components/AppBackButton.svelte';
 	import AppTopBar from '$lib/components/AppTopBar.svelte';
 	import FaIcon from '$lib/components/FaIcon.svelte';
@@ -164,7 +165,7 @@
 					</button>
 				</div>
 
-				<a class="list-row storage-row" href="/settings/logs">
+				<a class="list-row storage-row" href={appHref('/settings/logs')}>
 					{@render Icon('FileLines')}
 					{@render Copy(m.settingsAppLogsTitle(), m.settingsAppLogsSubtitle())}
 					<span class="storage-trailing">

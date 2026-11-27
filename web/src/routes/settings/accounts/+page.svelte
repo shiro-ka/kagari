@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import AppBackButton from '$lib/components/AppBackButton.svelte';
 	import AppTopBar from '$lib/components/AppTopBar.svelte';
 	import FaIcon from '$lib/components/FaIcon.svelte';
@@ -142,7 +143,7 @@
 						<span class="account-title">{m.settingsAccountsAddTitle()}</span>
 						<span class="account-description">{m.settingsAccountsAddDescription()}</span>
 					</span>
-					<a class="btn btn-primary btn-sm" href="/login">
+					<a class="btn btn-primary btn-sm" href={appHref('/login')}>
 						<FaIcon name="React" size={13} />
 						<span>{m.actionAdd()}</span>
 					</a>

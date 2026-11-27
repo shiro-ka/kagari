@@ -35,6 +35,7 @@ import dev.dimension.flare.data.network.xqt.model.PostUnfavoriteTweet200Response
 import dev.dimension.flare.data.network.xqt.model.PostUnfavoriteTweetRequest
 import dev.dimension.flare.data.network.xqt.model.UnfavoriteTweetResponse
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -242,6 +243,7 @@ internal suspend fun PostApi.kagariMutation(
     queryId: String,
     operationName: String,
     variables: JsonObject,
+    tolerated: (JsonElement) -> Boolean = { false },
 ) {
     val response =
         postKagariMutation(
@@ -254,8 +256,24 @@ internal suspend fun PostApi.kagariMutation(
                 },
         )
     check(response.isSuccessful) { "X $operationName failed with HTTP ${response.code}" }
-    val errors = response.body()?.get("errors") as? JsonArray
-    check(errors.isNullOrEmpty()) { "X $operationName failed: ${errors?.firstOrNull()}" }
+    val errors = (response.body()?.get("errors") as? JsonArray).orEmpty().filterNot(tolerated)
+    check(errors.isEmpty()) { "X $operationName failed: ${errors.firstOrNull()}" }
+}
+
+internal suspend fun PostApi.kagariRetweet(
+    tweetId: String,
+    retweet: Boolean,
+) {
+    kagariMutation(
+        queryId = if (retweet) XQTMutationQueryIds.CREATE_RETWEET else XQTMutationQueryIds.DELETE_RETWEET,
+        operationName = if (retweet) "CreateRetweet" else "DeleteRetweet",
+        variables =
+            buildJsonObject {
+                put(if (retweet) "tweet_id" else "source_tweet_id", tweetId)
+                put("dark_request", false)
+            },
+        tolerated = { error -> retweet && error.toString().contains("already retweeted", ignoreCase = true) },
+    )
 }
 
 internal suspend fun PostApi.kagariSetReplyHidden(

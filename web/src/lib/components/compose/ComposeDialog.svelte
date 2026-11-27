@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref, appUrl } from '$lib/routing';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import EmojiPicker from '$lib/components/emoji/EmojiPicker.svelte';
@@ -42,7 +43,7 @@
 		routeUrl?: string | null;
 	} = $props();
 
-	const composeRouteUrl = $derived(routeUrl ? new URL(routeUrl, page.url.origin) : page.url);
+	const composeRouteUrl = $derived(routeUrl ? new URL(routeUrl, page.url.origin) : appUrl(page.url));
 	const routeAccount = $derived(composeRouteUrl.searchParams.get('account'));
 	const routeStatus = $derived(composeRouteUrl.searchParams.get('status'));
 	const routeComposeType = $derived(composeRouteUrl.searchParams.get('type'));
@@ -395,7 +396,7 @@
 			onClose();
 			return;
 		}
-		void goto('/');
+		void goto(appHref('/'));
 	}
 
 	async function submit(): Promise<void> {

@@ -103,8 +103,7 @@ private class PixivOAuthLoginHandler(
             resumeCompleted = false
         }
         runCatching {
-            val redirectUri = context.redirectUri ?: PIXIV_ANDROID_REDIRECT_URI
-            val request = buildPixivAuthorizationRequest(redirectUri)
+            val request = buildPixivAuthorizationRequest(PIXIV_ANDROID_REDIRECT_URI)
             pendingRepository.save(request.toPlatformOAuthPending())
             _effects.emit(LoginEffect.OpenUrl(request.authorizeRequestUrl))
         }.onFailure {

@@ -1,11 +1,7 @@
-*.swift linguist-vendored
-*.js linguist-vendored
-*.mjs linguist-vendored
-*.ts linguist-vendored
-*.mts linguist-vendored
-*.svelte linguist-vendored
-*.c linguist-vendored
-*.h linguist-vendored
-*.css linguist-vendored
+appleApp/** linguist-vendored
 docs/** linguist-vendored
-web/** linguist-vendored
+*.h linguist-vendored
+feature/plugin/**/*.js linguist-vendored
+feature/plugin/**/*.mjs linguist-vendored
+feature/plugin/**/*.ts linguist-vendored
+feature/plugin/**/*.css linguist-vendored

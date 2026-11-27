@@ -12,6 +12,7 @@ import dev.dimension.flare.data.datasource.microblog.ComposeData
 import dev.dimension.flare.data.datasource.microblog.ComposeDataSource
 import dev.dimension.flare.data.datasource.microblog.ComposeType
 import dev.dimension.flare.data.datasource.microblog.DatabaseUpdater
+import dev.dimension.flare.data.datasource.microblog.KagariNewestFirstPostsSearch
 import dev.dimension.flare.data.datasource.microblog.NotificationFilter
 import dev.dimension.flare.data.datasource.microblog.NotificationTimelineDataSource
 import dev.dimension.flare.data.datasource.microblog.PostDetailFilter
@@ -106,6 +107,7 @@ internal class MisskeyDataSource(
     override val accountKey: MicroBlogKey,
     serviceProvider: Lazy<MisskeyService>,
 ) : AuthenticatedMicroblogDataSource,
+    KagariNewestFirstPostsSearch,
     NotificationTimelineDataSource,
     ComposeDataSource,
     UserDataSource,

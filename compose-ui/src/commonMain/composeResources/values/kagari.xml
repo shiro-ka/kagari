@@ -94,4 +94,5 @@
     <string name="kagari_timeline_show_more">Show more</string>
     <string name="kagari_timeline_gap_loading">Loading…</string>
     <string name="kagari_timeline_gap_retry">Couldn\'t load. Tap to retry</string>
+    <string name="kagari_reaction_others">%1$d more</string>
 </resources>

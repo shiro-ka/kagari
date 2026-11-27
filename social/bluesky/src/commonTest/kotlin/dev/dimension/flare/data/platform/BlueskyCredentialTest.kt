@@ -8,7 +8,6 @@ import sh.christian.ozone.BlueskyJson
 import sh.christian.ozone.api.Did
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -22,10 +21,10 @@ class BlueskyCredentialTest {
                 BlueskyCredential.OAuthCredential(
                     baseUrl = "https://auth.example",
                     oAuthToken =
-                        OAuthToken(
+                        StoredOAuthToken(
                             accessToken = "access-old",
                             refreshToken = "refresh-old",
-                            keyPair = DpopKeyPair.generateKeyPair(),
+                            keyPair = DpopKeyPair.generateKeyPair().toStored(),
                             expiresIn = 10.minutes,
                             scopes = listOf(OAuthScope.AtProto),
                             subject = Did("did:plc:alice"),

@@ -4,6 +4,7 @@
     import FaIcon from "$lib/components/FaIcon.svelte";
     import PlatformIcon from "$lib/components/PlatformIcon.svelte";
     import LoginFlowPanel from "$lib/components/login/LoginFlowPanel.svelte";
+    import { webCookieLoginAvailable } from "$lib/login/webCookie";
     import { m } from "$lib/paraglide/messages.js";
     import {
         createLoginServiceSelectPresenter,
@@ -16,7 +17,8 @@
         | "OAuth"
         | "Password"
         | "CredentialImport"
-        | "QrConnect";
+        | "QrConnect"
+        | "WebCookie";
 
     const serviceSelect = createLoginServiceSelectPresenter();
     const supportedMethods: LoginMethodType[] = [
@@ -24,6 +26,7 @@
         "Password",
         "CredentialImport",
         "QrConnect",
+        ...(webCookieLoginAvailable() ? (["WebCookie"] as const) : []),
     ];
 
     let instanceInput = $state("");
@@ -76,6 +79,8 @@
                 return m.loginImportKey();
             case "QrConnect":
                 return m.loginQrConnect();
+            case "WebCookie":
+                return m.loginWebCookie();
         }
     }
 

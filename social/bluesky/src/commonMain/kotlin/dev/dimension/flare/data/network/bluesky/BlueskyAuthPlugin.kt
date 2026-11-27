@@ -4,6 +4,8 @@ import com.atproto.server.RefreshSessionResponse
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.platform.BLUESKY_PLATFORM_ID
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
+import dev.dimension.flare.data.platform.toStored
 import dev.dimension.flare.data.repository.KagariLoginExpiredReasons
 import dev.dimension.flare.data.repository.LoginExpiredException
 import dev.dimension.flare.model.MicroBlogKey
@@ -40,7 +42,6 @@ import sh.christian.ozone.api.response.AtpException
 import sh.christian.ozone.api.response.AtpResponse
 import sh.christian.ozone.api.response.StatusCode
 import sh.christian.ozone.oauth.OAuthApi
-import sh.christian.ozone.oauth.OAuthToken
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
@@ -51,7 +52,7 @@ import kotlin.time.Clock
 internal class BlueskyAuthPlugin(
     private val json: Json,
     private val oauthApi: OAuthApi,
-    private val resolveOAuthPds: suspend (OAuthToken, String) -> OAuthToken,
+    private val resolveOAuthPds: suspend (StoredOAuthToken, String) -> StoredOAuthToken,
     private val accountKey: MicroBlogKey?,
     private val baseUrlFlow: Flow<String>? = null,
     private val authTokenFlow: Flow<BlueskyCredential>?,
@@ -64,7 +65,7 @@ internal class BlueskyAuthPlugin(
     class Config(
         var json: Json = BlueskyJson,
         var oauthApi: OAuthApi = OAuthApi(),
-        var resolveOAuthPds: (suspend (OAuthToken, String) -> OAuthToken)? = null,
+        var resolveOAuthPds: (suspend (StoredOAuthToken, String) -> StoredOAuthToken)? = null,
         var accountKey: MicroBlogKey? = null,
         var baseUrlFlow: Flow<String>? = null,
         var authTokenFlow: Flow<BlueskyCredential>? = null,
@@ -106,6 +107,7 @@ internal class BlueskyAuthPlugin(
                 if (credential == null || context.headers.contains(HttpHeaders.Authorization)) {
                     return@intercept execute(context)
                 }
+                plugin.requireDpopKeyPair(credential)
                 context.auth(credential, oAuthApi)
 
                 var result: HttpClientCall = execute(context)
@@ -247,11 +249,11 @@ internal class BlueskyAuthPlugin(
                             clientId = tokens.oAuthToken.clientId,
                             nonce = tokens.oAuthToken.nonce,
                             refreshToken = tokens.oAuthToken.refreshToken,
-                            keyPair = tokens.oAuthToken.keyPair,
+                            keyPair = tokens.oAuthToken.keyPair.toDpopKeyPair(),
                         ).let { refreshed ->
                             tokens.copy(
                                 oAuthToken =
-                                    refreshed.copy(
+                                    refreshed.toStored().copy(
                                         pdsUrl = tokens.oAuthToken.pdsUrl,
                                     ),
                             )
@@ -285,7 +287,7 @@ internal class BlueskyAuthPlugin(
 
             val dpopHeader =
                 oAuthApi.createDpopHeaderValue(
-                    keyPair = tokens.oAuthToken.keyPair,
+                    keyPair = tokens.oAuthToken.keyPair.toDpopKeyPair(),
                     method = method.value,
                     endpoint = url.toString(),
                     nonce = tokens.pdsNonce,
@@ -332,6 +334,22 @@ internal class BlueskyAuthPlugin(
                         )
                     resolvedCredential
                 }
+        }
+    }
+
+    private suspend fun requireDpopKeyPair(credential: BlueskyCredential) {
+        if (credential !is BlueskyCredential.OAuthCredential) return
+        try {
+            credential.oAuthToken.keyPair.toDpopKeyPair()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val key = accountKey ?: MicroBlogKey("unknown", "unknown")
+            KagariLoginExpiredReasons.record(
+                key,
+                "DPoP key: ${e.message.orEmpty()} (OAuth, ${Clock.System.now().toString().take(19)}Z)",
+            )
+            throw LoginExpiredException(key, BLUESKY_PLATFORM_ID)
         }
     }
 

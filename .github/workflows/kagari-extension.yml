@@ -1,0 +1,52 @@
+name: kagari extension
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kagari-extension-${{ github.ref }}-${{ (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[extension]') || contains(github.event.head_commit.message, '[prerelease]')) && 'build' || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  web-shared:
+    name: Web shared library
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[extension]') || contains(github.event.head_commit.message, '[prerelease]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: jetbrains
+          java-version: 25
+          cache: gradle
+
+      - name: Bluesky tests
+        run: ./gradlew :social:bluesky:jvmTest --tests '*StoredOAuthToken*' --tests '*BlueskyCredential*' --tests '*BlueskyAuth*' --tests '*BlueskySessionRefresh*' --tests '*OAuthPdsResolver*' --tests '*BlueskyProxyRouting*' --tests '*BlueskyServiceTest*' --stacktrace
+
+      - name: Build
+        run: ./gradlew :web-shared:wasmJsBrowserProductionLibraryDistribution --stacktrace
+
+      - name: Patch import object
+        run: node web/scripts/patch-kotlin-wasm-import-object.mjs
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-shared
+          path: |
+            web-shared/build/dist/wasmJs/productionLibrary
+            web-shared/build/generated/web-presenters/ts
+          retention-days: 14

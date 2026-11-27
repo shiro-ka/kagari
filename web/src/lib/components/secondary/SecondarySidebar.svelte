@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref, appUrl } from '$lib/routing';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { createSecondaryTabsPresenter } from '@flare/web-presenters/secondaryTabs.svelte';
@@ -76,7 +77,8 @@
 	}
 
 	function isHrefActive(href: string): boolean {
-		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
+		const pathname = appUrl(page.url).pathname;
+		return pathname === href || pathname.startsWith(`${href}/`);
 	}
 
 	function submitSearch(): void {
@@ -84,7 +86,7 @@
 		const params = new URLSearchParams();
 		if (next) params.set('q', next);
 		const queryString = params.toString();
-		void goto(queryString ? `/search?${queryString}` : '/search');
+		void goto(appHref(queryString ? `/search?${queryString}` : '/search'));
 	}
 </script>
 
@@ -119,7 +121,7 @@
 					</div>
 				{:else if secondaryTabs.items.type === 'Success'}
 					{#if secondaryItems.length === 0}
-						<a class="btn btn-primary btn-sm w-full" href="/login">
+						<a class="btn btn-primary btn-sm w-full" href={appHref('/login')}>
 							<FaIcon name="Follow" size={16} />
 							<span>{m.loginButton()}</span>
 						</a>
@@ -164,7 +166,7 @@
 													<a
 														class="w-full justify-start"
 														class:menu-active={isHrefActive(tab.href)}
-														href={tab.href}
+														href={appHref(tab.href)}
 														aria-current={isHrefActive(tab.href) ? 'page' : undefined}
 													>
 														<FaIcon name={tab.icon} size={16} />
@@ -194,7 +196,7 @@
 						<a
 							class="w-full justify-start"
 							class:menu-active={isHrefActive('/subscriptions')}
-							href="/subscriptions"
+							href={appHref('/subscriptions')}
 							aria-current={isHrefActive('/subscriptions') ? 'page' : undefined}
 						>
 							<FaIcon name="Rss" size={16} />
@@ -205,7 +207,7 @@
 						<a
 							class="w-full justify-start"
 							class:menu-active={isHrefActive('/history')}
-							href="/history"
+							href={appHref('/history')}
 							aria-current={isHrefActive('/history') ? 'page' : undefined}
 						>
 							<FaIcon name="ClockRotateLeft" size={16} />
@@ -216,7 +218,7 @@
 						<a
 							class="w-full justify-start"
 							class:menu-active={isHrefActive('/settings')}
-							href="/settings"
+							href={appHref('/settings')}
 							aria-current={isHrefActive('/settings') ? 'page' : undefined}
 						>
 							<FaIcon name="Settings" size={16} />

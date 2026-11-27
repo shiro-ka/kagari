@@ -23,6 +23,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.dimension.flare.R
+import dev.dimension.flare.data.model.KagariReactionLayout
+import dev.dimension.flare.data.model.KagariRemoteReactionMode
 import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.appearance.AppearanceKeys
 import dev.dimension.flare.ui.component.BackButton
@@ -222,6 +224,59 @@ internal fun AppearanceDisplayScreen(onBack: () -> Unit) {
                         checked = timelineAppearance.showEmojiReactions,
                         onCheckedChange = {
                             state.update(AppearanceKeys.ShowEmojiReactions, it)
+                        },
+                    )
+                },
+            )
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.kagari_settings_remote_reactions)) },
+                supporting = { Text(text = stringResource(id = R.string.kagari_settings_remote_reactions_description)) },
+                items =
+                    persistentMapOf(
+                        KagariRemoteReactionMode.AsIs to stringResource(id = R.string.kagari_settings_remote_reactions_as_is),
+                        KagariRemoteReactionMode.MergeIntoHeart to
+                            stringResource(id = R.string.kagari_settings_remote_reactions_merge_into_heart),
+                        KagariRemoteReactionMode.Hidden to stringResource(id = R.string.kagari_settings_remote_reactions_hidden),
+                    ),
+                selected = globalAppearance.kagariRemoteReactionMode,
+                onSelected = {
+                    state.update(AppearanceKeys.KagariRemoteReactionMode, it)
+                },
+                shapes = ListItemDefaults.item(),
+            )
+            SingleChoiceSettingsItem(
+                headline = { Text(text = stringResource(id = R.string.kagari_settings_reaction_layout)) },
+                supporting = { Text(text = stringResource(id = R.string.kagari_settings_reaction_layout_description)) },
+                items =
+                    persistentMapOf(
+                        KagariReactionLayout.FirstSixteen to
+                            stringResource(id = R.string.kagari_settings_reaction_layout_first_sixteen),
+                        KagariReactionLayout.TwoLines to stringResource(id = R.string.kagari_settings_reaction_layout_two_lines),
+                        KagariReactionLayout.OneLineScroll to
+                            stringResource(id = R.string.kagari_settings_reaction_layout_one_line_scroll),
+                    ),
+                selected = globalAppearance.kagariReactionLayout,
+                onSelected = {
+                    state.update(AppearanceKeys.KagariReactionLayout, it)
+                },
+                shapes = ListItemDefaults.item(),
+            )
+            SegmentedListItem(
+                onClick = {
+                    state.update(AppearanceKeys.KagariAvailableReactionsFirst, !globalAppearance.kagariAvailableReactionsFirst)
+                },
+                shapes = ListItemDefaults.item(),
+                content = {
+                    Text(text = stringResource(id = R.string.kagari_settings_available_reactions_first))
+                },
+                supportingContent = {
+                    Text(text = stringResource(id = R.string.kagari_settings_available_reactions_first_description))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = globalAppearance.kagariAvailableReactionsFirst,
+                        onCheckedChange = {
+                            state.update(AppearanceKeys.KagariAvailableReactionsFirst, it)
                         },
                     )
                 },

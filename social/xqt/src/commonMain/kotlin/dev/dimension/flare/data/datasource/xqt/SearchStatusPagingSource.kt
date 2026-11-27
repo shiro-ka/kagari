@@ -22,14 +22,21 @@ internal class SearchStatusPagingSource private constructor(
     private val accountKey: MicroBlogKey,
     private val query: String,
     private val quotedTweetId: String?,
+    private val product: String,
 ) : RemoteLoader<UiTimelineV2> {
-    constructor(service: TweetApi, accountKey: MicroBlogKey, query: String) : this(service, accountKey, query, null)
+    constructor(
+        service: TweetApi,
+        accountKey: MicroBlogKey,
+        query: String,
+        product: String = "Top",
+    ) : this(service, accountKey, query, null, product)
 
     constructor(service: TweetApi, accountKey: MicroBlogKey, quotedPost: MicroBlogKey) : this(
         service,
         accountKey,
         "quoted_tweet_id:${quotedPost.id}",
         quotedPost.id,
+        "Top",
     )
 
     override suspend fun load(
@@ -114,6 +121,7 @@ internal class SearchStatusPagingSource private constructor(
                 count = pageSize.toLong(),
                 cursor = cursor,
                 querySource = if (quotedTweetId == null) "typed_query" else "tdqt",
+                product = product,
             ).encodeJson(),
         referer = "https://${accountKey.host}/search?q=${query.encodeURLQueryComponent()}",
     )

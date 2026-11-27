@@ -6,6 +6,8 @@ import dev.dimension.flare.data.datasource.microblog.PostActionLayoutConfig
 import dev.dimension.flare.data.model.AvatarShape
 import dev.dimension.flare.data.model.BottomBarBehavior
 import dev.dimension.flare.data.model.BottomBarStyle
+import dev.dimension.flare.data.model.KagariReactionLayout
+import dev.dimension.flare.data.model.KagariRemoteReactionMode
 import dev.dimension.flare.data.model.KagariVerifiedBadge
 import dev.dimension.flare.data.model.PostActionStyle
 import dev.dimension.flare.data.model.Theme
@@ -32,6 +34,9 @@ public data class GlobalAppearance(
     val kagariShowHiddenReplies: Boolean = AppearanceKeys.KagariShowHiddenReplies.default,
     val kagariSearchTop: Boolean = AppearanceKeys.KagariSearchTop.default,
     val kagariShortenLinks: Boolean = AppearanceKeys.KagariShortenLinks.default,
+    val kagariRemoteReactionMode: KagariRemoteReactionMode = AppearanceKeys.KagariRemoteReactionMode.default,
+    val kagariReactionLayout: KagariReactionLayout = AppearanceKeys.KagariReactionLayout.default,
+    val kagariAvailableReactionsFirst: Boolean = AppearanceKeys.KagariAvailableReactionsFirst.default,
 ) {
     public companion object {
         public val Default: GlobalAppearance = GlobalAppearance()
@@ -96,6 +101,9 @@ public fun AppearancePatch.toGlobalAppearance(): GlobalAppearance =
         kagariShowHiddenReplies = get(AppearanceKeys.KagariShowHiddenReplies),
         kagariSearchTop = get(AppearanceKeys.KagariSearchTop),
         kagariShortenLinks = get(AppearanceKeys.KagariShortenLinks),
+        kagariRemoteReactionMode = get(AppearanceKeys.KagariRemoteReactionMode),
+        kagariReactionLayout = get(AppearanceKeys.KagariReactionLayout),
+        kagariAvailableReactionsFirst = get(AppearanceKeys.KagariAvailableReactionsFirst),
     )
 
 public fun AppearancePatch.toTimelineAppearance(): TimelineAppearance = toTimelineAppearance(override = null)

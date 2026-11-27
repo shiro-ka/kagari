@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appHref } from '$lib/routing';
 	import { createHomeTimelineWithTabsPresenterController } from '@flare/web-presenters/homeTimelineWithTabs.svelte';
 	import { tick } from 'svelte';
 	import type {
@@ -195,7 +196,7 @@
 
 			<a
 				class="btn btn-ghost btn-square btn-sm rounded-box"
-				href="/tabs"
+				href={appHref('/tabs')}
 				aria-label={m.tabSettingsTitle()}
 				title={m.tabSettingsTitle()}
 			>

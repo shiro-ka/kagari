@@ -1,6 +1,8 @@
 package dev.dimension.flare.data.network.bluesky
 
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
+import dev.dimension.flare.data.platform.toStored
 import dev.dimension.flare.data.repository.LoginExpiredException
 import dev.dimension.flare.model.MicroBlogKey
 import io.ktor.client.HttpClient
@@ -32,7 +34,6 @@ import sh.christian.ozone.api.response.StatusCode
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthApi
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -361,10 +362,10 @@ class BlueskySessionRefreshTest {
         BlueskyCredential.OAuthCredential(
             baseUrl = "https://auth.example",
             oAuthToken =
-                OAuthToken(
+                StoredOAuthToken(
                     accessToken = "access-old",
                     refreshToken = "refresh-old",
-                    keyPair = DpopKeyPair.generateKeyPair(),
+                    keyPair = DpopKeyPair.generateKeyPair().toStored(),
                     expiresIn = 10.minutes,
                     scopes = listOf(OAuthScope.AtProto),
                     subject = Did("did:plc:alice"),

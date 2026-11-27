@@ -1,6 +1,7 @@
 package dev.dimension.flare.data.network.bluesky
 
 import dev.dimension.flare.data.model.ProxyRef
+import dev.dimension.flare.data.platform.StoredOAuthToken
 import dev.dimension.flare.data.network.ktorClient
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -15,15 +16,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import sh.christian.ozone.BlueskyJson
-import sh.christian.ozone.oauth.OAuthToken
 
 private const val AT_PROTO_PDS_SERVICE_ID = "#atproto_pds"
 private const val AT_PROTO_PDS_SERVICE_TYPE = "AtprotoPersonalDataServer"
 
-internal suspend fun OAuthToken.withResolvedPds(
+internal suspend fun StoredOAuthToken.withResolvedPds(
     issuer: String,
     proxy: ProxyRef,
-): OAuthToken {
+): StoredOAuthToken {
     val httpClient =
         ktorClient(proxy) {
             followRedirects = false
@@ -36,10 +36,10 @@ internal suspend fun OAuthToken.withResolvedPds(
     }
 }
 
-internal suspend fun OAuthToken.withResolvedPds(
+internal suspend fun StoredOAuthToken.withResolvedPds(
     issuer: String,
     httpClient: HttpClient,
-): OAuthToken {
+): StoredOAuthToken {
     val issuerUrl = Url(issuer).requireHttpsOrigin("OAuth issuer")
     val did = subject.did
     val didDocument =

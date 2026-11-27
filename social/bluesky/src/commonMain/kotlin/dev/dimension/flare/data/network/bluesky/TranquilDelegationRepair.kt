@@ -3,6 +3,7 @@ package dev.dimension.flare.data.network.bluesky
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.network.ktorClient
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -25,7 +26,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import sh.christian.ozone.BlueskyJson
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import kotlin.io.encoding.Base64
 
 internal const val BLUESKY_SCOPE_ATPROTO = "atproto"
@@ -45,19 +45,19 @@ internal val FLARE_BLUESKY_DELEGATION_SCOPES =
         BLUESKY_SCOPE_TRANSITION_CHAT,
     )
 
-internal fun OAuthToken.missingFlareOAuthScopes(): List<String> {
+internal fun StoredOAuthToken.missingFlareOAuthScopes(): List<String> {
     val grantedScopes = scopes.mapTo(mutableSetOf()) { it.value }
     return FLARE_BLUESKY_DELEGATION_SCOPES.filterNot(grantedScopes::contains)
 }
 
-internal fun OAuthToken.requireFlareOAuthScopes() {
+internal fun StoredOAuthToken.requireFlareOAuthScopes() {
     val missingScopes = missingFlareOAuthScopes()
     require(missingScopes.isEmpty()) {
         "OAuth token is missing required scope(s): ${missingScopes.joinToString(" ")}"
     }
 }
 
-internal fun OAuthToken.delegationControllerDidOrNull(): String? =
+internal fun StoredOAuthToken.delegationControllerDidOrNull(): String? =
     runCatching {
         val payload =
             accessToken

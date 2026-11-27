@@ -108,7 +108,7 @@ jobs:
           apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)
           "$apksigner" verify --print-certs "$apk"
           mkdir -p "$RUNNER_TEMP/out"
-          cp "$apk" "$RUNNER_TEMP/out/kagari-${BUILD_VERSION}.apk"
+          cp "$apk" "$RUNNER_TEMP/out/${BUILD_VERSION}.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
@@ -207,13 +207,12 @@ jobs:
         run: |
           apk=$(ls apk/*.apk | head -n 1)
           version=$(basename "$apk" .apk)
-          version=${version#kagari-}
           subject=$(git log -1 --format=%s)
           flags=()
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             flags+=(--prerelease)
           fi
-          gh release create "v$version" "$apk" --title "kagari $version" --notes "$subject" --target "$GITHUB_SHA" "${flags[@]}"
+          gh release create "android-$version" "$apk" --title "Android v$version" --notes "$subject" --target "$GITHUB_SHA" "${flags[@]}"
 
       - name: Remove old releases
         if: steps.changes.outputs.app == 'true'
@@ -221,7 +220,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for pre in true false; do
-            gh release list --limit 100 --json tagName,createdAt,isPrerelease --jq "[.[] | select(.isPrerelease == $pre)] | sort_by(.createdAt) | reverse | .[10:] | .[].tagName"
+            gh release list --limit 100 --json tagName,createdAt,isPrerelease --jq "[.[] | select(.isPrerelease == $pre and (.tagName | startswith(\"android-\") or startswith(\"v\")))] | sort_by(.createdAt) | reverse | .[10:] | .[].tagName"
           done |
             while read -r tag; do
               gh release delete "$tag" --yes --cleanup-tag

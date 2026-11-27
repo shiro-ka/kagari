@@ -10,6 +10,8 @@ import dev.dimension.flare.data.model.ProxyProfile
 import dev.dimension.flare.data.model.ProxyProtocol
 import dev.dimension.flare.data.model.ProxyRef
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
+import dev.dimension.flare.data.platform.toStored
 import dev.dimension.flare.data.repository.ProxyRepository
 import dev.dimension.flare.di.startProxyTestStore
 import dev.dimension.flare.model.MicroBlogKey
@@ -27,7 +29,6 @@ import sh.christian.ozone.api.Uri
 import sh.christian.ozone.api.model.JsonContent.Companion.encodeAsJsonContent
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
@@ -105,10 +106,10 @@ class BlueskyProxyRoutingTest {
         }
 
     private suspend fun token() =
-        OAuthToken(
+        StoredOAuthToken(
             accessToken = "proxy-test-access",
             refreshToken = "proxy-test-refresh",
-            keyPair = DpopKeyPair.generateKeyPair(),
+            keyPair = DpopKeyPair.generateKeyPair().toStored(),
             expiresIn = 10.minutes,
             scopes = listOf(OAuthScope.AtProto, OAuthScope.Generic),
             subject = Did(account.id),

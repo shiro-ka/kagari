@@ -49,6 +49,7 @@ public data class GalleryDetail(
     val bookmarkAction: ClickEvent,
     val matrix: SerializableImmutableList<Matrix>,
     val translation: Translation? = null,
+    val bookmarkIcon: UiIcon? = null,
 ) {
     val onBookmark: ClickContext.() -> Unit by lazy {
         bookmarkAction.onClicked

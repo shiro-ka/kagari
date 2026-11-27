@@ -114,13 +114,19 @@ internal class PixivSearchTimelineLoader(
     service: PixivService,
     accountKey: MicroBlogKey,
     private val query: String,
+    private val sort: PixivSearchSort = PixivSearchSort.DateDesc,
 ) : PixivTimelineLoader(service, accountKey) {
-    override val pagingKey: String = "pixiv_search_${query}_$accountKey"
+    override val pagingKey: String =
+        if (sort == PixivSearchSort.DateDesc) {
+            "pixiv_search_${query}_$accountKey"
+        } else {
+            "pixiv_search_${sort.name}_${query}_$accountKey"
+        }
 
     override suspend fun loadFirstPage(pageSize: Int): PixivIllustListResponse =
         service.searchIllusts(
             word = query,
-            sort = PixivSearchSort.DateDesc,
+            sort = sort,
         )
 }
 

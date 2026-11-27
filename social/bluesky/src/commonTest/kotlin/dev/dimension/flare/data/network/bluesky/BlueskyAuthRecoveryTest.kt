@@ -1,6 +1,8 @@
 package dev.dimension.flare.data.network.bluesky
 
 import dev.dimension.flare.data.platform.BlueskyCredential
+import dev.dimension.flare.data.platform.StoredOAuthToken
+import dev.dimension.flare.data.platform.toStored
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -24,7 +26,6 @@ import sh.christian.ozone.api.Did
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthApi
 import sh.christian.ozone.oauth.OAuthScope
-import sh.christian.ozone.oauth.OAuthToken
 import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -361,10 +362,10 @@ class BlueskyAuthRecoveryTest {
                 BlueskyCredential.OAuthCredential(
                     baseUrl = "https://auth.example",
                     oAuthToken =
-                        OAuthToken(
+                        StoredOAuthToken(
                             accessToken = "access-old",
                             refreshToken = "refresh-old",
-                            keyPair = DpopKeyPair.generateKeyPair(),
+                            keyPair = DpopKeyPair.generateKeyPair().toStored(),
                             expiresIn = 10.minutes,
                             scopes = listOf(OAuthScope.AtProto),
                             subject = Did("did:plc:alice"),

@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "kagari",
+  "version": "0.0.1",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "kagari@lab49",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": [
+          "personalCommunications",
+          "authenticationInfo"
+        ]
+      },
+      "update_url": "https://github.com/shiro-ka/kagari/releases/download/extension-dev/updates.json"
+    }
+  },
+  "action": {
+    "default_title": "kagari"
+  },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "cookies",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "host_permissions": [
+    "https://kagari.pages.dev/*",
+    "https://x.com/*",
+    "https://api.x.com/*",
+    "https://upload.x.com/*",
+    "https://app-api.pixiv.net/*",
+    "https://oauth.secure.pixiv.net/*",
+    "https://i.pximg.net/*"
+  ]
+}
