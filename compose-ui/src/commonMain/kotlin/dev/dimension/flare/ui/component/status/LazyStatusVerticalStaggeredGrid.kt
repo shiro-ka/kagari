@@ -145,6 +145,7 @@ public fun LazyStatusVerticalStaggeredGrid(
         LocalMultipleColumns provides bigScreen,
         LocalEffectiveTimelineDisplayMode provides effectiveMode,
         LocalTimelineReverseLayout provides reverseLayout,
+        LocalReversedTimelineState provides if (reverseLayout) state else null,
     ) {
         LazyVerticalStaggeredGrid(
             modifier =

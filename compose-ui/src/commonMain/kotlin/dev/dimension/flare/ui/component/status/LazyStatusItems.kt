@@ -76,7 +76,7 @@ public fun LazyStaggeredGridScope.status(
                         original
                     }
                 val mode = LocalEffectiveTimelineDisplayMode.current
-                val itemModifier = item?.let { Modifier.testTag("timeline-item:${it.stableItemKey}") } ?: Modifier
+                val itemModifier = (item?.let { Modifier.testTag("timeline-item:${it.stableItemKey}") } ?: Modifier).growDownwardInReversedTimeline()
                 if (mode == TimelineDisplayMode.Gallery && item?.isPaginationGap != true) {
                     GalleryTimelineItem(item = item, modifier = itemModifier)
                 } else {
