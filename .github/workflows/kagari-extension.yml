@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: ./gradlew :web-shared:wasmJsBrowserProductionLibraryDistribution --stacktrace
 
+      - name: Patch import object
+        run: node web/scripts/patch-kotlin-wasm-import-object.mjs
+
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
