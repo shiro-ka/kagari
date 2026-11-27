@@ -14,6 +14,7 @@ import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.Headers
 import io.ktor.utils.io.InternalAPI
+import kotlin.js.ExperimentalWasmJsInterop
 
 internal actual val platformEngineCapabilities: Set<HttpClientEngineCapability<*>> =
     setOf(HttpTimeoutCapability, WebSocketCapability, SSECapability)
@@ -27,6 +28,7 @@ internal actual fun createPlatformHttpClientEngine(
     return if (isBrowserExtension()) ExtensionHeaderEngine(engine) else engine
 }
 
+@OptIn(ExperimentalWasmJsInterop::class)
 private fun isBrowserExtension(): Boolean = js("globalThis.location?.protocol === 'moz-extension:'")
 
 private const val EXTENSION_HEADER_PREFIX = "x-kagari-h-"
