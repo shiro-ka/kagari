@@ -10,6 +10,7 @@
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale",
     "dev": "pnpm kotlin:build:dev && vite dev",
     "build": "pnpm kotlin:build:prod && pnpm kotlin:patch:prod && FLARE_WEB_SHARED_LIBRARY=productionLibrary vite build",
+    "build:extension": "node scripts/build-extension.mjs",
     "preview": "vite preview",
     "prepare": "pnpm i18n:compile && svelte-kit sync || echo ''",
     "check": "pnpm kotlin:build:dev && pnpm i18n:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
