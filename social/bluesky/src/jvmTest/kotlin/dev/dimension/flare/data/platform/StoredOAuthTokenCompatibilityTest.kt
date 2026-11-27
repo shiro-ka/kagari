@@ -1,6 +1,5 @@
 package dev.dimension.flare.data.platform
 
-import io.ktor.util.encodeBase64
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -9,6 +8,7 @@ import sh.christian.ozone.api.Did
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthScope
 import sh.christian.ozone.oauth.OAuthToken
+import kotlin.io.encoding.Base64
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -89,7 +89,7 @@ class StoredOAuthTokenCompatibilityTest {
             val payload = """{"client_id":"https://client.example/metadata.json","aud":"did:web:pds.example"}"""
             val token =
                 oauthToken(DpopKeyPair.generateKeyPair())
-                    .copy(accessToken = "header.${payload.encodeBase64()}.signature")
+                    .copy(accessToken = "header.${Base64.Default.encode(payload.encodeToByteArray())}.signature")
             val saved =
                 BlueskyJson
                     .encodeToJsonElement(OAuthToken.serializer(), token)

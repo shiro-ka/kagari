@@ -3,9 +3,6 @@ package dev.dimension.flare.data.platform
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
 import io.ktor.http.buildUrl
-import io.ktor.util.decodeBase64Bytes
-import io.ktor.util.decodeBase64String
-import io.ktor.util.encodeBase64
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -21,6 +18,7 @@ import sh.christian.ozone.api.Did
 import sh.christian.ozone.oauth.DpopKeyPair
 import sh.christian.ozone.oauth.OAuthScope
 import sh.christian.ozone.oauth.OAuthToken
+import kotlin.io.encoding.Base64
 import kotlin.time.Duration
 
 @Serializable
@@ -67,9 +65,9 @@ internal class StoredDpopKeyPair(
         dpopKeyPair
             ?: DpopKeyPair
                 .fromKeyPair(
-                    publicKey = publicKey.decodeBase64Bytes(),
+                    publicKey = Base64.Default.decode(publicKey),
                     publicKeyFormat = DpopKeyPair.PublicKeyFormat.DER,
-                    privateKey = privateKey.decodeBase64Bytes(),
+                    privateKey = Base64.Default.decode(privateKey),
                     privateKeyFormat = DpopKeyPair.PrivateKeyFormat.DER,
                 ).also { dpopKeyPair = it }
 
@@ -83,8 +81,8 @@ internal class StoredDpopKeyPair(
 
 internal suspend fun DpopKeyPair.toStored(): StoredDpopKeyPair =
     StoredDpopKeyPair(
-        publicKey = publicKey(DpopKeyPair.PublicKeyFormat.DER).encodeBase64(),
-        privateKey = privateKey(DpopKeyPair.PrivateKeyFormat.DER).encodeBase64(),
+        publicKey = Base64.Default.encode(publicKey(DpopKeyPair.PublicKeyFormat.DER)),
+        privateKey = Base64.Default.encode(privateKey(DpopKeyPair.PrivateKeyFormat.DER)),
     ).also { it.dpopKeyPair = this }
 
 internal object StoredDpopKeyPairSerializer : KSerializer<StoredDpopKeyPair> {
@@ -106,10 +104,15 @@ internal object StoredDpopKeyPairSerializer : KSerializer<StoredDpopKeyPair> {
     }
 }
 
+private val jwtPayloadBase64 = Base64.Default.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL)
+
 private fun String.jwtClaim(key: String): String? {
     val payload = split(".").getOrNull(1) ?: return null
     return runCatching {
-        Json.decodeFromString(JsonObject.serializer(), payload.decodeBase64String())
+        Json.decodeFromString(
+            JsonObject.serializer(),
+            jwtPayloadBase64.decode(payload.replace('-', '+').replace('_', '/')).decodeToString(),
+        )
     }.getOrNull()
         ?.get(key)
         ?.let { (it as? JsonPrimitive)?.contentOrNull }
