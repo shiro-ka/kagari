@@ -7,7 +7,10 @@
       "id": "kagari@lab49",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
-        "required": ["personalCommunications", "authenticationInfo"]
+        "required": [
+          "personalCommunications",
+          "authenticationInfo"
+        ]
       },
       "update_url": "https://github.com/shiro-ka/kagari/releases/download/extension-dev/updates.json"
     }
@@ -16,10 +19,21 @@
     "default_title": "kagari"
   },
   "background": {
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
-  "permissions": ["storage", "unlimitedStorage", "tabs"],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  },
+  "host_permissions": [
+    "https://kagari.pages.dev/*"
+  ]
 }

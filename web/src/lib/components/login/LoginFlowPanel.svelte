@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { appHref } from '$lib/routing';
+    import { appHref } from "$lib/routing";
     import { browser } from "$app/env";
     import { goto } from "$app/navigation";
     import { untrack } from "svelte";
     import {
-        loginRedirectUri,
+        LOGIN_REDIRECT_URI,
         saveLoginOAuthContext,
         type LoginMethodType,
     } from "$lib/login/oauthContext";
@@ -27,7 +27,7 @@
     const initialPlatformId = untrack(() => platformId);
     const initialHost = untrack(() => host);
     const initialMethodType = untrack(() => methodType);
-    const redirectUri = browser ? loginRedirectUri(initialPlatformId) : null;
+    const redirectUri = LOGIN_REDIRECT_URI;
     let qrContent = $state<string | null>(null);
     const loginFlow = createLoginFlowPresenter(
         initialPlatformId,

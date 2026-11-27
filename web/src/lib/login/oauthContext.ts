@@ -12,13 +12,7 @@ export type LoginOAuthContext = {
     methodType: LoginMethodType;
 };
 
-export function loginCallbackPath(platformId: string): string {
-    return `/login/callback/${platformId.toLowerCase()}`;
-}
-
-export function loginRedirectUri(platformId: string): string {
-    return `${globalThis.location.origin}${loginCallbackPath(platformId)}`;
-}
+export const LOGIN_REDIRECT_URI = "https://kagari.pages.dev/callback";
 
 export function loadLoginOAuthContext(): LoginOAuthContext | null {
     const raw = globalThis.sessionStorage?.getItem(LOGIN_OAUTH_CONTEXT_KEY);

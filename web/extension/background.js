@@ -8,3 +8,13 @@ browser.action.onClicked.addListener(async () => {
 	}
 	await browser.tabs.create({ url });
 });
+
+browser.webRequest.onBeforeRequest.addListener(
+	(details) => {
+		const target = `index.html#/login/callback/oauth${new URL(details.url).search}`;
+		void browser.tabs.update(details.tabId, { url: browser.runtime.getURL(target) });
+		return { cancel: true };
+	},
+	{ urls: ['https://kagari.pages.dev/callback*'], types: ['main_frame'] },
+	['blocking']
+);

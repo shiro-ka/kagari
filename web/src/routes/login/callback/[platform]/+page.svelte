@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { appHref } from '$lib/routing';
+    import { appHref, appUrl } from "$lib/routing";
+    import { page } from "$app/state";
     import { browser } from "$app/env";
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
@@ -10,18 +11,18 @@
     import {
         clearLoginOAuthContext,
         loadLoginOAuthContext,
-        loginRedirectUri,
+        LOGIN_REDIRECT_URI,
     } from "$lib/login/oauthContext";
     import { createLoginFlowPresenter } from "@flare/web-presenters/loginFlow.svelte";
 
     const context = browser ? loadLoginOAuthContext() : null;
-    const callbackUrl = browser ? globalThis.location.href : "";
+    const callbackUrl = browser ? `${LOGIN_REDIRECT_URI}${appUrl(page.url).search}` : "";
     const loginFlow = context
         ? createLoginFlowPresenter(
               context.platformId,
               context.host,
               context.methodType,
-              browser ? loginRedirectUri(context.platformId) : null,
+              LOGIN_REDIRECT_URI,
               () => {},
               () => {},
               () => {},
