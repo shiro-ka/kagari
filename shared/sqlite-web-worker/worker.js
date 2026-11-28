@@ -93,12 +93,18 @@ function prepareRequest(id, requestData) {
   }
 }
 
+function autocommitOf(databaseId) {
+  const database = databases.get(databaseId);
+  return database ? sqlite3.capi.sqlite3_get_autocommit(database.pointer) !== 0 : true;
+}
+
 function stepRequest(id, requestData) {
   const statement = statements.get(requestData.statementId);
   if (!statement) {
     postMessage({ id, error: `Invalid statement ID: ${requestData.statementId}` });
     return;
   }
+  const databaseId = statementDatabases.get(requestData.statementId);
   try {
     const resultData = {
       rows: [],
@@ -117,9 +123,9 @@ function stepRequest(id, requestData) {
       }
       resultData.rows.push(statement.get([]));
     }
-    postMessage({ id, data: resultData });
+    postMessage({ id, data: resultData, databaseId, autocommit: autocommitOf(databaseId) });
   } catch (error) {
-    postMessage({ id, error: error.message });
+    postMessage({ id, error: error.message, databaseId, autocommit: autocommitOf(databaseId) });
   }
 }
 
@@ -163,8 +169,8 @@ function closeRequest(id, requestData) {
       postMessage({ id, error: error.message });
       return;
     }
-    postMessage({ id, data: null });
   }
+  postMessage({ id, data: null });
 }
 
 const commandMap = {

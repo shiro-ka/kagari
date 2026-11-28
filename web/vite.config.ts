@@ -11,6 +11,9 @@ const webSharedLibrary = process.env.FLARE_WEB_SHARED_LIBRARY ?? 'developmentLib
 const sqliteWebWorker = decodeURI(
 	new URL('../shared/sqlite-web-worker/worker.js', import.meta.url).pathname
 );
+const sqliteSharedWorker = decodeURI(
+	new URL('../shared/sqlite-web-worker/shared-worker.js', import.meta.url).pathname
+);
 const sqliteWasm = decodeURI(
 	new URL('./node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs', import.meta.url).pathname
 );
@@ -95,6 +98,7 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			'@androidx/sqlite-web-worker/worker.js': sqliteWebWorker,
+			'@androidx/sqlite-web-worker/shared-worker.js': sqliteSharedWorker,
 			'@js-joda/core': jsJoda,
 			'@sqlite.org/sqlite-wasm': sqliteWasm,
 			ws: wsBrowser
