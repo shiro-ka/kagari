@@ -7,7 +7,7 @@
     "kotlin:build:dev": "../gradlew -p .. :web-shared:wasmJsBrowserDevelopmentLibraryDistribution",
     "kotlin:build:prod": "../gradlew -p .. :web-shared:wasmJsBrowserProductionLibraryDistribution",
     "kotlin:patch:prod": "node scripts/patch-kotlin-wasm-import-object.mjs",
-    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy localStorage preferredLanguage baseLocale",
+    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy custom-browserLanguage baseLocale",
     "dev": "pnpm kotlin:build:dev && vite dev",
     "build": "pnpm kotlin:build:prod && pnpm kotlin:patch:prod && FLARE_WEB_SHARED_LIBRARY=productionLibrary vite build",
     "build:extension": "node scripts/build-extension.mjs",
