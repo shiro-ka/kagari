@@ -18,6 +18,11 @@
   "action": {
     "default_title": "kagari"
   },
+  "sidebar_action": {
+    "default_title": "kagari",
+    "default_panel": "index.html",
+    "open_at_install": false
+  },
   "background": {
     "scripts": [
       "background.js"
