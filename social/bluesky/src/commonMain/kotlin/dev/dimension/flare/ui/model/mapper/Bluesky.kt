@@ -963,20 +963,13 @@ internal fun PostView.render(
                 ),
                 ActionMenu.Group(
                     displayItem =
-                        ActionMenu.Item(
-                            icon = if (viewer?.repost?.atUri != null) UiIcon.Unretweet else UiIcon.Retweet,
-                            text =
-                                ActionMenu.Item.Text.Localized(
-                                    if (viewer?.repost?.atUri !=
-                                        null
-                                    ) {
-                                        ActionMenu.Item.Text.Localized.Type.Unretweet
-                                    } else {
-                                        ActionMenu.Item.Text.Localized.Type.Retweet
-                                    },
-                                ),
-                            count = UiNumber(repostCount ?: 0),
-                            color = if (viewer?.repost?.atUri != null) ActionMenu.Item.Color.PrimaryColor else null,
+                        ActionMenu.blueskyReblog(
+                            accountKey = accountKey,
+                            postKey = statusKey,
+                            cid = cid.cid,
+                            uri = uri.atUri,
+                            count = repostCount ?: 0,
+                            repostUri = viewer?.repost?.atUri,
                         ),
                     actions =
                         listOfNotNull(
@@ -1666,10 +1659,13 @@ private fun render(
                         ),
                         ActionMenu.Group(
                             displayItem =
-                                ActionMenu.Item(
-                                    icon = UiIcon.Retweet,
-                                    text = ActionMenu.Item.Text.Localized(ActionMenu.Item.Text.Localized.Type.Retweet),
-                                    count = UiNumber(record.value.repostCount ?: 0),
+                                ActionMenu.blueskyReblog(
+                                    accountKey = accountKey,
+                                    postKey = statusKey,
+                                    cid = record.value.cid.cid,
+                                    uri = record.value.uri.atUri,
+                                    count = record.value.repostCount ?: 0,
+                                    repostUri = null,
                                 ),
                             actions =
                                 listOfNotNull(
