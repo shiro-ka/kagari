@@ -22,7 +22,6 @@ const databases = new Map();
 const statements = new Map();
 const statementDatabases = new Map();
 const databaseWrites = new Map();
-let touching = false;
 
 let nextDatabaseId = 0;
 let nextStatementId = 0;
@@ -102,7 +101,7 @@ function watchWrites(databaseId, database) {
   sqlite3.capi.sqlite3_update_hook(
     database.pointer,
     (_context, _operation, schema, table) => {
-      if (!touching && schema === "main") writes.add(table);
+      if (schema === "main") writes.add(table);
     },
     0,
   );
@@ -119,20 +118,22 @@ function takeWrites(databaseId) {
 
 function touchRequest(id, requestData) {
   const database = databases.get(requestData.databaseId);
-  if (database) {
-    touching = true;
-    try {
+  try {
+    const tracked = database?.selectValue(
+      "SELECT 1 FROM temp.sqlite_master WHERE type = 'table' AND name = 'room_table_modification_log'",
+    );
+    if (tracked) {
       for (const table of requestData.tables) {
-        const quoted = `"${table.replaceAll('"', '""')}"`;
-        try {
-          database.exec(`UPDATE ${quoted} SET rowid = rowid WHERE rowid = (SELECT rowid FROM ${quoted} LIMIT 1)`);
-        } catch (error) {
-          console.error("touch failed", table, error);
-        }
+        database.exec({
+          sql: `UPDATE temp.room_table_modification_log SET invalidated = 1 WHERE table_id IN (
+            SELECT CAST(substr(sql, instr(sql, 'table_id = ') + 11) AS INTEGER) FROM temp.sqlite_master
+            WHERE type = 'trigger' AND tbl_name = ? COLLATE NOCASE AND instr(sql, 'table_id = ') > 0)`,
+          bind: [table],
+        });
       }
-    } finally {
-      touching = false;
     }
+  } catch (error) {
+    console.error("touch failed", requestData.tables, error);
   }
   postMessage({ id, data: null });
 }
