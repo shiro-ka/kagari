@@ -19,6 +19,7 @@ internal fun provideAppDatabase(driverFactory: DriverFactory): AppDatabase =
         ).setDriver(createDatabaseDriver())
         .setQueryCoroutineContext(PlatformDispatchers.IO)
         .build()
+        .apply { refreshOnWritesFromOtherPages() }
 
 internal const val CACHE_DATABASE_NAME = "cache.db"
 

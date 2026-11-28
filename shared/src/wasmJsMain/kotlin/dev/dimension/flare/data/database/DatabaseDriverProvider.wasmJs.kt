@@ -1,5 +1,6 @@
 package dev.dimension.flare.data.database
 
+import androidx.room3.RoomDatabase
 import androidx.sqlite.SQLiteDriver
 import androidx.sqlite.driver.web.WebWorkerSQLiteDriver
 import org.w3c.dom.Worker
@@ -23,3 +24,11 @@ private fun createSQLiteWorker(): Worker =
             "return port; " +
             "})() : new Worker(new URL('@androidx/sqlite-web-worker/worker.js', import.meta.url), { type: 'module' })",
     )
+
+internal actual fun RoomDatabase.refreshOnWritesFromOtherPages() {
+    listenSQLiteWrites { invalidationTracker.refreshAsync() }
+}
+
+@OptIn(ExperimentalWasmJsInterop::class)
+private fun listenSQLiteWrites(onWrite: () -> Unit): Unit =
+    js("void (new BroadcastChannel('kagari-sqlite-writes').onmessage = () => onWrite())")

@@ -21,6 +21,8 @@ let sqlite3 = null;
 const databases = new Map();
 const statements = new Map();
 const statementDatabases = new Map();
+const databaseWrites = new Map();
+let touching = false;
 
 let nextDatabaseId = 0;
 let nextStatementId = 0;
@@ -61,6 +63,7 @@ async function openRequest(id, requestData) {
     const newDatabaseId = nextDatabaseId++;
     const newDatabase = await createDatabase(requestData.fileName);
     databases.set(newDatabaseId, newDatabase);
+    watchWrites(newDatabaseId, newDatabase);
     postMessage({ id, data: { databaseId: newDatabaseId } });
   } catch (error) {
     postMessage({ id, error: error.message });
@@ -93,6 +96,47 @@ function prepareRequest(id, requestData) {
   }
 }
 
+function watchWrites(databaseId, database) {
+  const writes = new Set();
+  databaseWrites.set(databaseId, writes);
+  sqlite3.capi.sqlite3_update_hook(
+    database.pointer,
+    (_context, _operation, schema, table) => {
+      if (!touching && schema === "main") writes.add(table);
+    },
+    0,
+  );
+  sqlite3.capi.sqlite3_rollback_hook(database.pointer, () => writes.clear(), 0);
+}
+
+function takeWrites(databaseId) {
+  const writes = databaseWrites.get(databaseId);
+  if (!writes || writes.size === 0 || !autocommitOf(databaseId)) return undefined;
+  const tables = Array.from(writes);
+  writes.clear();
+  return tables;
+}
+
+function touchRequest(id, requestData) {
+  const database = databases.get(requestData.databaseId);
+  if (database) {
+    touching = true;
+    try {
+      for (const table of requestData.tables) {
+        const quoted = `"${table.replaceAll('"', '""')}"`;
+        try {
+          database.exec(`UPDATE ${quoted} SET rowid = rowid WHERE rowid = (SELECT rowid FROM ${quoted} LIMIT 1)`);
+        } catch (error) {
+          console.error("touch failed", table, error);
+        }
+      }
+    } finally {
+      touching = false;
+    }
+  }
+  postMessage({ id, data: null });
+}
+
 function autocommitOf(databaseId) {
   const database = databases.get(databaseId);
   return database ? sqlite3.capi.sqlite3_get_autocommit(database.pointer) !== 0 : true;
@@ -123,7 +167,13 @@ function stepRequest(id, requestData) {
       }
       resultData.rows.push(statement.get([]));
     }
-    postMessage({ id, data: resultData, databaseId, autocommit: autocommitOf(databaseId) });
+    postMessage({
+      id,
+      data: resultData,
+      databaseId,
+      autocommit: autocommitOf(databaseId),
+      writes: takeWrites(databaseId),
+    });
   } catch (error) {
     postMessage({ id, error: error.message, databaseId, autocommit: autocommitOf(databaseId) });
   }
@@ -165,6 +215,7 @@ function closeRequest(id, requestData) {
       }
       database.close();
       databases.delete(requestData.databaseId);
+      databaseWrites.delete(requestData.databaseId);
     } catch (error) {
       postMessage({ id, error: error.message });
       return;
@@ -178,6 +229,7 @@ const commandMap = {
   prepare: prepareRequest,
   step: stepRequest,
   close: closeRequest,
+  touch: touchRequest,
 };
 
 function handleMessage(e) {

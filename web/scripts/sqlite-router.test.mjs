@@ -108,3 +108,72 @@ test('when the worker stops, every waiting request gets an error', () => {
 	router.receive(a.handle, { id: 1, data: { cmd: 'prepare', databaseId: 0, sql: 'SELECT 1' } });
 	assert.equal(a.received.at(-1).error, 'boom');
 });
+
+test('a write to a shared file touches the same tables on the other pages and then announces it', () => {
+	const sent = [];
+	const shared = [];
+	const router = createRouter((message) => sent.push(message), {
+		sharedFiles: new Set(['app.db']),
+		onShared: (fileName) => shared.push(fileName)
+	});
+	const answer = (extra = {}) => router.innerMessage({ id: sent.at(-1).id, data: null, ...extra });
+	const a = router.addClient(() => {});
+	const b = router.addClient(() => {});
+	const c = router.addClient(() => {});
+	router.receive(a, { id: 0, data: { cmd: 'open', fileName: 'app.db' } });
+	answer({ data: { databaseId: 0 } });
+	router.receive(b, { id: 0, data: { cmd: 'open', fileName: 'app.db' } });
+	answer({ data: { databaseId: 1 } });
+	router.receive(c, { id: 0, data: { cmd: 'open', fileName: 'cache.db' } });
+	answer({ data: { databaseId: 2 } });
+
+	router.receive(a, { id: 1, data: { cmd: 'step', statementId: 0, bindings: [] } });
+	answer({ data: { rows: [] }, databaseId: 0, autocommit: true, writes: ['DbAccount'] });
+	assert.deepEqual(sent.at(-1).data, { cmd: 'touch', databaseId: 1, tables: ['DbAccount'] });
+	assert.deepEqual(shared, []);
+	answer();
+	assert.deepEqual(shared, ['app.db']);
+});
+
+test('writes to a file that is not shared are not passed on', () => {
+	const sent = [];
+	const router = createRouter((message) => sent.push(message), { sharedFiles: new Set(['app.db']) });
+	const answer = (extra = {}) => router.innerMessage({ id: sent.at(-1).id, data: null, ...extra });
+	const a = router.addClient(() => {});
+	const b = router.addClient(() => {});
+	router.receive(a, { id: 0, data: { cmd: 'open', fileName: 'cache.db' } });
+	answer({ data: { databaseId: 0 } });
+	router.receive(b, { id: 0, data: { cmd: 'open', fileName: 'cache.db' } });
+	answer({ data: { databaseId: 1 } });
+	const before = sent.length;
+	router.receive(a, { id: 1, data: { cmd: 'step', statementId: 0, bindings: [] } });
+	answer({ data: { rows: [] }, databaseId: 0, autocommit: true, writes: ['DbStatus'] });
+	assert.equal(sent.length, before + 1);
+});
+
+test('passing a write on waits while another page is inside a transaction', () => {
+	const sent = [];
+	const router = createRouter((message) => sent.push(message), { sharedFiles: new Set(['app.db']) });
+	const answer = (extra = {}) => router.innerMessage({ id: sent.at(-1).id, data: null, ...extra });
+	const aReceived = [];
+	const a = router.addClient((message) => aReceived.push(message));
+	const b = router.addClient(() => {});
+	router.receive(a, { id: 0, data: { cmd: 'open', fileName: 'app.db' } });
+	answer({ data: { databaseId: 0 } });
+	router.receive(b, { id: 0, data: { cmd: 'open', fileName: 'app.db' } });
+	answer({ data: { databaseId: 1 } });
+
+	router.receive(a, { id: 1, data: { cmd: 'step', statementId: 0, bindings: [] } });
+	router.receive(a, { id: 2, data: { cmd: 'step', statementId: 1, bindings: [] } });
+	answer({ data: { rows: [] }, databaseId: 0, autocommit: true, writes: ['DbAccount'] });
+	assert.equal(sent.at(-1).data.statementId, 1);
+	answer({ data: { rows: [] }, databaseId: 0, autocommit: false });
+	assert.equal(sent.at(-1).data.statementId, 1);
+
+	router.receive(a, { id: 3, data: { cmd: 'step', statementId: 2, bindings: [] } });
+	assert.equal(sent.at(-1).data.statementId, 2);
+	answer({ data: { rows: [] }, databaseId: 0, autocommit: true });
+	assert.deepEqual(sent.at(-1).data, { cmd: 'touch', databaseId: 1, tables: ['DbAccount'] });
+	answer();
+	assert.equal(aReceived.length, 4);
+});

@@ -1,7 +1,11 @@
 import { createRouter } from "./router.js";
 
 const inner = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
-const router = createRouter((message) => inner.postMessage(message));
+const writes = new BroadcastChannel("kagari-sqlite-writes");
+const router = createRouter((message) => inner.postMessage(message), {
+  sharedFiles: new Set(["app.db"]),
+  onShared: (fileName) => writes.postMessage(fileName),
+});
 
 inner.onmessage = (event) => router.innerMessage(event.data);
 inner.onerror = (event) => router.innerFailed(event.message);
