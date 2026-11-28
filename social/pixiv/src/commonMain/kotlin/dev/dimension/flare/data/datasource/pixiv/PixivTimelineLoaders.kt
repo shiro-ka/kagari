@@ -84,6 +84,7 @@ internal class PixivRankingTimelineLoader(
     private val mode: PixivRankingMode,
 ) : PixivTimelineLoader(service, accountKey) {
     override val pagingKey: String = "pixiv_ranking_${mode.value}_$accountKey"
+    override val replacesOnRefresh: Boolean = true
 
     override suspend fun loadFirstPage(pageSize: Int): PixivIllustListResponse =
         service.rankingIllusts(

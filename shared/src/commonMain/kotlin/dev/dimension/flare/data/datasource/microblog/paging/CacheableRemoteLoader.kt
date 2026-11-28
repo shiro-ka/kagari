@@ -9,6 +9,8 @@ public interface CacheableRemoteLoader<T : Any> : RemoteLoader<T> {
         get() = null
     public val canJoinTimeline: Boolean
         get() = false
+    public val replacesOnRefresh: Boolean
+        get() = false
     public val refreshGapOncePerSession: Boolean
         get() = false
     public val supportPrepend: Boolean

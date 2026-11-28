@@ -63,7 +63,7 @@ internal open class TimelineRemoteMediator(
     private val notifyError: (Throwable) -> Unit = {},
     private val preTranslationService: PreTranslationService = NoopPreTranslationService,
     private val refreshOnInitialize: suspend () -> Boolean = { true },
-    private val retainHistory: Boolean? = null,
+    retainHistory: Boolean? = null,
     private val accountKeys: Set<MicroBlogKey> = emptySet(),
     private val refreshSession: HomeTimelineRefreshSessions.Session? = null,
     private val retainedHome: suspend () -> TimelineRemoteMediator? = { null },
@@ -76,6 +76,7 @@ internal open class TimelineRemoteMediator(
         database = database,
     ),
     RemoteLoader<DbPagingTimelineWithStatus> {
+    private val retainHistory = retainHistory.takeUnless { loader.replacesOnRefresh }
     private var suppressInitialPrepend = false
     private var refreshSharedHomeOnPrepend = false
     private val mixedPageLoader = (loader as? MixedRemoteMediator)?.pageLoader()
@@ -256,7 +257,7 @@ internal open class TimelineRemoteMediator(
                     }
                     if (retainHistory == true) {
                         val gap =
-                            if (loadType == LoadType.REFRESH && first != null && hasNewHead && gapNext != null) {
+                            if (fillsGaps && loadType == LoadType.REFRESH && first != null && hasNewHead && gapNext != null) {
                                 UiTimelineV2.Gap(
                                     statusKey = MicroBlogKey(Uuid.random().toString(), "timeline-gap"),
                                     createdAt = Clock.System.now().toUi(),
