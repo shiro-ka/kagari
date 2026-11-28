@@ -443,7 +443,7 @@
   "settingsLocalFilterRegex": "Regex",
   "settingsLocalFilterCancelEdit": "キャンセル",
   "settingsLocalFilterSave": "完了",
-  "settingsLocalFilterAdd": "リレーを追加",
+  "settingsLocalFilterAdd": "追加",
   "settingsLocalFilterRules": "ルール",
   "settingsLocalFilterLoading": "フィルターを読み込み中",
   "settingsLocalFilterLoadError": "フィルターを読み込めませんでした。",
