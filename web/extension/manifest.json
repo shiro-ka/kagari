@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "kagari",
-  "version": "0.0.1",
+  "version": "0.1",
   "browser_specific_settings": {
     "gecko": {
       "id": "kagari@lab49",
@@ -12,7 +12,7 @@
           "authenticationInfo"
         ]
       },
-      "update_url": "https://github.com/shiro-ka/kagari/releases/download/extension-dev/updates.json"
+      "update_url": "https://github.com/shiro-ka/kagari/releases/download/firefox-kagari/updates.json"
     }
   },
   "action": {
